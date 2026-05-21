@@ -1,0 +1,53 @@
+{
+  "name": "hongs-form",
+  "version": "0.1.0",
+  "description": "Minimalist form validation library based on JSON Schema patterns",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "form",
+    "schema",
+    "json-schema",
+    "validation",
+    "validator",
+    "validate",
+    "typescript",
+    "javascript"
+  ],
+  "author": "Hongs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihongs/HongsForm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ihongs/HongsForm/issues"
+  },
+  "homepage": "https://github.com/ihongs/HongsForm#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  }
+}
