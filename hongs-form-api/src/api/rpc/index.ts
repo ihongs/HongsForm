@@ -151,3 +151,4 @@ export function registerMethod(name: string, handler: RpcHandler): void {
 import './methods/user.js';
 import './methods/form.js';
 import './methods/formData.js';
+import './methods/test.js';
