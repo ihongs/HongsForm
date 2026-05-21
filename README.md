@@ -10,7 +10,7 @@ HongsForm/
 ├── hongs-form-api/       # API 服务端 (JSON-RPC 2.0, MCP)
 ├── hongs-form-web-admin/ # 管理后台
 ├── hongs-form-web-agent/ # 代理服务
-└── hongs-form-web-form   # 表单填报
+└── hongs-form-web-form/  # 表单填报
 ```
 
 ## 技术栈
