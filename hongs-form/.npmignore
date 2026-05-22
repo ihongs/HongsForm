@@ -1,6 +1,6 @@
 src/
 test/
-*.config.*
 tsconfig.json
+*.config.*
 .gitignore
 README.md
