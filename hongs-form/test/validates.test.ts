@@ -96,6 +96,25 @@ describe('isObject - 收集多个字段错误', () => {
     expect(() => validate('abc', { type: 'object' }, {})).toThrow('Must be object');
   });
 
+  it('required 数组收集字段级错误', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      required: ['name', 'rating'],
+      properties: {
+        name: { type: 'string' },
+        rating: { type: 'integer' },
+      },
+    };
+
+    try {
+      validate({ name: 'test' }, schema, {});
+    } catch (err) {
+      const verr = err as VError;
+      expect(verr.message).toBe('Some properties are invalid');
+      expect(verr.toMap()).toEqual({ rating: 'Required' });
+    }
+  });
+
   it('收集多个字段的错误，放入 errors 对象（嵌套结构）', () => {
     const schema: FormSchema = {
       properties: {

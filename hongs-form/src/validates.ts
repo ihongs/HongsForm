@@ -46,10 +46,21 @@ export const requires: Validate = function (value: any, schema: any, modes: VMod
     if (!schema.required || !Array.isArray(schema.required)) return value;
     if (typeof value !== 'object' || value === null) return value;
 
+    const errors: Record<string, unknown> = {};
     for (const field of schema.required) {
         if (modes.patchMode && value[field] === undefined) continue;
-        required(value[field], {}, modes); // 复用 required 逻辑
+        try {
+            required(value[field], {}, modes);
+        } catch (err) {
+            errors[field] = err instanceof Error ? err.message : String(err);
+            if (modes.patchMode) break;
+        }
     }
+
+    if (Object.keys(errors).length > 0) {
+        throw new VError(t('properties'), errors);
+    }
+
     return value;
 };
 
