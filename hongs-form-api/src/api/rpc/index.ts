@@ -1,7 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
-import { ObjectId } from 'mongodb';
-import { VError } from 'hongs-form';
-import { getDb } from '../utils/db.js';
+import { getDb } from '../../utils/db.js';
+import { methods } from './registry.js';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -26,15 +25,6 @@ export interface RpcError {
   message: string;
   data?: unknown;
 }
-
-// RPC 方法处理器
-type RpcHandler = (
-  params: Record<string, unknown>,
-  ctx: { db: ReturnType<typeof getDb>; userId?: ObjectId }
-) => Promise<unknown>;
-
-// 方法注册表
-const methods: Map<string, RpcHandler> = new Map();
 
 // 解析请求体
 async function parseBody(req: IncomingMessage): Promise<string> {
@@ -114,8 +104,8 @@ export async function handleRpc(req: IncomingMessage, res: ServerResponse): Prom
       let errorData: any;
 
       // 处理表单校验错误，附加字段级错误信息
-      if (err instanceof VError) {
-        errorData = { errors: err.toMap() };
+      if (err instanceof Error && typeof (err as any).toMap === 'function') {
+        errorData = { errors: (err as any).toMap() };
       } else if (err instanceof Error && (err as any).errors) {
         errorData = { errors: (err as any).errors };
       }
@@ -141,13 +131,6 @@ export async function handleRpc(req: IncomingMessage, res: ServerResponse): Prom
   }
 }
 
-// 注册 RPC 方法
-export function registerMethod(name: string, handler: RpcHandler): void {
-  methods.set(name, handler);
-  console.log(`RPC method registered: ${name}`);
-}
-
-// 导入所有方法注册
 import './methods/user.js';
 import './methods/form.js';
 import './methods/formData.js';

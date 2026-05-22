@@ -1,4 +1,4 @@
-import { registerMethod } from '../index.js'
+import { registerMethod } from '../registry.js'
 import { ObjectId } from 'mongodb'
 
 // 测试表单配置
@@ -40,10 +40,14 @@ const testForms = [
           }
         },
         satisfaction: {
-          type: 'string',
+          type: 'array',
           title: '您对哪些方面满意',
           inputType: 'checkbox',
-          enum: ['product', 'service', 'price', 'support'],
+          minItems: 1,
+          items: {
+            type: 'string',
+            enum: ['product', 'service', 'price', 'support']
+          },
           options: {
             product: '产品功能',
             service: '客户服务',
@@ -186,7 +190,7 @@ const testForms = [
 
 // 导入测试表单
 registerMethod('test.importForms', async (params, ctx) => {
-  const { userId } = params
+  const { userId } = params as { userId?: string }
   if (!userId) throw new Error('User ID is required')
 
   const now = new Date()

@@ -1,16 +1,16 @@
 import { ObjectId } from 'mongodb';
-import { SHA256, enc } from 'crypto-js';
-import { registerMethod } from '../index.js';
-import { getDb } from '../../utils/db.js';
+import { createHash, randomBytes } from 'node:crypto';
+import { registerMethod } from '../registry.js';
+import { getDb } from '../../../utils/db.js';
 
 // 生成随机盐
 function generateSalt(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return randomBytes(16).toString('hex');
 }
 
 // 密码哈希
 function hashPassword(password: string, salt: string): string {
-  return SHA256(password + salt).toString(enc.Hex);
+  return createHash('sha256').update(password + salt).digest('hex');
 }
 
 // 用户列表

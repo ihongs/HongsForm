@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { registerMethod } from '../index.js';
+import { registerMethod } from '../registry.js';
 
 // 表单列表
 registerMethod('form.list', async (params, ctx) => {

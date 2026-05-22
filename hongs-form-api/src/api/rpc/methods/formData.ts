@@ -1,12 +1,12 @@
 import { ObjectId } from 'mongodb';
-import { SHA256, enc } from 'crypto-js';
-import { registerMethod } from '../index.js';
+import { createHash } from 'node:crypto';
+import { registerMethod } from '../registry.js';
 import { validate } from 'hongs-form';
 
 // 生成数据哈希
 function generateDataHash(formId: string, userId: string | null, data: object): string {
   const str = `${formId}:${userId || ''}:${JSON.stringify(data)}`;
-  return SHA256(str).toString(enc.Hex);
+  return createHash('sha256').update(str).digest('hex');
 }
 
 // 表单数据列表
