@@ -18,8 +18,10 @@ export {
   t,
 } from './i18n';
 export {
+  optional,
   required,
   requires,
+  patterns,
   isString,
   isNumber,
   isInteger,
@@ -27,6 +29,9 @@ export {
   isDateTime,
   isArray,
   isObject,
-  validates,
   validate,
+  coreValidate,
+  moreValidate,
+  coreValidates,
+  moreValidates,
 } from './validates';

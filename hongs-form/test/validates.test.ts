@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validate,
+  optional,
   required,
   isString,
   isNumber,
@@ -10,11 +11,25 @@ import {
   isObject,
   isDateTime,
   VQUIT,
-  validates,
+  coreValidate,
+  moreValidate,
+  coreValidates,
+  moreValidates,
   type FormSchema,
   type VModes,
   type VError,
 } from '../src';
+
+describe('optional', () => {
+  it('undefined 返回 VQUIT，跳过后续校验', () => {
+    expect(optional(undefined, {}, {})).toBe(VQUIT);
+  });
+
+  it('null 和空字符串不退出，交给后续类型校验处理', () => {
+    expect(optional(null, {}, {})).toBeNull();
+    expect(optional('', {}, {})).toBe('');
+  });
+});
 
 describe('required', () => {
   it('undefined 只抛消息', () => {
@@ -35,14 +50,52 @@ describe('validate - 单项校验', () => {
     expect(() => validate(undefined, schema, { path: 'name' })).toThrow('Required');
   });
 
-  it('按 validates 顺序执行，第一个失败即中止', () => {
+  it('按 moreValidates 顺序执行，第一个失败即中止', () => {
     const schema = { type: 'string', required: true, minLength: 10 };
     // required 先失败，抛消息
     expect(() => validate(undefined, schema, { path: 'name' })).toThrow('Required');
   });
+
+  it('选填字符串为空字符串时跳过格式校验', () => {
+    const schema = { type: 'string', pattern: '^.+@.+\\..+$' };
+    expect(validate('', schema, {})).toBe('');
+  });
+
+  it('选填对象字段为 undefined 时不收集到结果', () => {
+    const schema: FormSchema = {
+      properties: {
+        email: { type: 'string', pattern: '^.+@.+\\..+$' },
+      },
+    };
+    expect(validate({ email: undefined }, schema, {})).toEqual({});
+  });
+
+  it('缺少 pattern 时使用 format 对应的内置 pattern', () => {
+    expect(validate('test@example.com', { type: 'string', format: 'email' }, {})).toBe('test@example.com');
+    expect(() => validate('bad-email', { type: 'string', format: 'email' }, {})).toThrow('Invalid format');
+  });
+
+  it('pattern 优先于 format', () => {
+    const schema = { type: 'string', format: 'email', pattern: '^abc$' };
+    expect(validate('abc', schema, {})).toBe('abc');
+    expect(() => validate('test@example.com', schema, {})).toThrow('Invalid format');
+  });
+
+  it('有 format 但没有对应内置 pattern 时抛错', () => {
+    expect(() => validate('abc', { type: 'string', format: 'unknown-format' }, {})).toThrow('Unknown format: unknown-format');
+  });
+
+  it('支持 uuid format', () => {
+    expect(validate('550e8400-e29b-41d4-a716-446655440000', { type: 'string', format: 'uuid' }, {})).toBe('550e8400-e29b-41d4-a716-446655440000');
+    expect(() => validate('not-uuid', { type: 'string', format: 'uuid' }, {})).toThrow('Invalid format');
+  });
 });
 
 describe('isObject - 收集多个字段错误', () => {
+  it('非对象时抛 i18n 对象错误', () => {
+    expect(() => validate('abc', { type: 'object' }, {})).toThrow('Must be object');
+  });
+
   it('收集多个字段的错误，放入 errors 对象（嵌套结构）', () => {
     const schema: FormSchema = {
       properties: {
@@ -110,6 +163,10 @@ describe('isObject - 收集多个字段错误', () => {
 });
 
 describe('isArray - 收集多个子项错误', () => {
+  it('非数组且非字符串时抛 i18n 数组错误', () => {
+    expect(() => validate(123, { type: 'array' }, {})).toThrow('Must be array');
+  });
+
   it('收集多个子项错误，数字键作为 errors 的 key', () => {
     const schema: FormSchema = {
       type: 'array',
@@ -302,10 +359,10 @@ describe('自定义 validate', () => {
   });
 });
 
-describe('注册 validates - 匹配器函数', () => {
-  it('添加自定义匹配器到 validates', () => {
-    // 备份原有的 validates
-    const originalLen = validates.length;
+describe('注册 moreValidates - 匹配器函数', () => {
+  it('添加自定义匹配器到 moreValidates', () => {
+    // 备份原有的 moreValidates
+    const originalLen = moreValidates.length;
 
     // 添加自定义匹配器：当 schema.xxx 存在时返回校验函数
     const myMatcher = (schema: any) => {
@@ -317,7 +374,7 @@ describe('注册 validates - 匹配器函数', () => {
       }
       return undefined;
     };
-    validates.push(myMatcher);
+    moreValidates.push(myMatcher);
 
     try {
       // 测试新匹配器生效，type: null 跳过默认 object 校验
@@ -326,12 +383,12 @@ describe('注册 validates - 匹配器函数', () => {
       expect(validate('xxx', schema, {})).toBe('xxx');
     } finally {
       // 恢复
-      validates.length = originalLen;
+      moreValidates.length = originalLen;
     }
   });
 
   it('多个匹配器按顺序匹配', () => {
-    const originalLen = validates.length;
+    const originalLen = moreValidates.length;
 
     const matcher1 = (schema: any) => {
       if (schema.check1) {
@@ -345,7 +402,7 @@ describe('注册 validates - 匹配器函数', () => {
       }
       return undefined;
     };
-    validates.push(matcher1, matcher2);
+    moreValidates.push(matcher1, matcher2);
 
     try {
       const schema = { check1: true, check2: true, type: null as any };
@@ -353,12 +410,12 @@ describe('注册 validates - 匹配器函数', () => {
       // 两个匹配器都命中，校验函数按匹配顺序执行
       expect(result).toBe('x_1_2');
     } finally {
-      validates.length = originalLen;
+      moreValidates.length = originalLen;
     }
   });
 
-  it('匹配器可用于条件必填校验，通过 values 访问原始数据', () => {
-    const originalLen = validates.length;
+  it('核心匹配器可用于条件必填校验，通过 values 访问原始数据', () => {
+    const originalValidates = [...coreValidates];
 
     // 当 values 中有 isVip=true 时，phone 字段必填
     const vipPhoneMatcher = (schema: any) => {
@@ -373,7 +430,7 @@ describe('注册 validates - 匹配器函数', () => {
       }
       return undefined;
     };
-    validates.push(vipPhoneMatcher);
+    coreValidates.unshift(vipPhoneMatcher);
 
     try {
       const schema: FormSchema = {
@@ -389,7 +446,7 @@ describe('注册 validates - 匹配器函数', () => {
       const result = validate({ isVip: false, phone: undefined }, schema, {});
       expect(result.phone).toBeUndefined();
     } finally {
-      validates.length = originalLen;
+      coreValidates.splice(0, coreValidates.length, ...originalValidates);
     }
   });
 });

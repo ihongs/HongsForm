@@ -1,12 +1,17 @@
 // 内置默认翻译数据
 export const defaultMessages: Record<string, string> = {
   required: 'Required',
+  array: 'Must be array',
+  object: 'Must be object',
   number: 'Must be number',
   integer: 'Must be integer',
   boolean: 'Must be boolean',
   pattern: 'Invalid format',
-  enum: 'Must be one of allowed values',
+  format: 'Unknown format: {value}',
   date: 'Invalid date',
+  enum: 'Must be one of allowed values',
+  items: 'Some items are invalid',
+  properties: 'Some properties are invalid',
   minimum: 'Minimum is {value}',
   maximum: 'Maximum is {value}',
   exclusiveMinimum: 'Must be > {value}',
@@ -37,14 +42,14 @@ export function defaultTranslator(key: string, params?: Record<string, unknown>)
 // 当前翻译函数
 let translator: Translator = defaultTranslator;
 
-// 设置当前翻译函数
-export function setTranslator(fn: Translator): void {
-  translator = fn;
-}
-
 // 获取当前翻译函数
 export function getTranslator(): Translator {
   return translator;
+}
+
+// 设置当前翻译函数
+export function setTranslator(fn: Translator): void {
+  translator = fn;
 }
 
 // 快捷翻译

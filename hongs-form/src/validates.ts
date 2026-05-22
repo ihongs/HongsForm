@@ -7,6 +7,14 @@ export function vPath(modes: VModes, key: string | number): VModes {
     return { ...modes, path, name: String(key) };
 }
 
+// 可选/非必填 (optional)
+export const optional: Validate = function (value: any, schema: any, modes: VModes) {
+    if (value === undefined) {
+        return VQUIT;
+    }
+    return value;
+};
+
 // 必选/必填 (required)
 // patchMode=true 且值为 undefined: 返回 VQUIT 中止后续校验
 export const required: Validate = function (value: any, schema: any, modes: VModes) {
@@ -45,10 +53,32 @@ export const requires: Validate = function (value: any, schema: any, modes: VMod
     return value;
 };
 
+export const patterns: Record<string, string> = {
+    'date-time': '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$',
+    'date': '^\\d{4}-\\d{2}-\\d{2}$',
+    'time': '^\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?$',
+    'duration': '^P(?=\\d|T\\d)(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?$',
+    'email': '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+    'idn-email': '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+    'hostname': '^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$',
+    'idn-hostname': '^(?=.{1,253}$)(?:[^\\s.]{1,63}\\.)*[^\\s.]{1,63}$',
+    'ipv4': '^(?:(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)$',
+    'ipv6': '^(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}$|^::1$|^::$',
+    'uuid': '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+    'iri': '^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]*$',
+    'iri-reference': '^(?:[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]*|[^\\s]*)$',
+    'uri': '^[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]*$',
+    'uri-reference': '^(?:[a-zA-Z][a-zA-Z0-9+.-]*:[^\\s]*|[^\\s]*)$',
+    'uri-template': '^[^\\s]*$',
+    'json-pointer': '^(?:/(?:[^~/]|~0|~1)*)*$',
+    'relative-json-pointer': '^(?:0|[1-9]\\d*)(?:#|(?:/(?:[^~/]|~0|~1)*)*)$',
+    'regex': '^[\\s\\S]*$',
+};
+
 // 字符串 (type=string)
 export const isString: Validate = function (value: any, schema: any, modes: VModes) {
-    // null/undefined 不处理
-    if (value == null) return value;
+    // null/undefined/空字符串 不处理
+    if (value == null || value == '') return value;
 
     // 转换
     if (typeof value !== 'string') {
@@ -68,8 +98,12 @@ export const isString: Validate = function (value: any, schema: any, modes: VMod
         throw new Error(t('maxLength', { value: schema.maxLength }));
     }
 
-    // 正则校验
-    if (schema.pattern && !new RegExp(schema.pattern).test(value)) {
+    // 正则校验，pattern 优先；未配置 pattern 时使用 format 对应的内置 pattern
+    const pattern = schema.pattern ?? (schema.format ? patterns[schema.format] : undefined);
+    if (schema.format && !schema.pattern && !pattern) {
+        throw new Error(t('format', { value: schema.format }));
+    }
+    if (pattern && !new RegExp(pattern).test(value)) {
         throw new Error(t('pattern'));
     }
 
@@ -186,7 +220,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
         if (typeof value === 'string') {
             value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
         } else {
-            throw new Error('Must be array');
+            throw new Error(t('array'));
         }
     }
 
@@ -271,7 +305,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
 
         // 有错误就抛
         if (Object.keys(errors).length > 0) {
-            throw new VError('Some items are invalid', errors);
+            throw new VError(t('items'), errors);
         }
     }
 
@@ -285,7 +319,7 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
 
     // 确保是对象
     if (typeof value !== 'object' || Array.isArray(value)) {
-        throw new Error('Must be object');
+        throw new Error(t('object'));
     }
 
     const result: Record<string, unknown> = { ...value };
@@ -365,20 +399,14 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
 
     // 有错误就抛
     if (Object.keys(errors).length > 0) {
-        throw new VError('Some properties are invalid', errors);
+        throw new VError(t('properties'), errors);
     }
 
     return result;
 };
 
-// 校验规则登记 (针对未指定 validate)
-export const validates: ((schema: any) => Validate | undefined)[] = [
-    (schema) => {
-        // schema.required = true: 字段本身必填
-        if (schema.required === true) {
-            return required;
-        }
-    },
+// 核心校验规则
+export const coreValidates: ((schema: any) => Validate | undefined)[] = [
     (schema) => {
         if (schema.type == 'array') {
             return isArray;
@@ -394,7 +422,18 @@ export const validates: ((schema: any) => Validate | undefined)[] = [
         if (Array.isArray(schema.required)) {
             return requires;
         }
-    },
+        if (schema.required === true) {
+            return required;
+        }
+        if (schema.required === false
+        ||  schema.required === undefined ) {
+            return optional;
+        }
+    }
+];
+
+// 扩展校验规则
+export const moreValidates: ((schema: any) => Validate | undefined)[] = [
     (schema) => {
         if (schema.type == 'string') {
             return isString;
@@ -417,31 +456,17 @@ export const validates: ((schema: any) => Validate | undefined)[] = [
     },
     (schema) => {
         if (schema.inputType == 'datetime'
-            || schema.inputType == 'date'
-            || schema.inputType == 'time'
+        ||  schema.inputType == 'date'
+        ||  schema.inputType == 'time'
         ) {
             return isDateTime;
         }
     }
 ];
 
-// 应用 validates
-export const validate: Validate = function (value: any, schema: any, modes: VModes) {
+const validates = function (value: any, schema: any, modes: VModes, validateFns: Validate[]) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
-
-    // 获取校验函数列表
-    let validateFns: Validate[] = [];
-
-    if (sch.validate) {
-        validateFns = Array.isArray(sch.validate) ? sch.validate : [sch.validate];
-    } else {
-        // 从 validates 中匹配
-        for (const matcher of validates) {
-            const fn = matcher(sch);
-            if (fn) validateFns.push(fn);
-        }
-    }
 
     // 依次执行校验
     let result = value;
@@ -460,3 +485,62 @@ export const validate: Validate = function (value: any, schema: any, modes: VMod
 
     return result;
 };
+
+// 校验方法, 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
+export const validate: Validate = function (value: any, schema: any, modes: VModes) {
+    // 默认 type 为 object
+    const sch = { type: 'object', ...schema };
+
+    // 获取校验函数列表
+    let validateFns: Validate[] = [];
+
+    if (sch.validate) {
+        validateFns = Array.isArray(sch.validate) ? sch.validate : [sch.validate];
+    } else {
+        // 从 validates 中匹配
+        for (const matcher of coreValidates) {
+            const fn = matcher(sch);
+            if (fn) validateFns.push(fn);
+        }
+        for (const matcher of moreValidates) {
+            const fn = matcher(sch);
+            if (fn) validateFns.push(fn);
+        }
+    }
+
+    return validates(value, schema, modes, validateFns);
+};
+
+// 核心校验, 用于自定义 validate: [coreValidate, yourValidate]
+export const coreValidate: Validate = function(value: any, schema: any, modes: VModes) {
+    // 默认 type 为 object
+    const sch = { type: 'object', ...schema };
+
+    // 获取校验函数列表
+    let validateFns: Validate[] = [];
+
+    // 从 verifies 中匹配
+    for (const matcher of coreValidates) {
+        const fn = matcher(sch);
+        if (fn) validateFns.push(fn);
+    }
+
+    return validates(value, schema, modes, validateFns);
+}
+
+// 扩展校验, 用于自定义 validate: [moreValidate, yourValidate]
+export const moreValidate: Validate = function(value: any, schema: any, modes: VModes) {
+    // 默认 type 为 object
+    const sch = { type: 'object', ...schema };
+
+    // 获取校验函数列表
+    let validateFns: Validate[] = [];
+
+    // 从 verifies 中匹配
+    for (const matcher of moreValidates) {
+        const fn = matcher(sch);
+        if (fn) validateFns.push(fn);
+    }
+
+    return validates(value, schema, modes, validateFns);
+}
