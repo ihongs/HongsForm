@@ -1,4 +1,4 @@
-# HongsForm API Server
+# Hongs API Server
 
 基于 JSON-RPC 2.0 的表单 API 服务器，使用 MongoDB 存储。
 
@@ -13,29 +13,30 @@
 
 ```
 hongs-form-api/
-├── src/
-│   ├── server.ts              # 服务器入口
-│   ├── api/
-│   │   └── rpc/
-│   │       ├── index.ts       # RPC 处理器
-│   │       └── methods/
-│   │           ├── user.ts    # 用户相关方法
-│   │           ├── form.ts    # 表单相关方法
-│   │           └── formData.ts # 表单数据相关方法
-│   └── utils/
-│       ├── db.ts              # MongoDB 连接
-│       └── env.ts             # 环境变量加载
-├── dist/                      # 编译输出
-├── package.json
-├── tsconfig.json
-├── .env.example
-└── .gitignore
+└── server/
+    ├── src/
+    │   ├── server.ts              # 服务器入口
+    │   ├── api/
+    │   │   └── rpc/
+    │   │       ├── index.ts       # RPC 处理器
+    │   │       └── methods/
+    │   │           ├── user.ts    # 用户相关方法
+    │   │           ├── form.ts    # 表单相关方法
+    │   │           └── formData.ts # 表单数据相关方法
+    │   └── utils/
+    │       ├── db.ts              # MongoDB 连接
+    │       └── env.ts             # 环境变量加载
+    ├── dist/                      # 编译输出
+    ├── package.json
+    ├── tsconfig.json
+    ├── .env.example
+    └── .gitignore
 ```
 
 ## 安装依赖
 
 ```bash
-cd hongs-form-api
+cd hongs-form-api/server
 npm install
 ```
 

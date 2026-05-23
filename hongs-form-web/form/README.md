@@ -1,4 +1,4 @@
-# Hongs Form Web
+# Hongs Web Form
 
 基于 Vue 3 的表单渲染前端，用于动态渲染表单并提交数据。
 
@@ -20,7 +20,7 @@
 ### 安装依赖
 
 ```bash
-cd hongs-form-web-form
+cd hongs-form-web/form
 npm install
 ```
 

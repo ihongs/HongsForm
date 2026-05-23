@@ -7,10 +7,12 @@
 ```
 HongsForm/
 ├── hongs-form/           # 核心表单验证库
-├── hongs-form-api/       # API 服务端 (JSON-RPC 2.0, MCP)
-├── hongs-form-web-admin/ # 管理后台
-├── hongs-form-web-agent/ # 代理服务
-└── hongs-form-web-form/  # 表单填报
+├── hongs-form-api/
+│   └── server/           # API 服务端 (JSON-RPC 2.0, MCP)
+└── hongs-form-web/
+    ├── admin/            # 管理后台
+    ├── agent/            # 代理服务
+    └── form/             # 表单填报
 ```
 
 ## 技术栈
@@ -107,8 +109,14 @@ POST /api/rpc
 # 构建核心库
 cd hongs-form && npm run build
 
-# 测试
-npm test
+# 启动 API
+cd ../hongs-form-api/server && npm run dev
+
+# 启动表单前端
+cd ../../hongs-form-web/form && npm run dev
+
+# 测试核心库
+cd ../../hongs-form && npm test
 ```
 
 ## 路线图
