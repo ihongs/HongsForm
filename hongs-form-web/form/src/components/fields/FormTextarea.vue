@@ -2,8 +2,9 @@
   <textarea
     :value="modelValue"
     @input="$emit('update:modelValue', $event.target.value)"
-    :class="['form-input', 'form-textarea', { error }]"
+    :class="['form-control', { 'is-invalid': error }]"
     :placeholder="field.placeholder || ''"
+    rows="4"
   ></textarea>
 </template>
 

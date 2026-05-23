@@ -1,30 +1,34 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="form-card">
-    <div v-for="(field, key) in schema.properties" :key="key" class="form-group">
-      <label class="form-label">
-        {{ field.title || key }}
-        <span v-if="schema.required?.includes(key)" class="required">*</span>
-      </label>
+  <form @submit.prevent="handleSubmit" class="card shadow-sm border-0">
+    <div class="card-body p-4 p-md-5">
+      <div v-for="(field, key) in schema.properties" :key="key" class="mb-4">
+        <label class="form-label fw-medium">
+          {{ field.label || field.title || key }}
+          <span v-if="isRequired(key, field)" class="text-danger ms-1">*</span>
+        </label>
 
-      <component
-        :is="getFieldComponent(field)"
-        v-model="formData[key]"
-        :field="field"
-        :name="key"
-        :error="errors[key]"
-      />
+        <component
+          :is="getFieldComponent(field)"
+          v-model="formData[key]"
+          :field="field"
+          :name="key"
+          :error="errors[key]"
+        />
 
-      <div v-if="errors[key]" class="form-error">{{ errors[key] }}</div>
+        <div v-if="field.description" class="form-text">{{ field.description }}</div>
+        <div v-if="errors[key]" class="invalid-feedback d-block">{{ errors[key] }}</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100" :disabled="submitting">
+        <span v-if="submitting" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        {{ submitting ? '提交中...' : '提交' }}
+      </button>
     </div>
-
-    <button type="submit" class="form-submit" :disabled="submitting">
-      {{ submitting ? '提交中...' : '提交' }}
-    </button>
   </form>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
 import FormInput from './fields/FormInput.vue'
 import FormTextarea from './fields/FormTextarea.vue'
 import FormSelect from './fields/FormSelect.vue'
@@ -44,7 +48,10 @@ const formData = reactive({})
 const errors = reactive({})
 const submitting = ref(false)
 
-// 根据字段类型选择组件
+function isRequired(key, field) {
+  return field.required === true || props.schema.required?.includes(key)
+}
+
 function getFieldComponent(field) {
   const inputType = field.inputType || field.type
 
@@ -56,13 +63,13 @@ function getFieldComponent(field) {
     case 'radio':
       return FormRadio
     case 'checkbox':
+    case 'check':
       return FormCheckbox
     default:
       return FormInput
   }
 }
 
-// 初始化表单默认值
 function initDefaults() {
   for (const [key, field] of Object.entries(props.schema.properties || {})) {
     if (field.default !== undefined) {
@@ -75,19 +82,16 @@ function initDefaults() {
   }
 }
 
-// 清除错误
 function clearErrors() {
   Object.keys(errors).forEach(key => {
     delete errors[key]
   })
 }
 
-// 设置错误
 function setErrors(errorMap) {
   Object.assign(errors, errorMap)
 }
 
-// 提交处理
 async function handleSubmit() {
   clearErrors()
   submitting.value = true
@@ -99,12 +103,10 @@ async function handleSubmit() {
   }
 }
 
-// 暴露方法给父组件
 defineExpose({
   setErrors,
   clearErrors
 })
 
-// 初始化
 initDefaults()
 </script>

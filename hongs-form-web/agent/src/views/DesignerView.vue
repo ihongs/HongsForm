@@ -1,0 +1,403 @@
+<template>
+  <main class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+      <div>
+        <h1 class="h3 mb-1">{{ isEdit ? '编辑表单' : '新建表单' }}</h1>
+        <p class="text-secondary mb-0">点击添加字段，拖动调整顺序，保存时生成 FormSchema</p>
+      </div>
+      <router-link class="btn btn-outline-secondary align-self-start" to="/forms">返回列表</router-link>
+    </div>
+
+    <div v-if="loading" class="card border-0 shadow-sm">
+      <div class="card-body text-center text-secondary py-5">加载中...</div>
+    </div>
+    <div v-else class="row g-4 align-items-start">
+      <aside class="col-12 col-lg-3 designer-sidebar">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3">添加字段</h2>
+            <div class="d-grid gap-2">
+              <button v-for="fieldType in fieldTypes" :key="fieldType.type" class="btn btn-outline-primary text-start d-flex align-items-center gap-2" type="button" @click="addField(fieldType.type)">
+                <i :class="['bi', fieldType.icon]" aria-hidden="true"></i>
+                <span>{{ fieldType.type }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="col-12 col-lg-9">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">表单配置</h2>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label">表单名称</label>
+                <input v-model.trim="form.name" class="form-control" placeholder="如 contact_form" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">表单标题</label>
+                <input v-model.trim="form.title" class="form-control" placeholder="显示给用户看的标题" />
+              </div>
+              <div class="col-12">
+                <label class="form-label">描述</label>
+                <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="表单说明"></textarea>
+              </div>
+            </div>
+
+            <div class="d-grid gap-3 mb-4">
+              <article
+                v-for="(field, index) in fields"
+                :key="field.name"
+                class="card bg-light border"
+                draggable="true"
+                @dragstart="dragIndex = index"
+                @dragover.prevent
+                @drop="dropField(index)"
+              >
+                <div class="card-body">
+                  <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-3">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                      <strong>{{ field.name }}</strong>
+                      <span class="badge text-bg-secondary">{{ field.inputType }}</span>
+                    </div>
+                    <div class="btn-group btn-group-sm align-self-start">
+                      <button class="btn btn-outline-secondary" type="button" :disabled="index === 0" @click="moveField(index, -1)">上移</button>
+                      <button class="btn btn-outline-secondary" type="button" :disabled="index === fields.length - 1" @click="moveField(index, 1)">下移</button>
+                      <button class="btn btn-outline-danger" type="button" @click="removeField(index)">删除</button>
+                    </div>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">字段标题</label>
+                      <input v-model.trim="field.title" class="form-control" placeholder="用于数据列表和管理后台展示" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">表单标签</label>
+                      <input v-model.trim="field.label" class="form-control" placeholder="默认同字段标题，显示在表单内" />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">字段说明</label>
+                      <textarea v-model.trim="field.description" class="form-control" rows="2" placeholder="显示在字段下方的帮助信息"></textarea>
+                    </div>
+                    <div v-if="supportsPlaceholder(field)" class="col-md-6">
+                      <label class="form-label">占位提示</label>
+                      <input v-model.trim="field.placeholder" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">是否必填/必选</label>
+                      <select v-model="field.required" class="form-select">
+                        <option :value="false">选填</option>
+                        <option :value="true">必填</option>
+                      </select>
+                    </div>
+                    <div v-if="usesOptions(field)" class="col-md-6">
+                      <label class="form-label">选项，每行一个</label>
+                      <textarea v-model="field.optionText" class="form-control" rows="3" placeholder="value=标签 或 标签"></textarea>
+                    </div>
+                    <div v-if="field.inputType === 'range'" class="col-md-6">
+                      <label class="form-label">最小值</label>
+                      <input v-model.number="field.minimum" class="form-control" type="number" />
+                    </div>
+                    <div v-if="field.inputType === 'range'" class="col-md-6">
+                      <label class="form-label">最大值</label>
+                      <input v-model.number="field.maximum" class="form-control" type="number" />
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-primary" :disabled="saving" @click="save">
+                <span v-if="saving" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                {{ saving ? '保存中...' : '保存' }}
+              </button>
+              <button v-if="isEdit" class="btn btn-outline-primary" type="button" @click="saveAndPublish">保存并发布</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { agentApi } from '../api'
+
+const fieldTypes = [
+  { type: 'text', icon: 'bi-input-cursor-text' },
+  { type: 'email', icon: 'bi-envelope' },
+  { type: 'phone', icon: 'bi-phone' },
+  { type: 'textarea', icon: 'bi-textarea-t' },
+  { type: 'select', icon: 'bi-menu-button-wide' },
+  { type: 'check', icon: 'bi-check2-square' },
+  { type: 'radio', icon: 'bi-record-circle' },
+  { type: 'range', icon: 'bi-sliders' },
+  { type: 'switch', icon: 'bi-toggle-on' },
+  { type: 'datetime', icon: 'bi-calendar2-week' },
+  { type: 'date', icon: 'bi-calendar-date' },
+  { type: 'time', icon: 'bi-clock' },
+  { type: 'file', icon: 'bi-paperclip' }
+]
+const route = useRoute()
+const router = useRouter()
+const isEdit = computed(() => Boolean(route.params.id))
+const loading = ref(false)
+const saving = ref(false)
+const error = ref('')
+const dragIndex = ref(null)
+const fields = ref([])
+const form = reactive({
+  name: '',
+  title: '',
+  description: ''
+})
+
+function addField(inputType) {
+  error.value = ''
+  if (fields.value.length >= 100) {
+    error.value = '字段总数最多 100 个'
+    return
+  }
+
+  const name = nextName(inputType)
+  fields.value.push({
+    name,
+    inputType,
+    title: defaultTitle(inputType, name),
+    label: '',
+    description: '',
+    placeholder: '',
+    required: false,
+    optionText: usesOptions({ inputType }) ? 'option1=选项1\noption2=选项2' : '',
+    minimum: inputType === 'range' ? 0 : undefined,
+    maximum: inputType === 'range' ? 100 : undefined
+  })
+}
+
+function nextName(inputType) {
+  const used = new Set(fields.value.map((field) => field.name))
+  if (!used.has(inputType)) return inputType
+  for (let index = 1; ; index += 1) {
+    const name = `${inputType}${index}`
+    if (!used.has(name)) return name
+  }
+}
+
+function defaultTitle(inputType, name) {
+  const titles = {
+    text: '单行文本',
+    email: '邮箱',
+    phone: '手机号',
+    textarea: '多行文本',
+    select: '下拉选择',
+    check: '多选',
+    radio: '单选',
+    range: '范围',
+    switch: '开关',
+    datetime: '日期时间',
+    date: '日期',
+    time: '时间',
+    file: '文件'
+  }
+  return titles[inputType] || name
+}
+
+function usesOptions(field) {
+  return ['select', 'check', 'radio'].includes(field.inputType)
+}
+
+function supportsPlaceholder(field) {
+  return ['text', 'email', 'phone', 'textarea'].includes(field.inputType)
+}
+
+function removeField(index) {
+  fields.value.splice(index, 1)
+}
+
+function moveField(index, offset) {
+  const target = index + offset
+  if (target < 0 || target >= fields.value.length) return
+  const list = fields.value
+  const [field] = list.splice(index, 1)
+  list.splice(target, 0, field)
+}
+
+function dropField(index) {
+  if (dragIndex.value === null || dragIndex.value === index) return
+  const [field] = fields.value.splice(dragIndex.value, 1)
+  fields.value.splice(index, 0, field)
+  dragIndex.value = null
+}
+
+function parseOptions(text) {
+  const options = {}
+  const values = []
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const equalIndex = trimmed.indexOf('=')
+    const value = equalIndex >= 0 ? trimmed.slice(0, equalIndex).trim() : trimmed
+    const label = equalIndex >= 0 ? trimmed.slice(equalIndex + 1).trim() : trimmed
+    options[value] = label || value
+    values.push(value)
+  }
+  return { options, values }
+}
+
+function fieldToSchema(field) {
+  const schema = {
+    title: field.title || field.name,
+    inputType: field.inputType
+  }
+  if (field.label) schema.label = field.label
+  if (field.description) schema.description = field.description
+  if (supportsPlaceholder(field) && field.placeholder) schema.placeholder = field.placeholder
+  if (field.required) schema.required = true
+
+  if (field.inputType === 'email') {
+    schema.type = 'string'
+    schema.format = 'email'
+  } else if (field.inputType === 'phone') {
+    schema.type = 'string'
+    schema.pattern = '^1[3-9]\\d{9}$'
+  } else if (field.inputType === 'textarea' || field.inputType === 'text' || field.inputType === 'file') {
+    schema.type = 'string'
+  } else if (field.inputType === 'radio' || field.inputType === 'select') {
+    const { options, values } = parseOptions(field.optionText)
+    schema.type = 'string'
+    schema.enum = values
+    schema.options = options
+  } else if (field.inputType === 'check') {
+    const { options, values } = parseOptions(field.optionText)
+    schema.type = 'array'
+    schema.items = { type: 'string', enum: values }
+    schema.options = options
+    if (field.required) schema.minItems = 1
+  } else if (field.inputType === 'range') {
+    schema.type = 'number'
+    schema.minimum = field.minimum
+    schema.maximum = field.maximum
+  } else if (field.inputType === 'switch') {
+    schema.type = 'boolean'
+  } else if (field.inputType === 'datetime') {
+    schema.type = 'string'
+    schema.format = 'date-time'
+  } else if (field.inputType === 'date') {
+    schema.type = 'string'
+    schema.format = 'date'
+  } else if (field.inputType === 'time') {
+    schema.type = 'string'
+    schema.pattern = '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$'
+  }
+
+  return schema
+}
+
+function buildSchema() {
+  return {
+    type: 'object',
+    properties: Object.fromEntries(fields.value.map((field) => [field.name, fieldToSchema(field)]))
+  }
+}
+
+function validateForm() {
+  if (!form.name) return '请输入表单名称'
+  if (!form.title) return '请输入表单标题'
+  if (fields.value.length === 0) return '请至少添加一个字段'
+  if (!fields.value.some((field) => field.required)) return '请至少设置一个必填/必选字段'
+  for (const field of fields.value) {
+    if (!field.title) return `请填写 ${field.name} 的字段标题`
+    if (usesOptions(field) && parseOptions(field.optionText).values.length === 0) return `请填写 ${field.name} 的选项`
+  }
+  return ''
+}
+
+async function save() {
+  error.value = validateForm()
+  if (error.value) return null
+
+  saving.value = true
+  try {
+    const payload = {
+      name: form.name,
+      title: form.title,
+      description: form.description,
+      schema: buildSchema(),
+      config: { anonymous: true }
+    }
+    if (isEdit.value) {
+      await agentApi.updateForm(route.params.id, payload)
+      return route.params.id
+    }
+    const result = await agentApi.createForm(payload)
+    router.replace(`/forms/${result.id}/design`)
+    return result.id
+  } catch (err) {
+    error.value = err.message || '保存失败'
+    return null
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveAndPublish() {
+  const id = await save()
+  if (!id) return
+  await agentApi.publishForm(id)
+  router.push('/forms')
+}
+
+function loadFieldsFromSchema(schema = {}) {
+  const required = new Set(Array.isArray(schema.required) ? schema.required : [])
+  fields.value = Object.entries(schema.properties || {}).map(([name, fieldSchema]) => ({
+    name,
+    inputType: fieldSchema.inputType || inferInputType(fieldSchema),
+    title: fieldSchema.title || name,
+    label: fieldSchema.label || '',
+    description: fieldSchema.description || '',
+    placeholder: supportsPlaceholder({ inputType: fieldSchema.inputType || inferInputType(fieldSchema) }) ? fieldSchema.placeholder || '' : '',
+    required: fieldSchema.required === true || required.has(name),
+    optionText: optionsToText(fieldSchema),
+    minimum: fieldSchema.minimum,
+    maximum: fieldSchema.maximum
+  }))
+}
+
+function inferInputType(schema) {
+  if (schema.type === 'array') return 'check'
+  if (schema.type === 'boolean') return 'switch'
+  if (schema.format === 'email') return 'email'
+  if (schema.format === 'date-time') return 'datetime'
+  if (schema.format === 'date') return 'date'
+  return schema.inputType || 'text'
+}
+
+function optionsToText(schema) {
+  if (!schema.options) return ''
+  return Object.entries(schema.options).map(([value, label]) => `${value}=${label}`).join('\n')
+}
+
+async function loadForm() {
+  if (!isEdit.value) return
+  loading.value = true
+  try {
+    const data = await agentApi.getForm(route.params.id)
+    form.name = data.name || ''
+    form.title = data.title || ''
+    form.description = data.description || ''
+    loadFieldsFromSchema(data.schema)
+  } catch (err) {
+    error.value = err.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadForm)
+</script>

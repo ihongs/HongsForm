@@ -1,6 +1,6 @@
 // JSON-RPC 2.0 客户端
 class RpcClient {
-  constructor(baseUrl = '/api/rpc') {
+  constructor(baseUrl = '/api/rpc/form') {
     this.baseUrl = baseUrl
     this.id = 0
   }

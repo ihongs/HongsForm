@@ -1,16 +1,224 @@
 import { ObjectId } from 'mongodb';
 import { createHash } from 'node:crypto';
-import { registerMethod } from '../registry.js';
+import { registerAdminMethod, registerAgentMethod, registerFormMethod, RpcContext } from '../registry.js';
 import { validate } from 'hongs-form';
 
-// 生成数据哈希
 function generateDataHash(formId: string, userId: string | null, data: object): string {
   const str = `${formId}:${userId || ''}:${JSON.stringify(data)}`;
   return createHash('sha256').update(str).digest('hex');
 }
 
-// 表单数据列表
-registerMethod('formData.list', async (params, ctx) => {
+function requireUserId(ctx: RpcContext): ObjectId {
+  if (!ctx.userId) throw new Error('Unauthorized');
+  return ctx.userId;
+}
+
+async function requireOwnedForm(ctx: RpcContext, formId: string): Promise<any> {
+  const userId = requireUserId(ctx);
+  const form = await ctx.db.collection('form').findOne({
+    _id: new ObjectId(formId),
+    userId,
+    deletedAt: null
+  });
+  if (!form) throw new Error('Form not found');
+  return form;
+}
+
+async function requireOwnedFormData(ctx: RpcContext, id: string): Promise<any> {
+  const userId = requireUserId(ctx);
+  const item = await ctx.db.collection('formData').aggregate([
+    { $match: { _id: new ObjectId(id), deletedAt: null } },
+    {
+      $lookup: {
+        from: 'form',
+        localField: 'formId',
+        foreignField: '_id',
+        as: 'form'
+      }
+    },
+    { $unwind: '$form' },
+    { $match: { 'form.userId': userId, 'form.deletedAt': null } },
+    { $project: { form: 0 } }
+  ]).next();
+
+  if (!item) throw new Error('Data not found');
+  return item;
+}
+
+registerFormMethod('formData.create', async (params, ctx) => {
+  const { formId, data, channel = 'web', userIp, userAgent } = params as any;
+  const submitterId = ctx.userId ?? null;
+  if (!formId) throw new Error('Form ID is required');
+  if (!data) throw new Error('Form data is required');
+
+  const form = await ctx.db.collection('form').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null,
+    status: 2
+  });
+
+  if (!form) throw new Error('Form not found');
+
+  const validatedData = validate(data, form.schema, {});
+
+  if (form.config?.oncePerUser && submitterId) {
+    const existing = await ctx.db.collection('formData').findOne({
+      formId: new ObjectId(formId),
+      userId: submitterId,
+      deletedAt: null
+    });
+    if (existing) throw new Error('You have already submitted this form');
+  }
+
+  const dataHash = generateDataHash(formId, submitterId?.toString() ?? null, validatedData);
+
+  const now = new Date();
+  const result = await ctx.db.collection('formData').insertOne({
+    formId: new ObjectId(formId),
+    userId: submitterId,
+    data: validatedData,
+    dataHash,
+    userIp: userIp || null,
+    userAgent: userAgent || null,
+    channel,
+    status: 1,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  });
+
+  await ctx.db.collection('form').updateOne(
+    { _id: new ObjectId(formId) },
+    { $inc: { dataCount: 1 } }
+  );
+
+  return { id: result.insertedId.toString() };
+});
+
+registerAgentMethod('agent.formData.list', async (params, ctx) => {
+  const { page = 1, pageSize = 20, formId, userId, channel, startDate, endDate } = params as any;
+  const skip = (page - 1) * pageSize;
+  const ownerId = requireUserId(ctx);
+
+  const formQuery: any = { userId: ownerId, deletedAt: null };
+  if (formId) formQuery._id = new ObjectId(formId);
+  const forms = await ctx.db.collection('form').find(formQuery).project({ _id: 1 }).toArray();
+  const formIds = forms.map((form) => form._id);
+
+  const query: any = { deletedAt: null, formId: { $in: formIds } };
+  if (userId) query.userId = new ObjectId(userId);
+  if (channel) query.channel = channel;
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = new Date(startDate);
+    if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+
+  const [items, total] = await Promise.all([
+    ctx.db.collection('formData')
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .toArray(),
+    ctx.db.collection('formData').countDocuments(query)
+  ]);
+
+  return { items, total, page, pageSize };
+});
+
+registerAgentMethod('agent.formData.get', async (params, ctx) => {
+  const { id } = params as any;
+  if (!id) throw new Error('Data ID is required');
+  return requireOwnedFormData(ctx, id);
+});
+
+registerAgentMethod('agent.formData.update', async (params, ctx) => {
+  const { id, data, status } = params as any;
+  if (!id) throw new Error('Data ID is required');
+  await requireOwnedFormData(ctx, id);
+
+  const updateData: any = { updatedAt: new Date() };
+  if (data !== undefined) updateData.data = data;
+  if (status !== undefined) updateData.status = status;
+
+  const result = await ctx.db.collection('formData').updateOne(
+    { _id: new ObjectId(id), deletedAt: null },
+    { $set: updateData }
+  );
+
+  if (result.matchedCount === 0) throw new Error('Data not found');
+  return { success: true };
+});
+
+registerAgentMethod('agent.formData.delete', async (params, ctx) => {
+  const { id } = params as any;
+  if (!id) throw new Error('Data ID is required');
+
+  const formData = await requireOwnedFormData(ctx, id);
+
+  await ctx.db.collection('formData').updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { deletedAt: new Date(), updatedAt: new Date() } }
+  );
+
+  await ctx.db.collection('form').updateOne(
+    { _id: formData.formId },
+    { $inc: { dataCount: -1 } }
+  );
+
+  return { success: true };
+});
+
+registerAgentMethod('agent.formData.export', async (params, ctx) => {
+  const { formId, startDate, endDate } = params as any;
+  if (!formId) throw new Error('Form ID is required');
+  await requireOwnedForm(ctx, formId);
+
+  const query: any = { formId: new ObjectId(formId), deletedAt: null };
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = new Date(startDate);
+    if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+
+  return ctx.db.collection('formData')
+    .find(query)
+    .sort({ createdAt: -1 })
+    .toArray();
+});
+
+registerAgentMethod('agent.formData.stats', async (params, ctx) => {
+  const { formId } = params as any;
+  if (!formId) throw new Error('Form ID is required');
+  await requireOwnedForm(ctx, formId);
+
+  const [total, todayCount, channelStats] = await Promise.all([
+    ctx.db.collection('formData').countDocuments({
+      formId: new ObjectId(formId),
+      deletedAt: null
+    }),
+    ctx.db.collection('formData').countDocuments({
+      formId: new ObjectId(formId),
+      deletedAt: null,
+      createdAt: {
+        $gte: new Date(new Date().setHours(0, 0, 0, 0))
+      }
+    }),
+    ctx.db.collection('formData').aggregate([
+      { $match: { formId: new ObjectId(formId), deletedAt: null } },
+      { $group: { _id: '$channel', count: { $sum: 1 } } }
+    ]).toArray()
+  ]);
+
+  return {
+    total,
+    today: todayCount,
+    byChannel: Object.fromEntries(channelStats.map((c: any) => [c._id, c.count]))
+  };
+});
+
+registerAdminMethod('admin.formData.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, formId, userId, channel, startDate, endDate } = params as any;
   const skip = (page - 1) * pageSize;
 
@@ -37,8 +245,7 @@ registerMethod('formData.list', async (params, ctx) => {
   return { items, total, page, pageSize };
 });
 
-// 获取单条数据
-registerMethod('formData.get', async (params, ctx) => {
+registerAdminMethod('admin.formData.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Data ID is required');
 
@@ -51,63 +258,7 @@ registerMethod('formData.get', async (params, ctx) => {
   return data;
 });
 
-// 创建表单数据
-registerMethod('formData.create', async (params, ctx) => {
-  const { formId, userId, data, channel = 'web', userIp, userAgent } = params as any;
-  if (!formId) throw new Error('Form ID is required');
-  if (!data) throw new Error('Form data is required');
-
-  // 获取表单信息
-  const form = await ctx.db.collection('form').findOne({
-    _id: new ObjectId(formId),
-    deletedAt: null
-  });
-
-  if (!form) throw new Error('Form not found');
-  if (form.status !== 2) throw new Error('Form is not published');
-
-  // 使用 hongs-form 验证表单数据，获取校验后的干净值
-  const validatedData = validate(data, form.schema, {});
-
-  // 检查每用户限填一次
-  if (form.config?.oncePerUser && userId) {
-    const existing = await ctx.db.collection('formData').findOne({
-      formId: new ObjectId(formId),
-      userId: new ObjectId(userId),
-      deletedAt: null
-    });
-    if (existing) throw new Error('You have already submitted this form');
-  }
-
-  // 生成数据哈希防重（使用校验后的数据）
-  const dataHash = generateDataHash(formId, userId, validatedData);
-
-  const now = new Date();
-  const result = await ctx.db.collection('formData').insertOne({
-    formId: new ObjectId(formId),
-    userId: userId ? new ObjectId(userId) : null,
-    data: validatedData,
-    dataHash,
-    userIp: userIp || null,
-    userAgent: userAgent || null,
-    channel,
-    status: 1,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null
-  });
-
-  // 更新表单提交计数
-  await ctx.db.collection('form').updateOne(
-    { _id: new ObjectId(formId) },
-    { $inc: { dataCount: 1 } }
-  );
-
-  return { id: result.insertedId.toString() };
-});
-
-// 更新数据
-registerMethod('formData.update', async (params, ctx) => {
+registerAdminMethod('admin.formData.update', async (params, ctx) => {
   const { id, data, status } = params as any;
   if (!id) throw new Error('Data ID is required');
 
@@ -124,12 +275,10 @@ registerMethod('formData.update', async (params, ctx) => {
   return { success: true };
 });
 
-// 删除数据
-registerMethod('formData.delete', async (params, ctx) => {
+registerAdminMethod('admin.formData.delete', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Data ID is required');
 
-  // 获取数据以更新计数
   const formData = await ctx.db.collection('formData').findOne({
     _id: new ObjectId(id),
     deletedAt: null
@@ -137,13 +286,11 @@ registerMethod('formData.delete', async (params, ctx) => {
 
   if (!formData) throw new Error('Data not found');
 
-  // 软删除
   await ctx.db.collection('formData').updateOne(
     { _id: new ObjectId(id) },
     { $set: { deletedAt: new Date(), updatedAt: new Date() } }
   );
 
-  // 减少表单提交计数
   await ctx.db.collection('form').updateOne(
     { _id: formData.formId },
     { $inc: { dataCount: -1 } }
@@ -152,8 +299,7 @@ registerMethod('formData.delete', async (params, ctx) => {
   return { success: true };
 });
 
-// 导出数据（返回全部，分页由调用方处理）
-registerMethod('formData.export', async (params, ctx) => {
+registerAdminMethod('admin.formData.export', async (params, ctx) => {
   const { formId, startDate, endDate } = params as any;
   if (!formId) throw new Error('Form ID is required');
 
@@ -164,16 +310,13 @@ registerMethod('formData.export', async (params, ctx) => {
     if (endDate) query.createdAt.$lte = new Date(endDate);
   }
 
-  const items = await ctx.db.collection('formData')
+  return ctx.db.collection('formData')
     .find(query)
     .sort({ createdAt: -1 })
     .toArray();
-
-  return items;
 });
 
-// 数据统计
-registerMethod('formData.stats', async (params, ctx) => {
+registerAdminMethod('admin.formData.stats', async (params, ctx) => {
   const { formId } = params as any;
   if (!formId) throw new Error('Form ID is required');
 

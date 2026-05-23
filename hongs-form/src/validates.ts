@@ -1,5 +1,5 @@
-import { FormSchema, Validate, VModes, VError, VENUM } from './types';
-import { t } from './i18n';
+import { FormSchema, Validate, VModes, VError, VENUM } from './types.js';
+import { t } from './i18n.js';
 
 // 子路径
 export function vPath(modes: VModes, key: string | number): VModes {

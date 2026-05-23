@@ -2,7 +2,7 @@
   <select
     :value="modelValue"
     @change="$emit('update:modelValue', $event.target.value)"
-    :class="['form-input', 'form-select', { error }]"
+    :class="['form-select', { 'is-invalid': error }]"
   >
     <option value="">请选择</option>
     <option v-for="item in options" :key="item.value" :value="item.value">
@@ -21,7 +21,7 @@ const props = defineProps({
   error: [String, Object]
 })
 
-const emit = defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue'])
 
 const options = computed(() => {
   const field = props.field

@@ -1,20 +1,49 @@
 import { ObjectId } from 'mongodb';
 import { createHash, randomBytes } from 'node:crypto';
-import { registerMethod } from '../registry.js';
-import { getDb } from '../../../utils/db.js';
+import { registerAdminMethod, registerAgentMethod } from '../registry.js';
+import { createToken } from '../../../utils/auth.js';
 
-// 生成随机盐
 function generateSalt(): string {
   return randomBytes(16).toString('hex');
 }
 
-// 密码哈希
 function hashPassword(password: string, salt: string): string {
   return createHash('sha256').update(password + salt).digest('hex');
 }
 
-// 用户列表
-registerMethod('user.list', async (params, ctx) => {
+function toSafeUser(user: any): Record<string, unknown> {
+  const { password: _password, passsalt: _passsalt, ...userInfo } = user;
+  return userInfo;
+}
+
+async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | null, ctx: any): Promise<Record<string, unknown>> {
+  const { username, password } = params as any;
+  if (!username) throw new Error('Username is required');
+  if (!password) throw new Error('Password is required');
+
+  const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
+  if (!user) throw new Error('User not found');
+  if (role && user.role !== role) throw new Error('Forbidden');
+  if (user.status !== 1) throw new Error('User is disabled');
+
+  const passwordHash = hashPassword(password, user.passsalt);
+  if (passwordHash !== user.password) throw new Error('Invalid password');
+
+  await ctx.db.collection('user').updateOne(
+    { _id: user._id },
+    { $set: { lastLoginAt: new Date(), updatedAt: new Date() } }
+  );
+
+  return {
+    token: createToken({ sub: user._id.toString(), role: user.role }),
+    user: toSafeUser(user)
+  };
+}
+
+registerAgentMethod('agent.login', async (params, ctx) => login(params, 'agent', ctx));
+registerAdminMethod('admin.login', async (params, ctx) => login(params, 'admin', ctx));
+
+registerAdminMethod('admin.user.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, keyword = '' } = params as any;
   const skip = (page - 1) * pageSize;
 
@@ -41,8 +70,7 @@ registerMethod('user.list', async (params, ctx) => {
   return { items, total, page, pageSize };
 });
 
-// 获取用户
-registerMethod('user.get', async (params, ctx) => {
+registerAdminMethod('admin.user.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 
@@ -55,8 +83,7 @@ registerMethod('user.get', async (params, ctx) => {
   return user;
 });
 
-// 创建用户
-registerMethod('user.create', async (params, ctx) => {
+registerAdminMethod('admin.user.create', async (params, ctx) => {
   const { username, password, role = 'agent', nickname, email, phone } = params as any;
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
@@ -89,12 +116,10 @@ registerMethod('user.create', async (params, ctx) => {
   return { id: result.insertedId.toString() };
 });
 
-// 更新用户
-registerMethod('user.update', async (params, ctx) => {
+registerAdminMethod('admin.user.update', async (params, ctx) => {
   const { id, ...updateData } = params as any;
   if (!id) throw new Error('User ID is required');
 
-  // 不允许直接修改密码
   delete updateData.password;
   delete updateData.passsalt;
 
@@ -109,8 +134,7 @@ registerMethod('user.update', async (params, ctx) => {
   return { success: true };
 });
 
-// 修改密码
-registerMethod('user.changePassword', async (params, ctx) => {
+registerAdminMethod('admin.user.changePassword', async (params, ctx) => {
   const { id, oldPassword, newPassword } = params as any;
   if (!id) throw new Error('User ID is required');
   if (!oldPassword) throw new Error('Old password is required');
@@ -126,15 +150,14 @@ registerMethod('user.changePassword', async (params, ctx) => {
   const passwordHash = hashPassword(newPassword, passsalt);
 
   await ctx.db.collection('user').updateOne(
-    { _id: new ObjectId(id) },
+    { _id: user._id },
     { $set: { password: passwordHash, passsalt, updatedAt: new Date() } }
   );
 
   return { success: true };
 });
 
-// 删除用户
-registerMethod('user.delete', async (params, ctx) => {
+registerAdminMethod('admin.user.delete', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 
@@ -145,29 +168,4 @@ registerMethod('user.delete', async (params, ctx) => {
 
   if (result.matchedCount === 0) throw new Error('User not found');
   return { success: true };
-});
-
-// 用户登录
-registerMethod('user.login', async (params, ctx) => {
-  const { username, password } = params as any;
-  if (!username) throw new Error('Username is required');
-  if (!password) throw new Error('Password is required');
-
-  const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
-  if (!user) throw new Error('User not found');
-
-  if (user.status !== 1) throw new Error('User is disabled');
-
-  const passwordHash = hashPassword(password, user.passsalt);
-  if (passwordHash !== user.password) throw new Error('Invalid password');
-
-  // 记录登录信息
-  await ctx.db.collection('user').updateOne(
-    { _id: user._id },
-    { $set: { lastLoginAt: new Date(), updatedAt: new Date() } }
-  );
-
-  // 返回用户信息（排除敏感字段）
-  const { password: _, passsalt: __, ...userInfo } = user;
-  return userInfo;
 });

@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { parse } from 'node:url';
-import { handleRpc } from './api/rpc/index.js';
+import { handleAdminRpc, handleAgentRpc, handleFormRpc } from './api/rpc/index.js';
 import { connectDb } from './utils/db.js';
 import { loadEnv } from './utils/env.js';
 
@@ -25,9 +25,18 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return;
   }
 
-  // RPC 端点
-  if (pathname === '/api/rpc' && req.method === 'POST') {
-    await handleRpc(req, res);
+  if ((pathname === '/api/rpc' || pathname === '/api/rpc/form') && req.method === 'POST') {
+    await handleFormRpc(req, res);
+    return;
+  }
+
+  if (pathname === '/api/rpc/agent' && req.method === 'POST') {
+    await handleAgentRpc(req, res);
+    return;
+  }
+
+  if (pathname === '/api/rpc/admin' && req.method === 'POST') {
+    await handleAdminRpc(req, res);
     return;
   }
 
@@ -49,7 +58,10 @@ async function start() {
   await connectDb(env.MONGODB_URI || 'mongodb://localhost:27017/hongs_form');
   server.listen(PORT, HOST, () => {
     console.log(`HongsForm API Server running on http://${HOST}:${PORT}`);
-    console.log(`RPC endpoint: http://${HOST}:${PORT}/api/rpc`);
+    console.log(`RPC form endpoint: http://${HOST}:${PORT}/api/rpc/form`);
+    console.log(`RPC agent endpoint: http://${HOST}:${PORT}/api/rpc/agent`);
+    console.log(`RPC admin endpoint: http://${HOST}:${PORT}/api/rpc/admin`);
+    console.log(`RPC compatibility endpoint: http://${HOST}:${PORT}/api/rpc`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
   });
 }

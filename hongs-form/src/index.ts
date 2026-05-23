@@ -3,21 +3,21 @@ export type {
   FormSchema,
   Validate,
   VModes,
-} from './types';
+} from './types.js';
 export {
   VError,
   VENUM,
-} from './types';
+} from './types.js';
 export type {
   Translator
-} from './i18n';
+} from './i18n.js';
 export {
   defaultMessages,
   defaultTranslator,
   setTranslator,
   getTranslator,
   t,
-} from './i18n';
+} from './i18n.js';
 export {
   optional,
   required,
@@ -35,4 +35,4 @@ export {
   moreValidate,
   coreValidates,
   moreValidates,
-} from './validates';
+} from './validates.js';

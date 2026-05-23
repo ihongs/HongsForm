@@ -1,27 +1,30 @@
 <template>
-  <div class="form-container">
-    <div v-if="loading" class="loading">
-      加载中...
-    </div>
-
-    <div v-else-if="error" class="not-found">
-      <h2>出错了</h2>
-      <p>{{ error }}</p>
-    </div>
-
-    <template v-else>
-      <div class="form-header">
-        <h1>{{ form.title }}</h1>
-        <p v-if="form.description">{{ form.description }}</p>
+  <main class="container py-5">
+    <div class="mx-auto" style="max-width: 720px;">
+      <div v-if="loading" class="text-center text-secondary py-5">
+        <div class="spinner-border mb-3" role="status" aria-hidden="true"></div>
+        <div>加载中...</div>
       </div>
 
-      <FormRenderer
-        ref="formRef"
-        :schema="form.schema"
-        @submit="handleSubmit"
-      />
-    </template>
-  </div>
+      <div v-else-if="error" class="alert alert-danger" role="alert">
+        <h2 class="h5 alert-heading">出错了</h2>
+        <p class="mb-0">{{ error }}</p>
+      </div>
+
+      <template v-else>
+        <header class="text-center mb-4">
+          <h1 class="h3 mb-2">{{ form.title }}</h1>
+          <p v-if="form.description" class="text-secondary mb-0">{{ form.description }}</p>
+        </header>
+
+        <FormRenderer
+          ref="formRef"
+          :schema="form.schema"
+          @submit="handleSubmit"
+        />
+      </template>
+    </div>
+  </main>
 </template>
 
 <script setup>
@@ -38,7 +41,6 @@ const form = ref({})
 const loading = ref(true)
 const error = ref(null)
 
-// 加载表单
 async function loadForm() {
   loading.value = true
   error.value = null
@@ -53,21 +55,16 @@ async function loadForm() {
   }
 }
 
-// 提交表单
 async function handleSubmit(data) {
   try {
     await formApi.submitData(route.params.id, data)
     router.push({ name: 'success', params: { id: route.params.id } })
   } catch (err) {
-    // 显示字段级错误
     if (err.data?.errors) {
       formRef.value?.setErrors(err.data.errors)
     }
-    // 全局错误可以通过 toast 显示，这里简单处理
   }
 }
 
-onMounted(() => {
-  loadForm()
-})
+onMounted(loadForm)
 </script>

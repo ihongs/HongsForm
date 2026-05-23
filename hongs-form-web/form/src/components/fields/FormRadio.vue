@@ -1,14 +1,17 @@
 <template>
-  <div class="form-radio-group">
-    <label v-for="item in options" :key="item.value" class="form-radio">
+  <div class="d-grid gap-2">
+    <div v-for="item in options" :key="item.value" class="form-check">
       <input
+        class="form-check-input"
         type="radio"
+        :id="`${name}-${item.value}`"
+        :name="name"
         :value="item.value"
         :checked="modelValue === item.value"
         @change="$emit('update:modelValue', item.value)"
       />
-      <span>{{ item.label }}</span>
-    </label>
+      <label class="form-check-label" :for="`${name}-${item.value}`">{{ item.label }}</label>
+    </div>
   </div>
 </template>
 
@@ -22,7 +25,7 @@ const props = defineProps({
   error: [String, Object]
 })
 
-const emit = defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue'])
 
 const options = computed(() => {
   const field = props.field

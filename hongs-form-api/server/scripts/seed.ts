@@ -1,7 +1,31 @@
-import { registerAdminMethod } from '../registry.js'
-import { ObjectId } from 'mongodb'
+import { createHash, randomBytes } from 'node:crypto';
+import { ObjectId } from 'mongodb';
+import { connectDb, closeDb } from '../src/utils/db.js';
+import { loadEnv } from '../src/utils/env.js';
 
-// 测试表单配置
+function generateSalt(): string {
+  return randomBytes(16).toString('hex');
+}
+
+function hashPassword(password: string, salt: string): string {
+  return createHash('sha256').update(password + salt).digest('hex');
+}
+
+const users = [
+  {
+    username: 'admin',
+    password: 'admin123',
+    role: 'admin',
+    nickname: '管理员'
+  },
+  {
+    username: 'agent',
+    password: 'agent123',
+    role: 'agent',
+    nickname: '测试用户'
+  }
+];
+
 const testForms = [
   {
     name: 'user_survey',
@@ -11,20 +35,20 @@ const testForms = [
     color: '#1890ff',
     schema: {
       type: 'object',
-      required: ['name', 'rating', 'satisfaction'],
       properties: {
         name: {
           type: 'string',
           title: '您的姓名',
           placeholder: '请输入您的姓名',
           minLength: 2,
-          maxLength: 50
+          maxLength: 50,
+          required: true
         },
         email: {
           type: 'string',
           title: '电子邮箱',
           placeholder: '请输入您的邮箱',
-          pattern: '^.+@.+\\..+$'
+          format: 'email'
         },
         rating: {
           type: 'integer',
@@ -37,12 +61,14 @@ const testForms = [
             3: '一般',
             4: '满意',
             5: '非常满意'
-          }
+          },
+          required: true
         },
         satisfaction: {
           type: 'array',
           title: '您对哪些方面满意',
-          inputType: 'checkbox',
+          inputType: 'check',
+          required: true,
           minItems: 1,
           items: {
             type: 'string',
@@ -65,13 +91,13 @@ const testForms = [
         recommend: {
           type: 'boolean',
           title: '是否愿意推荐给朋友',
-          inputType: 'radio',
+          inputType: 'switch',
           default: false
         }
       }
     },
     config: {
-      anonymous: false,
+      anonymous: true,
       oncePerUser: false
     },
     status: 2
@@ -84,23 +110,27 @@ const testForms = [
     color: '#52c41a',
     schema: {
       type: 'object',
-      required: ['name', 'phone', 'message'],
       properties: {
         name: {
           type: 'string',
           title: '姓名',
-          placeholder: '请输入您的姓名'
+          placeholder: '请输入您的姓名',
+          required: true
         },
         phone: {
           type: 'string',
           title: '手机号',
+          inputType: 'phone',
           placeholder: '请输入您的手机号',
-          pattern: '^1[3-9]\\d{9}$'
+          pattern: '^1[3-9]\\d{9}$',
+          required: true
         },
         email: {
           type: 'string',
           title: '邮箱（选填）',
-          placeholder: '请输入您的邮箱'
+          inputType: 'email',
+          placeholder: '请输入您的邮箱',
+          format: 'email'
         },
         type: {
           type: 'string',
@@ -120,7 +150,8 @@ const testForms = [
           inputType: 'textarea',
           placeholder: '请详细描述您的问题...',
           minLength: 10,
-          maxLength: 1000
+          maxLength: 1000,
+          required: true
         }
       }
     },
@@ -137,24 +168,26 @@ const testForms = [
     color: '#eb2f96',
     schema: {
       type: 'object',
-      required: ['realName', 'age', 'company'],
       properties: {
         realName: {
           type: 'string',
           title: '真实姓名',
-          placeholder: '请输入您的真实姓名'
+          placeholder: '请输入您的真实姓名',
+          required: true
         },
         age: {
           type: 'integer',
           title: '年龄',
           placeholder: '请输入年龄',
           minimum: 18,
-          maximum: 100
+          maximum: 100,
+          required: true
         },
         company: {
           type: 'string',
           title: '所在公司',
-          placeholder: '请输入公司名称'
+          placeholder: '请输入公司名称',
+          required: true
         },
         position: {
           type: 'string',
@@ -182,53 +215,90 @@ const testForms = [
       }
     },
     config: {
-      anonymous: false
+      anonymous: true
     },
     status: 2
   }
-]
+];
 
-// 导入测试表单
-registerAdminMethod('admin.test.importForms', async (params, ctx) => {
-  const { userId } = params as { userId?: string }
-  if (!userId) throw new Error('User ID is required')
-
-  const now = new Date()
-  const result = []
-
-  for (const form of testForms) {
-    const existing = await ctx.db.collection('form').findOne({
-      name: form.name,
-      userId: new ObjectId(userId),
-      deletedAt: null
-    })
-
-    if (existing) {
-      result.push({ name: form.name, status: 'skipped', id: existing._id.toString() })
-      continue
-    }
-
-    const insertResult = await ctx.db.collection('form').insertOne({
-      userId: new ObjectId(userId),
-      ...form,
-      publishedAt: now,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null
-    })
-
-    result.push({ name: form.name, status: 'created', id: insertResult.insertedId.toString() })
+async function ensureUser(db: any, user: typeof users[number]) {
+  const existing = await db.collection('user').findOne({ username: user.username, deletedAt: null });
+  if (existing) {
+    return { status: 'skipped', id: existing._id };
   }
 
-  return result
-})
+  const passsalt = generateSalt();
+  const now = new Date();
+  const result = await db.collection('user').insertOne({
+    username: user.username,
+    password: hashPassword(user.password, passsalt),
+    passsalt,
+    role: user.role,
+    nickname: user.nickname,
+    email: null,
+    phone: null,
+    avatar: null,
+    status: 1,
+    settings: {},
+    lastLoginIp: null,
+    lastLoginAt: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  });
 
-// 获取测试表单列表
-registerAdminMethod('admin.test.getForms', async () => {
-  return testForms.map(f => ({
-    name: f.name,
-    title: f.title,
-    description: f.description,
-    fieldCount: Object.keys(f.schema.properties).length
-  }))
-})
+  return { status: 'created', id: result.insertedId };
+}
+
+async function ensureForm(db: any, userId: ObjectId, form: typeof testForms[number]) {
+  const existing = await db.collection('form').findOne({ name: form.name, userId, deletedAt: null });
+  if (existing) {
+    return { status: 'skipped', id: existing._id };
+  }
+
+  const now = new Date();
+  const result = await db.collection('form').insertOne({
+    userId,
+    ...form,
+    dataCount: 0,
+    publishedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  });
+
+  return { status: 'created', id: result.insertedId };
+}
+
+async function main() {
+  const env = loadEnv();
+  const db = await connectDb(env.MONGODB_URI || 'mongodb://localhost:27017/hongs_form');
+
+  const userResults = new Map<string, Awaited<ReturnType<typeof ensureUser>>>();
+  for (const user of users) {
+    const result = await ensureUser(db, user);
+    userResults.set(user.username, result);
+    console.log(`user ${user.username}: ${result.status} ${result.id.toString()}`);
+  }
+
+  const agent = userResults.get('agent');
+  if (!agent) throw new Error('Agent user not initialized');
+
+  for (const form of testForms) {
+    const result = await ensureForm(db, agent.id, form);
+    console.log(`form ${form.name}: ${result.status} ${result.id.toString()}`);
+  }
+
+  console.log('seed completed');
+  console.log('admin login: admin / admin123');
+  console.log('agent login: agent / agent123');
+}
+
+main()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await closeDb();
+  });

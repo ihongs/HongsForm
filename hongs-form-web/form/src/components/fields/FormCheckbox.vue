@@ -1,14 +1,16 @@
 <template>
-  <div class="form-checkbox-group">
-    <label v-for="item in options" :key="item.value" class="form-checkbox">
+  <div class="d-grid gap-2">
+    <div v-for="item in options" :key="item.value" class="form-check">
       <input
+        class="form-check-input"
         type="checkbox"
+        :id="`${name}-${item.value}`"
         :value="item.value"
         :checked="isChecked(item.value)"
         @change="handleChange(item.value, $event.target.checked)"
       />
-      <span>{{ item.label }}</span>
-    </label>
+      <label class="form-check-label" :for="`${name}-${item.value}`">{{ item.label }}</label>
+    </div>
   </div>
 </template>
 
