@@ -1,41 +1,35 @@
-import { FormSchema, Validate, Validates, VModes, VError, VENUM } from './types.js';
-import { t } from './i18n.js';
-
-// 子路径
-export function vPath(modes: VModes, key: string | number): VModes {
-    const path = modes.path ? `${modes.path}.${key}` : String(key);
-    return { ...modes, path, name: String(key) };
-}
+import { FormSchema, Validate, Validates, VModes, VState, VError, VPASS, VQUIT } from './types.js';
+import { tr } from './i18n.js';
 
 // 可选/非必填 (optional)
 export const optional: Validate = function (value: any, schema: any, modes: VModes) {
     if (value === undefined) {
-        return VENUM.QUIT;
+        return VQUIT;
     }
     return value;
 };
 
 // 必选/必填 (required)
-// patchMode=true 且值为 undefined: 返回 VENUM.QUIT 中止后续校验
+// patchMode=true 且值为 undefined: 返回 VQUIT 中止后续校验
 export const required: Validate = function (value: any, schema: any, modes: VModes) {
     // patchMode 下 undefined：中止后续校验
     if (modes.patchMode && value === undefined) {
-        return VENUM.QUIT;
+        return VQUIT;
     }
 
     // undefined/null/空串
     if (value === undefined || value === null || value === '') {
-        throw new Error(t('required'));
+        throw new Error(tr('required'));
     }
 
     // 空数组
     if (Array.isArray(value) && value.length === 0) {
-        throw new Error(t('required'));
+        throw new Error(tr('required'));
     }
 
     // 空对象
     if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) {
-        throw new Error(t('required'));
+        throw new Error(tr('required'));
     }
 
     return value;
@@ -58,7 +52,7 @@ export const requires: Validate = function (value: any, schema: any, modes: VMod
     }
 
     if (Object.keys(errors).length > 0) {
-        throw new VError(t('properties'), errors);
+        throw new VError(tr('properties'), errors);
     }
 
     return value;
@@ -98,24 +92,24 @@ export const isString: Validate = function (value: any, schema: any, modes: VMod
 
     // 枚举校验
     if (schema.enum && !schema.enum.includes(value)) {
-        throw new Error(t('enum'));
+        throw new Error(tr('enum'));
     }
 
     // 长度校验
     if (schema.minLength != null && value.length < schema.minLength) {
-        throw new Error(t('minLength', { value: schema.minLength }));
+        throw new Error(tr('minLength', { value: schema.minLength }));
     }
     if (schema.maxLength != null && value.length > schema.maxLength) {
-        throw new Error(t('maxLength', { value: schema.maxLength }));
+        throw new Error(tr('maxLength', { value: schema.maxLength }));
     }
 
     // 正则校验，pattern 优先；未配置 pattern 时使用 format 对应的内置 pattern
     const pattern = schema.pattern ?? (schema.format ? patterns[schema.format] : undefined);
     if (schema.format && !schema.pattern && !pattern) {
-        throw new Error(t('format', { value: schema.format }));
+        throw new Error(tr('format', { value: schema.format }));
     }
     if (pattern && !new RegExp(pattern).test(value)) {
-        throw new Error(t('pattern'));
+        throw new Error(tr('pattern'));
     }
 
     return value;
@@ -130,23 +124,23 @@ export const isNumber: Validate = function (value: any, schema: any, modes: VMod
     if (typeof value !== 'number') {
         const num = Number(value);
         if (isNaN(num)) {
-            throw new Error(t('number'));
+            throw new Error(tr('number'));
         }
         value = num;
     }
 
     // 范围校验
     if (schema.minimum != null && value < schema.minimum) {
-        throw new Error(t('minimum', { value: schema.minimum }));
+        throw new Error(tr('minimum', { value: schema.minimum }));
     }
     if (schema.maximum != null && value > schema.maximum) {
-        throw new Error(t('maximum', { value: schema.maximum }));
+        throw new Error(tr('maximum', { value: schema.maximum }));
     }
     if (schema.exclusiveMinimum != null && value <= schema.exclusiveMinimum) {
-        throw new Error(t('exclusiveMinimum', { value: schema.exclusiveMinimum }));
+        throw new Error(tr('exclusiveMinimum', { value: schema.exclusiveMinimum }));
     }
     if (schema.exclusiveMaximum != null && value >= schema.exclusiveMaximum) {
-        throw new Error(t('exclusiveMaximum', { value: schema.exclusiveMaximum }));
+        throw new Error(tr('exclusiveMaximum', { value: schema.exclusiveMaximum }));
     }
 
     return value;
@@ -161,7 +155,7 @@ export const isInteger: Validate = function (value: any, schema: any, modes: VMo
     if (typeof value !== 'number' || !Number.isInteger(value)) {
         const num = Number(value);
         if (isNaN(num) || !Number.isInteger(num)) {
-            throw new Error(t('integer'));
+            throw new Error(tr('integer'));
         }
         value = num;
     }
@@ -182,7 +176,7 @@ export const isBoolean: Validate = function (value: any, schema: any, modes: VMo
     if (value === 1 || value === '1' || value === 'true') return true;
     if (value === 0 || value === '0' || value === 'false') return false;
 
-    throw new Error(t('boolean'));
+    throw new Error(tr('boolean'));
 };
 
 // 日期/时间 (inputType=datetime|date|time, 按 type 返回时间戳或格式化字符串, 默认返回 Date 对象)
@@ -193,13 +187,13 @@ export const isDateTime: Validate = function (value: any, schema: any, modes: VM
     // 已是 Date 对象
     if (value instanceof Date) {
         if (isNaN(value.getTime())) {
-            throw new Error(t('date'));
+            throw new Error(tr('date'));
         }
     } else {
         // 转换
         const date = new Date(value);
         if (isNaN(date.getTime())) {
-            throw new Error(t('date'));
+            throw new Error(tr('date'));
         }
         value = date;
     }
@@ -223,11 +217,11 @@ export const isDateTime: Validate = function (value: any, schema: any, modes: VM
 
 // null 类型不处理、不存储
 export const isNull: Validate = function (value: any, schema: any, modes: VModes) {
-    return VENUM.QUIT;
+    return VQUIT;
 }
 
 // 多选/多填 (type=array)
-export const isArray: Validate = function (value: any, schema: any, modes: VModes) {
+export const isArray: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -236,16 +230,16 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
         if (typeof value === 'string') {
             value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
         } else {
-            throw new Error(t('array'));
+            throw new Error(tr('array'));
         }
     }
 
     // 预校验：数量范围，有错直接抛
     if (schema.minItems != null && value.length < schema.minItems) {
-        throw new Error(t('minItems', { value: schema.minItems }));
+        throw new Error(tr('minItems', { value: schema.minItems }));
     }
     if (schema.maxItems != null && value.length > schema.maxItems) {
-        throw new Error(t('maxItems', { value: schema.maxItems }));
+        throw new Error(tr('maxItems', { value: schema.maxItems }));
     }
 
     // 唯一性校验
@@ -254,7 +248,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
         for (const item of value) {
             const key = typeof item === 'object' ? JSON.stringify(item) : item;
             if (seen.has(key)) {
-                throw new Error(t('uniqueItems'));
+                throw new Error(tr('uniqueItems'));
             }
             seen.add(key);
         }
@@ -274,7 +268,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
                 continue;
             }
 
-            const childModes = vPath(modes, i);
+            const itemState = new VState(i, state);
             let itemSchema: any;
             if (isTuple) {
                 // tuple 校验：取对应索引的 schema，超出长度用 additionalItems
@@ -282,7 +276,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
                     itemSchema = items[i];
                 } else if (schema.additionalItems === false) {
                     // 不允许额外元素
-                    errors[String(i)] = t('additionalItems');
+                    errors[String(i)] = tr('additionalItems');
                     result.push(value[i]);
                     continue;
                 } else if (typeof schema.additionalItems === 'object') {
@@ -299,7 +293,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
             }
 
             try {
-                const val = validate(value[i], itemSchema, childModes);
+                const val = validate(value[i], itemSchema, modes, itemState);
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result.push(val);
@@ -321,7 +315,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
 
         // 有错误就抛
         if (Object.keys(errors).length > 0) {
-            throw new VError(t('items'), errors);
+            throw new VError(tr('items'), errors);
         }
     }
 
@@ -329,25 +323,27 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
 };
 
 // 默认/对象 (type=object)
-export const isObject: Validate = function (value: any, schema: any, modes: VModes) {
+export const isObject: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
     // null/undefined 不处理
     if (value == null) return value;
 
     // 确保是对象
     if (typeof value !== 'object' || Array.isArray(value)) {
-        throw new Error(t('object'));
+        throw new Error(tr('object'));
     }
 
     const result: Record<string, unknown> = { ...value };
-    const childModes = { ...modes, valids: result, values: value };
+    const objectState = new VState(state?.name, state?.parent);
+    objectState.valids = result;
+    objectState.values = value;
 
     // 属性数量预校验
     const count = Object.keys(result).length;
     if (schema.minProperties != null && count < schema.minProperties) {
-        throw new Error(t('minProperties', { value: schema.minProperties }));
+        throw new Error(tr('minProperties', { value: schema.minProperties }));
     }
     if (schema.maxProperties != null && count > schema.maxProperties) {
-        throw new Error(t('maxProperties', { value: schema.maxProperties }));
+        throw new Error(tr('maxProperties', { value: schema.maxProperties }));
     }
 
     const errors: Record<string, unknown> = {};
@@ -355,9 +351,9 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
     // 按 properties 定义顺序遍历校验，收集错误
     if (schema.properties) {
         for (const [key, propSchema] of Object.entries(schema.properties)) {
-            const fieldModes = vPath(childModes, key);
+            const fieldState = new VState(key, objectState);
             try {
-                const val = validate(result[key], propSchema, fieldModes);
+                const val = validate(result[key], propSchema, modes, fieldState);
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result[key] = val;
@@ -385,16 +381,16 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
         const allowed = new Set(Object.keys(schema.properties || {}));
         for (const key of Object.keys(result)) {
             if (!allowed.has(key)) {
-                errors[key] = t('additionalProperties');
+                errors[key] = tr('additionalProperties');
             }
         }
     } else if (typeof schema.additionalProperties === 'object') {
         const allowed = new Set(Object.keys(schema.properties || {}));
         for (const key of Object.keys(result)) {
             if (!allowed.has(key)) {
-                const fieldModes = vPath(childModes, key);
+                const fieldState = new VState(key, objectState);
                 try {
-                    const val = validate(result[key], schema.additionalProperties, fieldModes);
+                    const val = validate(result[key], schema.additionalProperties, modes, fieldState);
                     if (val !== undefined) {
                         result[key] = val;
                     } else {
@@ -415,7 +411,7 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
 
     // 有错误就抛
     if (Object.keys(errors).length > 0) {
-        throw new VError(t('properties'), errors);
+        throw new VError(tr('properties'), errors);
     }
 
     return result;
@@ -481,20 +477,20 @@ export const moreValidates: Validates[] = [
     }
 ];
 
-const validates = function (value: any, schema: any, modes: VModes, validateFns: Validate[]) {
+const validates = function (validateFns: Validate[], value: any, schema: any, modes: VModes, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
 
     // 依次执行校验
     let result = value;
     for (const fn of validateFns) {
-        const r = fn(result, sch, modes);
-        // 遇到 VENUM.PASS，跳过当前校验
-        if (r === VENUM.PASS) {
+        const r = fn(result, sch, modes, state);
+        // 遇到 VPASS，跳过当前校验
+        if (r === VPASS) {
             continue;
         }
-        // 遇到 VENUM.QUIT，中止后续校验
-        if (r === VENUM.QUIT) {
+        // 遇到 VQUIT，中止后续校验
+        if (r === VQUIT) {
             break;
         }
         result = r;
@@ -504,7 +500,7 @@ const validates = function (value: any, schema: any, modes: VModes, validateFns:
 };
 
 // 校验方法, 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
-export const validate: Validate = function (value: any, schema: any, modes: VModes) {
+export const validate: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
 
@@ -532,11 +528,11 @@ export const validate: Validate = function (value: any, schema: any, modes: VMod
         }
     }
 
-    return validates(value, schema, modes, validateFns);
+    return validates(validateFns, value, schema, modes, state);
 };
 
 // 核心校验, 用于自定义 validate: [coreValidate, yourValidate]
-export const coreValidate: Validate = function(value: any, schema: any, modes: VModes) {
+export const coreValidate: Validate = function(value: any, schema: any, modes: VModes, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
 
@@ -549,11 +545,11 @@ export const coreValidate: Validate = function(value: any, schema: any, modes: V
         if (fn) validateFns.push(fn);
     }
 
-    return validates(value, schema, modes, validateFns);
+    return validates(validateFns, value, schema, modes, state);
 }
 
 // 扩展校验, 用于自定义 validate: [moreValidate, yourValidate]
-export const moreValidate: Validate = function(value: any, schema: any, modes: VModes) {
+export const moreValidate: Validate = function(value: any, schema: any, modes: VModes, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
 
@@ -566,7 +562,7 @@ export const moreValidate: Validate = function(value: any, schema: any, modes: V
         if (fn) validateFns.push(fn);
     }
 
-    return validates(value, schema, modes, validateFns);
+    return validates(validateFns, value, schema, modes, state);
 }
 
 // form schema 的 input 校验

@@ -1,3 +1,5 @@
+import { Tr } from './i18n.js';
+
 // 表单结构
 export interface FormSchema {
     type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
@@ -60,8 +62,16 @@ export class VState {
         this.parent = parent;
     }
 
-    getPath() {
-        // TODO
+    getPath(): string {
+        const names: string[] = [];
+        let state: VState | undefined = this;
+        while (state) {
+            if (state.name !== undefined) {
+                names.unshift(String(state.name));
+            }
+            state = state.parent;
+        }
+        return names.join('.');
     };
 
     getValues(): object | undefined {
@@ -83,21 +93,13 @@ export class VState {
     };
 }
 
-// 结构化错误：key + params
-export interface ErrorMeta {
-    key: string;
-    params?: Record<string, unknown>;
-}
-
 // 校验错误
 export class VError extends Error {
     errors?: Record<string, unknown>;
-    meta?: ErrorMeta; // 结构化错误元数据
 
-    constructor(message: string, errors?: Record<string, unknown>, meta?: ErrorMeta) {
+    constructor(message: string, errors?: Record<string, unknown>) {
         super(message);
         this.errors = errors;
-        this.meta = meta;
     }
 
     toMap(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
@@ -105,14 +107,12 @@ export class VError extends Error {
         if (this.errors) {
             for (const [key, value] of Object.entries(this.errors)) {
                 if (value instanceof VError) {
-                    // 嵌套 VError，递归展开成层级结构
                     result[key] = value.toMap(translator);
-                } else if (typeof value === 'object' && value !== null && (value as ErrorMeta).key) {
-                    // 结构化错误，使用翻译函数
-                    const meta = value as ErrorMeta;
-                    result[key] = translator ? translator(meta.key, meta.params) : meta.key;
+                } else if (value instanceof Tr) {
+                    result[key] = translator ? translator(value.key, value.params) : value.toString();
+                } else if (typeof value === 'object' && value !== null && value.toString !== Object.prototype.toString) {
+                    result[key] = value.toString();
                 } else {
-                    // 其他类型直接赋值
                     result[key] = value;
                 }
             }
@@ -124,25 +124,23 @@ export class VError extends Error {
 function vEnum(name: string) {
     return Object.freeze({
         toString() {
-            throw new Error(`VENUM.${name} cannot be stringified`);
+            throw new Error(`${name} cannot be stringified`);
         },
         toJSON() {
-            throw new Error(`VENUM.${name} cannot be serialized`);
+            throw new Error(`${name} cannot be serialized`);
         },
         [Symbol.toPrimitive]() {
-            throw new Error(`VENUM.${name} cannot be converted`);
+            throw new Error(`${name} cannot be converted`);
         },
     });
 }
 
-export const VENUM = Object.freeze({
-    PASS: vEnum('PASS'),
-    QUIT: vEnum('QUIT'),
-});
+export const VPASS = vEnum('VPASS');
+export const VQUIT = vEnum('VQUIT');
 
 // 校验方法
 export interface Validate {
-    (value: any, schema: any, modes: VModes): any;
+    (value: any, schema: any, modes: VModes, state?: VState): any;
 }
 
 // 校验方法集合

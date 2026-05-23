@@ -7,7 +7,9 @@ export type {
 } from './types.js';
 export {
   VError,
-  VENUM,
+  VState,
+  VPASS,
+  VQUIT,
 } from './types.js';
 export type {
   Translator
@@ -17,7 +19,8 @@ export {
   defaultTranslator,
   setTranslator,
   getTranslator,
-  t,
+  Tr,
+  tr,
 } from './i18n.js';
 export {
   optional,

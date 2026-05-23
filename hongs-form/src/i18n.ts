@@ -52,7 +52,25 @@ export function setTranslator(fn: Translator): void {
   translator = fn;
 }
 
+// 延迟翻译
+export class Tr {
+  constructor(
+    readonly key: string,
+    readonly params?: Record<string, unknown>
+  ) {}
+
+  toString(): string {
+    return tr(this.key, this.params);
+  }
+  toJSON() {
+    return this.toString();
+  }
+  [Symbol.toPrimitive]() {
+    return this.toString();
+  }
+}
+
 // 快捷翻译
-export function t(key: string, params?: Record<string, unknown>): string {
+export function tr(key: string, params?: Record<string, unknown>): string {
   return translator(key, params);
 }
