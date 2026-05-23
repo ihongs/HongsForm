@@ -10,7 +10,7 @@ import {
   isArray,
   isObject,
   isDateTime,
-  VQUIT,
+  VENUM,
   coreValidate,
   moreValidate,
   coreValidates,
@@ -20,9 +20,18 @@ import {
   type VError,
 } from '../src';
 
+describe('VENUM', () => {
+  it('PASS/QUIT 不能被 JSON 序列化或转成字符串', () => {
+    expect(() => JSON.stringify(VENUM.PASS)).toThrow('VENUM.PASS cannot be serialized');
+    expect(() => JSON.stringify({ value: VENUM.QUIT })).toThrow('VENUM.QUIT cannot be serialized');
+    expect(() => String(VENUM.PASS)).toThrow('VENUM.PASS cannot be converted');
+    expect(() => `${VENUM.QUIT}`).toThrow('VENUM.QUIT cannot be converted');
+  });
+});
+
 describe('optional', () => {
-  it('undefined 返回 VQUIT，跳过后续校验', () => {
-    expect(optional(undefined, {}, {})).toBe(VQUIT);
+  it('undefined 返回 VENUM.QUIT，跳过后续校验', () => {
+    expect(optional(undefined, {}, {})).toBe(VENUM.QUIT);
   });
 
   it('null 和空字符串不退出，交给后续类型校验处理', () => {
@@ -166,7 +175,7 @@ describe('isObject - 收集多个字段错误', () => {
     }
   });
 
-  it('patchMode 下 undefined 触发 VQUIT，不抛异常，字段级中止后续校验', () => {
+  it('patchMode 下 undefined 触发 VENUM.QUIT，不抛异常，字段级中止后续校验', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true, minLength: 10 }, // minLength 不会执行
@@ -174,7 +183,7 @@ describe('isObject - 收集多个字段错误', () => {
       },
     };
     const data = { name: undefined, age: undefined };
-    // patchMode + undefined + required = VQUIT
+    // patchMode + undefined + required = VENUM.QUIT
     const result = validate(data, schema, { patchMode: true });
     expect(result.name).toBeUndefined();
     expect(result.age).toBeUndefined();
@@ -277,20 +286,20 @@ describe('类型转换', () => {
 });
 
 describe('patchMode', () => {
-  it('undefined 字段：返回 VQUIT，跳过后续校验', () => {
+  it('undefined 字段：返回 VENUM.QUIT，跳过后续校验', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true },
-        age: { type: 'number', required: true }, // age 为 undefined，触发 VQUIT
+        age: { type: 'number', required: true }, // age 为 undefined，触发 VENUM.QUIT
       },
     };
-    // 只传 name，age 是 undefined，patchMode 下触发 VQUIT
+    // 只传 name，age 是 undefined，patchMode 下触发 VENUM.QUIT
     const result = validate({ name: 'test' }, schema, { patchMode: true });
     expect(result.name).toBe('test');
     expect(result.age).toBeUndefined(); // 没有被校验
   });
 
-  it('null：不触发 VQUIT，按 required 规则抛异常', () => {
+  it('null：不触发 VENUM.QUIT，按 required 规则抛异常', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true },
@@ -301,14 +310,14 @@ describe('patchMode', () => {
   });
 });
 
-describe('VQUIT - 中止字段校验', () => {
-  it('patchMode + undefined + required: 返回 VQUIT，中止后续校验', () => {
+describe('VENUM.QUIT - 中止字段校验', () => {
+  it('patchMode + undefined + required: 返回 VENUM.QUIT，中止后续校验', () => {
     const schema: FormSchema = {
       type: 'string',
       required: true,
       minLength: 10, // 这个校验不会执行
     };
-    // undefined 在 patchMode 下触发 VQUIT，不会抛异常，也不执行 minLength
+    // undefined 在 patchMode 下触发 VENUM.QUIT，不会抛异常，也不执行 minLength
     const result = validate(undefined, schema, { patchMode: true });
     expect(result).toBeUndefined();
   });
@@ -328,18 +337,18 @@ describe('VQUIT - 中止字段校验', () => {
     expect(() => validate('', schema, {})).toThrow('Required');
   });
 
-  it('patchMode: null 不触发 VQUIT，继续后续校验（抛异常）', () => {
-    // null 不是 undefined，不触发 VQUIT，继续 required 校验，抛异常
+  it('patchMode: null 不触发 VENUM.QUIT，继续后续校验（抛异常）', () => {
+    // null 不是 undefined，不触发 VENUM.QUIT，继续 required 校验，抛异常
     const schema = { type: 'string', required: true };
     expect(() => validate(null, schema, { patchMode: true })).toThrow('Required');
   });
 
-  it('自定义校验返回 VQUIT 中止后续校验', () => {
-    const fn1 = () => VQUIT;
+  it('自定义校验返回 VENUM.QUIT 中止后续校验', () => {
+    const fn1 = () => VENUM.QUIT;
     const fn2 = (v: unknown) => String(v) + '_processed'; // 不会被执行
     const schema = { validate: [fn1, fn2] };
     const result = validate('test', schema, {});
-    expect(result).toBe('test'); // fn1 返回 VQUIT，返回原值，fn2 不执行
+    expect(result).toBe('test'); // fn1 返回 VENUM.QUIT，返回原值，fn2 不执行
   });
 });
 
@@ -370,8 +379,8 @@ describe('自定义 validate', () => {
     expect(() => validate('x', schema, {})).toThrow('First failed');
   });
 
-  it('自定义校验中返回 VQUIT 中止后续', () => {
-    const fn1 = () => VQUIT;
+  it('自定义校验中返回 VENUM.QUIT 中止后续', () => {
+    const fn1 = () => VENUM.QUIT;
     const fn2 = (v: unknown) => String(v) + '_b'; // 不会执行
     const schema = { validate: [fn1, fn2] };
     expect(validate('x', schema, {})).toBe('x');

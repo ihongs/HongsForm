@@ -91,10 +91,24 @@ export class VError extends Error {
     }
 }
 
-// 特殊常量：跳过当前项，不收集结果
-export const VPASS = { __vpass: true };
-// 特殊常量：中止当前字段的后续校验
-export const VQUIT = { __vquit: true };
+function vEnum(name: string) {
+    return Object.freeze({
+        toString() {
+            throw new Error(`VENUM.${name} cannot be stringified`);
+        },
+        toJSON() {
+            throw new Error(`VENUM.${name} cannot be serialized`);
+        },
+        [Symbol.toPrimitive]() {
+            throw new Error(`VENUM.${name} cannot be converted`);
+        },
+    });
+}
+
+export const VENUM = Object.freeze({
+    PASS: vEnum('PASS'),
+    QUIT: vEnum('QUIT'),
+});
 
 // 校验方法
 export interface Validate {

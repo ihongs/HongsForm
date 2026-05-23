@@ -1,15 +1,16 @@
 
 export type {
   FormSchema,
-  VModes,
   Validate,
+  VModes,
 } from './types';
-export type { Translator } from './i18n';
 export {
   VError,
-  VQUIT,
-  VPASS,
+  VENUM,
 } from './types';
+export type {
+  Translator
+} from './i18n';
 export {
   defaultMessages,
   defaultTranslator,

@@ -1,4 +1,4 @@
-import { FormSchema, Validate, VModes, VError, VPASS, VQUIT } from './types';
+import { FormSchema, Validate, VModes, VError, VENUM } from './types';
 import { t } from './i18n';
 
 // 子路径
@@ -10,17 +10,17 @@ export function vPath(modes: VModes, key: string | number): VModes {
 // 可选/非必填 (optional)
 export const optional: Validate = function (value: any, schema: any, modes: VModes) {
     if (value === undefined) {
-        return VQUIT;
+        return VENUM.QUIT;
     }
     return value;
 };
 
 // 必选/必填 (required)
-// patchMode=true 且值为 undefined: 返回 VQUIT 中止后续校验
+// patchMode=true 且值为 undefined: 返回 VENUM.QUIT 中止后续校验
 export const required: Validate = function (value: any, schema: any, modes: VModes) {
     // patchMode 下 undefined：中止后续校验
     if (modes.patchMode && value === undefined) {
-        return VQUIT;
+        return VENUM.QUIT;
     }
 
     // undefined/null/空串
@@ -483,12 +483,12 @@ const validates = function (value: any, schema: any, modes: VModes, validateFns:
     let result = value;
     for (const fn of validateFns) {
         const r = fn(result, sch, modes);
-        // 遇到 VPASS，跳过当前校验
-        if (r === VPASS) {
+        // 遇到 VENUM.PASS，跳过当前校验
+        if (r === VENUM.PASS) {
             continue;
         }
-        // 遇到 VQUIT，中止后续校验
-        if (r === VQUIT) {
+        // 遇到 VENUM.QUIT，中止后续校验
+        if (r === VENUM.QUIT) {
             break;
         }
         result = r;
