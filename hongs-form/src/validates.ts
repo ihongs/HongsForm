@@ -582,8 +582,9 @@ export const isInput: Validate = function(value: any, schema: any, modes: VModes
 export const formStruct: FormSchema = {
     type: 'object',
     properties: {
-        title: { type: 'string', required: true },
+        title: { type: 'string' },
         description: { type: 'string' },
+        required: { type: 'array', items: { type: 'string' } },
         properties: {
             type: 'object',
             required: true,
