@@ -29,13 +29,16 @@ async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | 
   const passwordHash = hashPassword(password, user.passsalt);
   if (passwordHash !== user.password) throw new Error('Invalid password');
 
+  const now = new Date();
+  const token = createToken({ sub: user._id.toString(), role: user.role });
+
   await ctx.db.collection('user').updateOne(
     { _id: user._id },
-    { $set: { lastLoginAt: new Date(), updatedAt: new Date() } }
+    { $set: { lastLoginAt: now, updatedAt: now } }
   );
 
   return {
-    token: createToken({ sub: user._id.toString(), role: user.role }),
+    token,
     user: toSafeUser(user)
   };
 }

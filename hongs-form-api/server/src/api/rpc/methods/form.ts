@@ -21,6 +21,7 @@ async function findOwnedForm(ctx: RpcContext, id: string): Promise<any> {
 function publicFormSchema(form: any): Record<string, unknown> {
   return {
     id: form._id.toString(),
+    type: form.type || 'form',
     name: form.name,
     title: form.title,
     description: form.description,
@@ -94,6 +95,7 @@ registerAgentMethod('agent.form.create', async (params, ctx) => {
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
     userId,
+    type: 'form',
     name,
     title: title || name,
     description: description || null,
@@ -229,6 +231,7 @@ registerAdminMethod('admin.form.create', async (params, ctx) => {
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
     userId: new ObjectId(userId),
+    type: 'form',
     name,
     title: title || name,
     description: description || null,

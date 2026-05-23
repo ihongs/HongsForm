@@ -210,6 +210,7 @@ registerAdminMethod('admin.test.importForms', async (params, ctx) => {
 
     const insertResult = await ctx.db.collection('form').insertOne({
       userId: new ObjectId(userId),
+      type: 'form',
       ...form,
       publishedAt: now,
       createdAt: now,

@@ -61,16 +61,29 @@ function sendError(
   });
 }
 
-function getAuthContext(req: IncomingMessage): Pick<RpcContext, 'userId' | 'role'> | null {
+async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'userId' | 'role'> | null> {
   const authorization = req.headers.authorization;
   if (!authorization?.startsWith('Bearer ')) return null;
 
-  const payload = verifyToken(authorization.slice(7));
-  if (!payload || !ObjectId.isValid(payload.sub)) return null;
+  const sk = authorization.slice(7);
+  const payload = verifyToken(sk);
+  if (payload && ObjectId.isValid(payload.sub)) {
+    return {
+      userId: new ObjectId(payload.sub),
+      role: payload.role
+    };
+  }
+
+  const userAuth = await getDb().collection('userAuth').findOne({
+    sk,
+    deletedAt: null,
+    expiresAt: { $gt: new Date() }
+  });
+  if (!userAuth) return null;
 
   return {
-    userId: new ObjectId(payload.sub),
-    role: payload.role
+    userId: userAuth.userId,
+    role: userAuth.role
   };
 }
 
@@ -120,7 +133,7 @@ function createRpcHandler(methods: Map<string, RpcHandler>, options: RpcHandlerO
       }
 
       const isPublicMethod = options.publicMethods?.has(request.method) ?? false;
-      const auth = getAuthContext(req);
+      const auth = await getAuthContext(req);
       if (req.headers.authorization && !auth) {
         sendError(res, -32001, 'Unauthorized', request.id);
         return;

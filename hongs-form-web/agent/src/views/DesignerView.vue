@@ -69,23 +69,23 @@
                   </div>
 
                   <div class="row g-3">
-                    <div class="col-md-6">
+                    <div v-if="field.inputType !== 'figure'" :class="field.inputType === 'legend' ? 'col-12' : 'col-md-6'">
                       <label class="form-label">字段标题</label>
                       <input v-model.trim="field.title" class="form-control" placeholder="用于数据列表和管理后台展示" />
                     </div>
-                    <div class="col-md-6">
+                    <div v-if="!isDisplayField(field)" class="col-md-6">
                       <label class="form-label">表单标签</label>
                       <input v-model.trim="field.label" class="form-control" placeholder="默认同字段标题，显示在表单内" />
                     </div>
-                    <div class="col-12">
+                    <div v-if="field.inputType !== 'legend'" class="col-12">
                       <label class="form-label">字段说明</label>
-                      <textarea v-model.trim="field.description" class="form-control" rows="2" placeholder="显示在字段下方的帮助信息"></textarea>
+                      <textarea v-model.trim="field.description" class="form-control" rows="2" :placeholder="field.inputType === 'figure' ? '支持 Markdown，显示为一段说明内容' : '显示在字段下方的帮助信息'"></textarea>
                     </div>
                     <div v-if="supportsPlaceholder(field)" class="col-md-6">
                       <label class="form-label">占位提示</label>
                       <input v-model.trim="field.placeholder" class="form-control" />
                     </div>
-                    <div class="col-md-6">
+                    <div v-if="!isDisplayField(field)" class="col-md-6">
                       <label class="form-label">是否必填/必选</label>
                       <select v-model="field.required" class="form-select">
                         <option :value="false">选填</option>
@@ -142,7 +142,9 @@ const fieldTypes = [
   { type: 'datetime', icon: 'bi-calendar2-week' },
   { type: 'date', icon: 'bi-calendar-date' },
   { type: 'time', icon: 'bi-clock' },
-  { type: 'file', icon: 'bi-paperclip' }
+  { type: 'file', icon: 'bi-paperclip' },
+  { type: 'legend', icon: 'bi-type-h2' },
+  { type: 'figure', icon: 'bi-markdown' }
 ]
 const route = useRoute()
 const router = useRouter()
@@ -203,7 +205,9 @@ function defaultTitle(inputType, name) {
     datetime: '日期时间',
     date: '日期',
     time: '时间',
-    file: '文件'
+    file: '文件',
+    legend: '分隔标题',
+    figure: '内容说明'
   }
   return titles[inputType] || name
 }
@@ -214,6 +218,10 @@ function usesOptions(field) {
 
 function supportsPlaceholder(field) {
   return ['text', 'email', 'phone', 'textarea'].includes(field.inputType)
+}
+
+function isDisplayField(field) {
+  return field.inputType === 'legend' || field.inputType === 'figure'
 }
 
 function removeField(index) {
@@ -252,13 +260,13 @@ function parseOptions(text) {
 
 function fieldToSchema(field) {
   const schema = {
-    title: field.title || field.name,
+    title: field.inputType === 'figure' ? 'figure' : field.title || field.name,
     inputType: field.inputType
   }
-  if (field.label) schema.label = field.label
+  if (!isDisplayField(field) && field.label) schema.label = field.label
   if (field.description) schema.description = field.description
   if (supportsPlaceholder(field) && field.placeholder) schema.placeholder = field.placeholder
-  if (field.required) schema.required = true
+  if (!isDisplayField(field) && field.required) schema.required = true
 
   if (field.inputType === 'email') {
     schema.type = 'string'
@@ -294,6 +302,8 @@ function fieldToSchema(field) {
   } else if (field.inputType === 'time') {
     schema.type = 'string'
     schema.pattern = '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$'
+  } else if (field.inputType === 'legend' || field.inputType === 'figure') {
+    schema.type = 'null'
   }
 
   return schema
@@ -310,9 +320,9 @@ function validateForm() {
   if (!form.name) return '请输入表单名称'
   if (!form.title) return '请输入表单标题'
   if (fields.value.length === 0) return '请至少添加一个字段'
-  if (!fields.value.some((field) => field.required)) return '请至少设置一个必填/必选字段'
+  if (!fields.value.some((field) => !isDisplayField(field) && field.required)) return '请至少设置一个必填/必选字段'
   for (const field of fields.value) {
-    if (!field.title) return `请填写 ${field.name} 的字段标题`
+    if (field.inputType !== 'figure' && !field.title) return `请填写 ${field.name} 的字段标题`
     if (usesOptions(field) && parseOptions(field.optionText).values.length === 0) return `请填写 ${field.name} 的选项`
   }
   return ''
@@ -370,12 +380,13 @@ function loadFieldsFromSchema(schema = {}) {
 }
 
 function inferInputType(schema) {
+  if (schema.inputType) return schema.inputType
   if (schema.type === 'array') return 'check'
   if (schema.type === 'boolean') return 'switch'
   if (schema.format === 'email') return 'email'
   if (schema.format === 'date-time') return 'datetime'
   if (schema.format === 'date') return 'date'
-  return schema.inputType || 'text'
+  return 'text'
 }
 
 function optionsToText(schema) {

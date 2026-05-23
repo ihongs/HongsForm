@@ -2,21 +2,27 @@
   <form @submit.prevent="handleSubmit" class="card shadow-sm border-0">
     <div class="card-body p-4 p-md-5">
       <div v-for="(field, key) in schema.properties" :key="key" class="mb-4">
-        <label class="form-label fw-medium">
-          {{ field.label || field.title || key }}
-          <span v-if="isRequired(key, field)" class="text-danger ms-1">*</span>
-        </label>
+        <legend v-if="field.inputType === 'legend'" class="form-section-legend">{{ field.title || key }}</legend>
 
-        <component
-          :is="getFieldComponent(field)"
-          v-model="formData[key]"
-          :field="field"
-          :name="key"
-          :error="errors[key]"
-        />
+        <div v-else-if="field.inputType === 'figure'" v-html="renderMarkdown(field.description || '')"></div>
 
-        <div v-if="field.description" class="form-text">{{ field.description }}</div>
-        <div v-if="errors[key]" class="invalid-feedback d-block">{{ errors[key] }}</div>
+        <template v-else>
+          <label class="form-label fw-medium">
+            {{ field.label || field.title || key }}
+            <span v-if="isRequired(key, field)" class="text-danger ms-1">*</span>
+          </label>
+
+          <component
+            :is="getFieldComponent(field)"
+            v-model="formData[key]"
+            :field="field"
+            :name="key"
+            :error="errors[key]"
+          />
+
+          <div v-if="field.description" class="form-text">{{ field.description }}</div>
+          <div v-if="errors[key]" class="invalid-feedback d-block">{{ errors[key] }}</div>
+        </template>
       </div>
 
       <button type="submit" class="btn btn-primary w-100" :disabled="submitting">
@@ -29,6 +35,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import MarkdownIt from 'markdown-it'
 import FormInput from './fields/FormInput.vue'
 import FormTextarea from './fields/FormTextarea.vue'
 import FormSelect from './fields/FormSelect.vue'
@@ -47,9 +54,14 @@ const emit = defineEmits(['submit'])
 const formData = reactive({})
 const errors = reactive({})
 const submitting = ref(false)
+const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
 function isRequired(key, field) {
   return field.required === true || props.schema.required?.includes(key)
+}
+
+function renderMarkdown(content) {
+  return markdown.render(content)
 }
 
 function getFieldComponent(field) {

@@ -42,6 +42,13 @@ async function initIndexes(db: Db) {
   await userCol.createIndex({ createdAt: -1 });
   await userCol.createIndex({ deletedAt: 1 });
 
+  // UserAuth 集合索引
+  const userAuthCol = db.collection('userAuth');
+  await userAuthCol.createIndex({ sk: 1 }, { unique: true });
+  await userAuthCol.createIndex({ userId: 1 });
+  await userAuthCol.createIndex({ expiresAt: 1 });
+  await userAuthCol.createIndex({ deletedAt: 1 });
+
   // Form 集合索引
   const formCol = db.collection('form');
   await formCol.createIndex({ userId: 1 });

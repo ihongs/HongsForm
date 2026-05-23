@@ -259,6 +259,7 @@ async function ensureForm(db: any, userId: ObjectId, form: typeof testForms[numb
   const now = new Date();
   const result = await db.collection('form').insertOne({
     userId,
+    type: 'form',
     ...form,
     dataCount: 0,
     publishedAt: now,
