@@ -12,7 +12,8 @@ registerAdminMethod('user.list', async (params, ctx) => {
     query.$or = [
       { username: { $regex: keyword, $options: 'i' } },
       { nickname: { $regex: keyword, $options: 'i' } },
-      { email: { $regex: keyword, $options: 'i' } }
+      { email: { $regex: keyword, $options: 'i' } },
+      { phone: { $regex: keyword, $options: 'i' } }
     ];
   }
 
@@ -77,13 +78,18 @@ registerAdminMethod('user.create', async (params, ctx) => {
 });
 
 registerAdminMethod('user.update', async (params, ctx) => {
-  const { id, ...updateData } = params as any;
+  const { id, password, ...updateData } = params as any;
   if (!id) throw new Error('User ID is required');
 
-  delete updateData.password;
   delete updateData.passsalt;
 
   updateData.updatedAt = new Date();
+
+  if (password) {
+    const passsalt = generateSalt();
+    updateData.password = hashPassword(password, passsalt);
+    updateData.passsalt = passsalt;
+  }
 
   const result = await ctx.db.collection('user').updateOne(
     { _id: new ObjectId(id), deletedAt: null },

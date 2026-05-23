@@ -5,15 +5,18 @@
         <h1 class="h3 mb-1">用户管理</h1>
         <p class="text-secondary mb-0">查看全站用户，禁用或删除用户账号</p>
       </div>
-      <form class="d-flex flex-wrap gap-2 align-self-start" @submit.prevent="searchUsers">
-        <input v-model.trim="keyword" class="form-control" style="width: 240px" placeholder="搜索用户名、昵称、邮箱" />
-        <select v-model="status" class="form-select" style="width: 140px">
-          <option value="">全部状态</option>
-          <option value="1">启用</option>
-          <option value="0">禁用</option>
-        </select>
-        <button class="btn btn-outline-primary" type="submit">查询</button>
-      </form>
+      <div class="d-flex flex-wrap gap-2 align-self-start">
+        <button class="btn btn-primary" type="button" @click="openCreateModal">新增用户</button>
+        <form class="d-flex flex-wrap gap-2" @submit.prevent="searchUsers">
+          <input v-model.trim="keyword" class="form-control" style="width: 240px" placeholder="搜索用户名、昵称、邮箱、手机" />
+          <select v-model="status" class="form-select" style="width: 140px">
+            <option value="">全部状态</option>
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+          <button class="btn btn-outline-primary" type="submit">查询</button>
+        </form>
+      </div>
     </div>
 
     <div v-if="loading" class="card border-0 shadow-sm">
@@ -55,6 +58,7 @@
               <td>{{ formatTime(user.createdAt) }}</td>
               <td class="text-end">
                 <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-primary" type="button" @click="openEditModal(user)">编辑</button>
                   <button
                     :class="['btn', user.status === 1 ? 'btn-outline-warning' : 'btn-outline-success']"
                     type="button"
@@ -100,6 +104,59 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showUserModal" class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form class="modal-content" @submit.prevent="saveUser">
+          <div class="modal-header">
+            <h2 id="userModalTitle" class="modal-title h5">{{ modalTitle }}</h2>
+            <button class="btn-close" type="button" aria-label="关闭" @click="closeUserModal"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="modalError" class="alert alert-danger py-2" role="alert">{{ modalError }}</div>
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label">用户名</label>
+                <input v-model.trim="userForm.username" class="form-control" autocomplete="off" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">角色</label>
+                <select v-model="userForm.role" class="form-select">
+                  <option value="agent">agent</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">{{ isEditing ? '重置密码' : '密码' }}</label>
+                <div class="input-group">
+                  <input v-model="userForm.password" class="form-control" type="text" readonly autocomplete="new-password" placeholder="" />
+                  <button class="btn btn-outline-secondary" type="button" @click="generateRandomPassword">
+                    {{ isEditing ? '重置密码' : '随机生成' }}
+                  </button>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">昵称</label>
+                <input v-model.trim="userForm.nickname" class="form-control" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">邮箱</label>
+                <input v-model.trim="userForm.email" class="form-control" type="email" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">手机</label>
+                <input v-model.trim="userForm.phone" class="form-control" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" :disabled="saving" @click="closeUserModal">取消</button>
+            <button class="btn btn-primary" type="submit" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div v-if="showUserModal" class="modal-backdrop fade show" @click="closeUserModal"></div>
   </main>
 </template>
 
@@ -115,7 +172,15 @@ const status = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const showUserModal = ref(false)
+const modalMode = ref('create')
+const modalError = ref('')
+const saving = ref(false)
+const editingUserId = ref('')
+const userForm = ref(createUserForm())
 
+const isEditing = computed(() => modalMode.value === 'edit')
+const modalTitle = computed(() => (isEditing.value ? '编辑用户' : '新增用户'))
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const pageItems = computed(() => {
   const start = Math.max(1, page.value - 2)
@@ -182,6 +247,93 @@ async function loadUsers() {
     error.value = err.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+function createUserForm() {
+  return {
+    username: '',
+    password: '',
+    role: 'agent',
+    nickname: '',
+    email: '',
+    phone: '',
+    status: 1
+  }
+}
+
+function openCreateModal() {
+  modalMode.value = 'create'
+  editingUserId.value = ''
+  userForm.value = createUserForm()
+  modalError.value = ''
+  showUserModal.value = true
+}
+
+function openEditModal(user) {
+  modalMode.value = 'edit'
+  editingUserId.value = user._id
+  userForm.value = {
+    username: user.username || '',
+    role: user.role || 'agent',
+    nickname: user.nickname || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    status: user.status !== undefined ? user.status : 1,
+    password: ''
+  }
+  modalError.value = ''
+  showUserModal.value = true
+}
+
+function closeUserModal() {
+  showUserModal.value = false
+}
+
+function generateRandomPassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?'
+  let password = ''
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  userForm.value.password = password
+}
+
+async function saveUser() {
+  if (!userForm.value.username.trim()) {
+    modalError.value = '请填写用户名'
+    return
+  }
+  if (modalMode.value === 'create' && !userForm.value.password) {
+    modalError.value = '请点击随机生成密码'
+    return
+  }
+
+  saving.value = true
+  modalError.value = ''
+  try {
+    if (modalMode.value === 'create') {
+      await adminApi.createUser(userForm.value)
+      page.value = 1
+    } else {
+      const payload = {
+        username: userForm.value.username,
+        role: userForm.value.role,
+        nickname: userForm.value.nickname,
+        email: userForm.value.email,
+        phone: userForm.value.phone
+      }
+      if (userForm.value.password) {
+        payload.password = userForm.value.password
+      }
+      await adminApi.updateUser(editingUserId.value, payload)
+    }
+    showUserModal.value = false
+    await loadUsers()
+  } catch (err) {
+    modalError.value = err.message || '保存失败'
+  } finally {
+    saving.value = false
   }
 }
 

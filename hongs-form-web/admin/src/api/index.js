@@ -64,6 +64,12 @@ export const adminApi = {
   listUsers(params = {}) {
     return rpc.call('user.list', params)
   },
+  createUser(data) {
+    return rpc.call('user.create', data)
+  },
+  updateUser(id, data) {
+    return rpc.call('user.update', { id, ...data })
+  },
   getUser(id) {
     return rpc.call('user.get', { id })
   },
