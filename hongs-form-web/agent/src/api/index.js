@@ -59,36 +59,36 @@ export const rpc = new RpcClient()
 
 export const agentApi = {
   login(username, password) {
-    return rpc.call('agent.login', { username, password })
+    return rpc.call('login', { username, password })
   },
   listForms(params = {}) {
-    return rpc.call('agent.form.list', params)
+    return rpc.call('form.list', params)
   },
   getForm(id) {
-    return rpc.call('agent.form.get', { id })
+    return rpc.call('form.get', { id })
   },
   createForm(data) {
-    return rpc.call('agent.form.create', data)
+    return rpc.call('form.create', data)
   },
   updateForm(id, data) {
-    return rpc.call('agent.form.update', { id, ...data })
+    return rpc.call('form.update', { id, ...data })
   },
   publishForm(id) {
-    return rpc.call('agent.form.publish', { id })
+    return rpc.call('form.publish', { id })
   },
   unpublishForm(id) {
-    return rpc.call('agent.form.unpublish', { id })
+    return rpc.call('form.unpublish', { id })
   },
   deleteForm(id) {
-    return rpc.call('agent.form.delete', { id })
+    return rpc.call('form.delete', { id })
   },
   listData(params = {}) {
-    return rpc.call('agent.formData.list', params)
+    return rpc.call('formData.list', params)
   },
   deleteData(id) {
-    return rpc.call('agent.formData.delete', { id })
+    return rpc.call('formData.delete', { id })
   },
   getStats(formId) {
-    return rpc.call('agent.formData.stats', { formId })
+    return rpc.call('formData.stats', { formId })
   }
 }
