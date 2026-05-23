@@ -8,7 +8,7 @@
 
 1. [user](#user-用户集合) - 用户集合
 2. [form](#form-表单集合) - 表单定义集合
-3. [form_data](#form_data-表单数据集合) - 表单提交数据集合
+3. [formData](#formData-表单数据集合) - 表单提交数据集合
 
 ---
 
@@ -233,7 +233,7 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 
 ---
 
-## form_data (表单数据集合)
+## formData (表单数据集合)
 
 存储用户提交的表单数据。
 
@@ -258,28 +258,28 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 
 ```javascript
 // 表单 ID 索引
-db.form_data.createIndex({ formId: 1 });
+db.formData.createIndex({ formId: 1 });
 
 // 表单 + 用户索引（用于每用户限填一次校验）
-db.form_data.createIndex({ formId: 1, userId: 1 }, { sparse: true });
+db.formData.createIndex({ formId: 1, userId: 1 }, { sparse: true });
 
 // 数据哈希唯一索引（防重复提交）
-db.form_data.createIndex({ dataHash: 1 }, { unique: true });
+db.formData.createIndex({ dataHash: 1 }, { unique: true });
 
 // 状态索引
-db.form_data.createIndex({ status: 1 });
+db.formData.createIndex({ status: 1 });
 
 // 删除时间索引 (软删除)
-db.form_data.createIndex({ deletedAt: 1 });
+db.formData.createIndex({ deletedAt: 1 });
 
 // 提交时间索引（排序和时间范围查询）
-db.form_data.createIndex({ createdAt: -1 });
+db.formData.createIndex({ createdAt: -1 });
 
 // 表单 + 提交时间复合索引
-db.form_data.createIndex({ formId: 1, createdAt: -1 });
+db.formData.createIndex({ formId: 1, createdAt: -1 });
 
 // 渠道索引
-db.form_data.createIndex({ channel: 1 });
+db.formData.createIndex({ channel: 1 });
 ```
 
 ### 示例数据

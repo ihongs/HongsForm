@@ -52,7 +52,7 @@ async function initIndexes(db: Db) {
   await formCol.createIndex({ name: 'text', title: 'text', description: 'text' });
 
   // FormData 集合索引
-  const formDataCol = db.collection('form_data');
+  const formDataCol = db.collection('formData');
   await formDataCol.createIndex({ formId: 1 });
   await formDataCol.createIndex({ formId: 1, userId: 1 }, { sparse: true });
   await formDataCol.createIndex({ dataHash: 1 }, { unique: true });

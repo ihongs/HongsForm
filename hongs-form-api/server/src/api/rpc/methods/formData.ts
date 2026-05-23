@@ -25,13 +25,13 @@ registerMethod('formData.list', async (params, ctx) => {
   }
 
   const [items, total] = await Promise.all([
-    ctx.db.collection('form_data')
+    ctx.db.collection('formData')
       .find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .toArray(),
-    ctx.db.collection('form_data').countDocuments(query)
+    ctx.db.collection('formData').countDocuments(query)
   ]);
 
   return { items, total, page, pageSize };
@@ -42,7 +42,7 @@ registerMethod('formData.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Data ID is required');
 
-  const data = await ctx.db.collection('form_data').findOne({
+  const data = await ctx.db.collection('formData').findOne({
     _id: new ObjectId(id),
     deletedAt: null
   });
@@ -71,7 +71,7 @@ registerMethod('formData.create', async (params, ctx) => {
 
   // 检查每用户限填一次
   if (form.config?.oncePerUser && userId) {
-    const existing = await ctx.db.collection('form_data').findOne({
+    const existing = await ctx.db.collection('formData').findOne({
       formId: new ObjectId(formId),
       userId: new ObjectId(userId),
       deletedAt: null
@@ -83,7 +83,7 @@ registerMethod('formData.create', async (params, ctx) => {
   const dataHash = generateDataHash(formId, userId, validatedData);
 
   const now = new Date();
-  const result = await ctx.db.collection('form_data').insertOne({
+  const result = await ctx.db.collection('formData').insertOne({
     formId: new ObjectId(formId),
     userId: userId ? new ObjectId(userId) : null,
     data: validatedData,
@@ -115,7 +115,7 @@ registerMethod('formData.update', async (params, ctx) => {
   if (data !== undefined) updateData.data = data;
   if (status !== undefined) updateData.status = status;
 
-  const result = await ctx.db.collection('form_data').updateOne(
+  const result = await ctx.db.collection('formData').updateOne(
     { _id: new ObjectId(id), deletedAt: null },
     { $set: updateData }
   );
@@ -130,7 +130,7 @@ registerMethod('formData.delete', async (params, ctx) => {
   if (!id) throw new Error('Data ID is required');
 
   // 获取数据以更新计数
-  const formData = await ctx.db.collection('form_data').findOne({
+  const formData = await ctx.db.collection('formData').findOne({
     _id: new ObjectId(id),
     deletedAt: null
   });
@@ -138,7 +138,7 @@ registerMethod('formData.delete', async (params, ctx) => {
   if (!formData) throw new Error('Data not found');
 
   // 软删除
-  await ctx.db.collection('form_data').updateOne(
+  await ctx.db.collection('formData').updateOne(
     { _id: new ObjectId(id) },
     { $set: { deletedAt: new Date(), updatedAt: new Date() } }
   );
@@ -164,7 +164,7 @@ registerMethod('formData.export', async (params, ctx) => {
     if (endDate) query.createdAt.$lte = new Date(endDate);
   }
 
-  const items = await ctx.db.collection('form_data')
+  const items = await ctx.db.collection('formData')
     .find(query)
     .sort({ createdAt: -1 })
     .toArray();
@@ -178,18 +178,18 @@ registerMethod('formData.stats', async (params, ctx) => {
   if (!formId) throw new Error('Form ID is required');
 
   const [total, todayCount, channelStats] = await Promise.all([
-    ctx.db.collection('form_data').countDocuments({
+    ctx.db.collection('formData').countDocuments({
       formId: new ObjectId(formId),
       deletedAt: null
     }),
-    ctx.db.collection('form_data').countDocuments({
+    ctx.db.collection('formData').countDocuments({
       formId: new ObjectId(formId),
       deletedAt: null,
       createdAt: {
         $gte: new Date(new Date().setHours(0, 0, 0, 0))
       }
     }),
-    ctx.db.collection('form_data').aggregate([
+    ctx.db.collection('formData').aggregate([
       { $match: { formId: new ObjectId(formId), deletedAt: null } },
       { $group: { _id: '$channel', count: { $sum: 1 } } }
     ]).toArray()
