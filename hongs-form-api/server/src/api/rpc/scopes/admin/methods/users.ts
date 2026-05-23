@@ -3,10 +3,11 @@ import { registerAdminMethod } from '../registry.js';
 import { generateSalt, hashPassword } from '../../../shared/users.js';
 
 registerAdminMethod('user.list', async (params, ctx) => {
-  const { page = 1, pageSize = 20, keyword = '' } = params as any;
+  const { page = 1, pageSize = 20, keyword = '', status } = params as any;
   const skip = (page - 1) * pageSize;
 
   const query: any = { deletedAt: null };
+  if (status !== undefined && status !== '') query.status = Number(status);
   if (keyword) {
     query.$or = [
       { username: { $regex: keyword, $options: 'i' } },

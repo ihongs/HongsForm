@@ -7,6 +7,11 @@
       </div>
       <form class="d-flex flex-wrap gap-2 align-self-start" @submit.prevent="searchUsers">
         <input v-model.trim="keyword" class="form-control" style="width: 240px" placeholder="搜索用户名、昵称、邮箱" />
+        <select v-model="status" class="form-select" style="width: 140px">
+          <option value="">全部状态</option>
+          <option value="1">启用</option>
+          <option value="0">禁用</option>
+        </select>
         <button class="btn btn-outline-primary" type="submit">查询</button>
       </form>
     </div>
@@ -64,7 +69,7 @@
           </tbody>
         </table>
       </div>
-      <div class="card-footer bg-white d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+      <div class="card-footer bg-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div class="text-secondary small">共 {{ total }} 个用户，第 {{ page }} / {{ totalPages }} 页</div>
         <div class="d-flex align-items-center gap-2">
           <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 110px" @change="changePageSize">
@@ -106,6 +111,7 @@ const loading = ref(true)
 const error = ref('')
 const users = ref([])
 const keyword = ref('')
+const status = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -163,11 +169,13 @@ async function loadUsers() {
   loading.value = true
   error.value = ''
   try {
-    const result = await adminApi.listUsers({
+    const params = {
       page: page.value,
       pageSize: pageSize.value,
       keyword: keyword.value
-    })
+    }
+    if (status.value !== '') params.status = Number(status.value)
+    const result = await adminApi.listUsers(params)
     users.value = result.items || []
     total.value = result.total || 0
   } catch (err) {

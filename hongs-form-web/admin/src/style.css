@@ -1,11 +1,12 @@
 body {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--bs-body-bg);
 }
 
 .app-main {
   padding-top: 57px;
 }
+
 
 pre {
   white-space: pre-wrap;

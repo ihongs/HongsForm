@@ -45,7 +45,7 @@
         </div>
       </div>
       <div class="card border-0 shadow-sm mt-3">
-        <div class="card-footer bg-white d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div class="card-footer bg-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
           <div class="text-secondary small">共 {{ total }} 个表单，第 {{ page }} / {{ totalPages }} 页</div>
           <div class="d-flex align-items-center gap-2">
             <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 110px" @change="changePageSize">
