@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import { formValidate } from 'hongs-form';
 import { registerAdminMethod, registerAgentMethod, registerFormMethod, RpcContext } from '../registry.js';
 
 function requireUserId(ctx: RpcContext): ObjectId {
@@ -89,6 +90,7 @@ registerAgentMethod('agent.form.create', async (params, ctx) => {
   if (!name) throw new Error('Form name is required');
   if (!schema) throw new Error('Form schema is required');
 
+  const validatedSchema = formValidate(schema);
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
     userId,
@@ -97,7 +99,7 @@ registerAgentMethod('agent.form.create', async (params, ctx) => {
     description: description || null,
     icon: icon || null,
     color: color || '#1890ff',
-    schema,
+    schema: validatedSchema,
     config: {
       anonymous: false,
       oncePerUser: false,
@@ -121,6 +123,7 @@ registerAgentMethod('agent.form.update', async (params, ctx) => {
   if (!id) throw new Error('Form ID is required');
   await findOwnedForm(ctx, id);
 
+  if (updateData.schema) updateData.schema = formValidate(updateData.schema);
   updateData.updatedAt = new Date();
 
   const result = await ctx.db.collection('form').updateOne(
@@ -222,6 +225,7 @@ registerAdminMethod('admin.form.create', async (params, ctx) => {
   if (!name) throw new Error('Form name is required');
   if (!schema) throw new Error('Form schema is required');
 
+  const validatedSchema = formValidate(schema);
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
     userId: new ObjectId(userId),
@@ -230,7 +234,7 @@ registerAdminMethod('admin.form.create', async (params, ctx) => {
     description: description || null,
     icon: icon || null,
     color: color || '#1890ff',
-    schema,
+    schema: validatedSchema,
     config: {
       anonymous: false,
       oncePerUser: false,
@@ -254,6 +258,7 @@ registerAdminMethod('admin.form.update', async (params, ctx) => {
   if (!id) throw new Error('Form ID is required');
 
   if (updateData.userId) updateData.userId = new ObjectId(updateData.userId);
+  if (updateData.schema) updateData.schema = formValidate(updateData.schema);
   updateData.updatedAt = new Date();
 
   const result = await ctx.db.collection('form').updateOne(
