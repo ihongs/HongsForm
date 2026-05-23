@@ -1,52 +1,8 @@
 import { ObjectId } from 'mongodb';
-import { createHash, randomBytes } from 'node:crypto';
-import { registerAdminMethod, registerAgentMethod } from '../registry.js';
-import { createToken } from '../../../utils/auth.js';
+import { registerAdminMethod } from '../registry.js';
+import { generateSalt, hashPassword } from '../../../shared/users.js';
 
-function generateSalt(): string {
-  return randomBytes(16).toString('hex');
-}
-
-function hashPassword(password: string, salt: string): string {
-  return createHash('sha256').update(password + salt).digest('hex');
-}
-
-function toSafeUser(user: any): Record<string, unknown> {
-  const { password: _password, passsalt: _passsalt, ...userInfo } = user;
-  return userInfo;
-}
-
-async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | null, ctx: any): Promise<Record<string, unknown>> {
-  const { username, password } = params as any;
-  if (!username) throw new Error('Username is required');
-  if (!password) throw new Error('Password is required');
-
-  const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
-  if (!user) throw new Error('User not found');
-  if (role && user.role !== role) throw new Error('Forbidden');
-  if (user.status !== 1) throw new Error('User is disabled');
-
-  const passwordHash = hashPassword(password, user.passsalt);
-  if (passwordHash !== user.password) throw new Error('Invalid password');
-
-  const now = new Date();
-  const token = createToken({ sub: user._id.toString(), role: user.role });
-
-  await ctx.db.collection('user').updateOne(
-    { _id: user._id },
-    { $set: { lastLoginAt: now, updatedAt: now } }
-  );
-
-  return {
-    token,
-    user: toSafeUser(user)
-  };
-}
-
-registerAgentMethod('agent.login', async (params, ctx) => login(params, 'agent', ctx));
-registerAdminMethod('admin.login', async (params, ctx) => login(params, 'admin', ctx));
-
-registerAdminMethod('admin.user.list', async (params, ctx) => {
+registerAdminMethod('user.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, keyword = '' } = params as any;
   const skip = (page - 1) * pageSize;
 
@@ -73,7 +29,7 @@ registerAdminMethod('admin.user.list', async (params, ctx) => {
   return { items, total, page, pageSize };
 });
 
-registerAdminMethod('admin.user.get', async (params, ctx) => {
+registerAdminMethod('user.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 
@@ -86,7 +42,7 @@ registerAdminMethod('admin.user.get', async (params, ctx) => {
   return user;
 });
 
-registerAdminMethod('admin.user.create', async (params, ctx) => {
+registerAdminMethod('user.create', async (params, ctx) => {
   const { username, password, role = 'agent', nickname, email, phone } = params as any;
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
@@ -119,7 +75,7 @@ registerAdminMethod('admin.user.create', async (params, ctx) => {
   return { id: result.insertedId.toString() };
 });
 
-registerAdminMethod('admin.user.update', async (params, ctx) => {
+registerAdminMethod('user.update', async (params, ctx) => {
   const { id, ...updateData } = params as any;
   if (!id) throw new Error('User ID is required');
 
@@ -137,7 +93,7 @@ registerAdminMethod('admin.user.update', async (params, ctx) => {
   return { success: true };
 });
 
-registerAdminMethod('admin.user.changePassword', async (params, ctx) => {
+registerAdminMethod('user.changePassword', async (params, ctx) => {
   const { id, oldPassword, newPassword } = params as any;
   if (!id) throw new Error('User ID is required');
   if (!oldPassword) throw new Error('Old password is required');
@@ -160,7 +116,7 @@ registerAdminMethod('admin.user.changePassword', async (params, ctx) => {
   return { success: true };
 });
 
-registerAdminMethod('admin.user.delete', async (params, ctx) => {
+registerAdminMethod('user.delete', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 

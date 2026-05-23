@@ -25,7 +25,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return;
   }
 
-  if ((pathname === '/api/rpc' || pathname === '/api/rpc/form') && req.method === 'POST') {
+  if (pathname === '/api/rpc/form' && req.method === 'POST') {
     await handleFormRpc(req, res);
     return;
   }
@@ -61,7 +61,6 @@ async function start() {
     console.log(`RPC form endpoint: http://${HOST}:${PORT}/api/rpc/form`);
     console.log(`RPC agent endpoint: http://${HOST}:${PORT}/api/rpc/agent`);
     console.log(`RPC admin endpoint: http://${HOST}:${PORT}/api/rpc/admin`);
-    console.log(`RPC compatibility endpoint: http://${HOST}:${PORT}/api/rpc`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
   });
 }

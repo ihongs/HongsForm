@@ -189,7 +189,7 @@ const testForms = [
 ]
 
 // 导入测试表单
-registerAdminMethod('admin.test.importForms', async (params, ctx) => {
+registerAdminMethod('test.importForms', async (params, ctx) => {
   const { userId } = params as { userId?: string }
   if (!userId) throw new Error('User ID is required')
 
@@ -225,7 +225,7 @@ registerAdminMethod('admin.test.importForms', async (params, ctx) => {
 })
 
 // 获取测试表单列表
-registerAdminMethod('admin.test.getForms', async () => {
+registerAdminMethod('test.getForms', async () => {
   return testForms.map(f => ({
     name: f.name,
     title: f.title,
