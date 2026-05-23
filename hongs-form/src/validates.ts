@@ -1,4 +1,4 @@
-import { FormSchema, Validate, VModes, VError, VENUM } from './types.js';
+import { FormSchema, Validate, Validates, VModes, VError, VENUM } from './types.js';
 import { t } from './i18n.js';
 
 // 子路径
@@ -221,6 +221,11 @@ export const isDateTime: Validate = function (value: any, schema: any, modes: VM
     return value;
 };
 
+// null 类型不处理、不存储
+export const isNull: Validate = function (value: any, schema: any, modes: VModes) {
+    return VENUM.QUIT;
+}
+
 // 多选/多填 (type=array)
 export const isArray: Validate = function (value: any, schema: any, modes: VModes) {
     // null/undefined 不处理
@@ -417,13 +422,14 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
 };
 
 // 核心校验规则
-export const coreValidates: ((schema: any) => Validate | undefined)[] = [
+export const coreValidates: Validates[] = [
     (schema) => {
+        if (schema.type == 'null') {
+            return isNull;
+        }
         if (schema.type == 'array') {
             return isArray;
         }
-    },
-    (schema) => {
         if (schema.type == 'object') {
             return isObject;
         }
@@ -444,7 +450,7 @@ export const coreValidates: ((schema: any) => Validate | undefined)[] = [
 ];
 
 // 扩展校验规则
-export const moreValidates: ((schema: any) => Validate | undefined)[] = [
+export const moreValidates: Validates[] = [
     (schema) => {
         if (schema.type == 'string') {
             return isString;
@@ -507,8 +513,15 @@ export const validate: Validate = function (value: any, schema: any, modes: VMod
 
     if (sch.validate) {
         validateFns = Array.isArray(sch.validate) ? sch.validate : [sch.validate];
+    } else
+    if (modes.validates) {
+        // 从内部 validates 中匹配
+        for (const matcher of modes.validates) {
+            const fn = matcher(sch);
+            if (fn) validateFns.push(fn);
+        }
     } else {
-        // 从 validates 中匹配
+        // 从外部 validates 中匹配
         for (const matcher of coreValidates) {
             const fn = matcher(sch);
             if (fn) validateFns.push(fn);
@@ -554,4 +567,69 @@ export const moreValidate: Validate = function(value: any, schema: any, modes: V
     }
 
     return validates(value, schema, modes, validateFns);
+}
+
+// form schema 的 input 校验
+export const isInput: Validate = function(value: any, schema: any, modes: VModes) {
+    if (!value.type) {
+        switch (value.inputType) {
+            case 'legend':
+            case 'figure':
+                value.type = 'null';
+                break;
+        }
+    }
+    return value;
+};
+
+// form schema 的 schema
+export const formStruct: FormSchema = {
+    type: 'object',
+    properties: {
+        title: { type: 'string', required: true },
+        description: { type: 'string' },
+        properties: {
+            type: 'object',
+            required: true,
+            properties: {},
+            additionalProperties: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string', required: true },
+                    description: { type: 'string' },
+                    label: { type: 'string' },
+                    placeholder: { type: 'string' },
+                    type: { type: 'string', enum: ['string', 'number', 'integer', 'boolean', 'array', 'null'] },
+                    required: { type: 'boolean' },
+                    format: { type: 'string' },
+                    pattern: { type: 'string' },
+                    minimum: { type: 'number' },
+                    maximum: { type: 'number' },
+                    minItems: { type: 'number' },
+                    maxItems: { type: 'number' },
+                    enum: {
+                        type: 'array'
+                    },
+                    items: {
+                        type: 'object'
+                    },
+                    options: {
+                        type: 'object',
+                        properties: {},
+                        additionalProperties: { type: 'string' }
+                    },
+                    inputType: {
+                        type: 'string',
+                        enum: ['text', 'email', 'phone', 'textarea', 'number', 'range', 'select', 'check', 'radio', 'switch', 'datetime', 'date', 'time', 'file', 'legend', 'figure'],
+                    }
+                },
+                validate: [ isObject, isInput ]
+            }
+        }
+    }
+};
+
+// form schema 校验
+export function formValidate(schema: any) {
+    return validate(schema, formStruct, {});
 }

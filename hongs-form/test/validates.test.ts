@@ -19,6 +19,7 @@ import {
   type VModes,
   type VError,
 } from '../src';
+import { formStruct, isInput } from '../src/validates.js';
 
 describe('VENUM', () => {
   it('PASS/QUIT 不能被 JSON 序列化或转成字符串', () => {
@@ -387,6 +388,42 @@ describe('自定义 validate', () => {
   });
 });
 
+describe('VModes.validates 传递', () => {
+  it('object 子字段沿用 modes.validates 指定的校验集合', () => {
+    const appendValidate = (value: unknown) => `${value}_ok`;
+    const modes: VModes = {
+      validates: [
+        (schema) => schema.append === true ? appendValidate : undefined,
+        (schema) => schema.properties ? isObject : undefined
+      ]
+    };
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        name: { append: true }
+      }
+    };
+
+    expect(validate({ name: 'test' }, schema, modes)).toEqual({ name: 'test_ok' });
+  });
+
+  it('array 子项沿用 modes.validates 指定的校验集合', () => {
+    const appendValidate = (value: unknown) => `${value}_ok`;
+    const modes: VModes = {
+      validates: [
+        (schema) => schema.append === true ? appendValidate : undefined,
+        (schema) => schema.type === 'array' ? isArray : undefined
+      ]
+    };
+    const schema: FormSchema = {
+      type: 'array',
+      items: { append: true }
+    };
+
+    expect(validate(['a', 'b'], schema, modes)).toEqual(['a_ok', 'b_ok']);
+  });
+});
+
 describe('注册 moreValidates - 匹配器函数', () => {
   it('添加自定义匹配器到 moreValidates', () => {
     // 备份原有的 moreValidates
@@ -476,6 +513,96 @@ describe('注册 moreValidates - 匹配器函数', () => {
     } finally {
       coreValidates.splice(0, coreValidates.length, ...originalValidates);
     }
+  });
+});
+
+describe('formStruct / isInput', () => {
+  it('校验设计器生成的有效表单 schema', () => {
+    const schema = {
+      title: '联系表单',
+      description: '收集联系方式',
+      properties: {
+        name: {
+          type: 'string',
+          inputType: 'text',
+          title: '姓名',
+          label: '请输入您的姓名',
+          description: '请填写常用姓名',
+          placeholder: '张三',
+          required: true
+        },
+        email: {
+          type: 'string',
+          inputType: 'email',
+          title: '邮箱',
+          format: 'email'
+        },
+        interests: {
+          type: 'array',
+          inputType: 'check',
+          title: '兴趣',
+          items: { type: 'string', enum: ['sport', 'music'] },
+          options: { sport: '运动', music: '音乐' },
+          minItems: 1
+        }
+      }
+    };
+
+    expect(validate(schema, formStruct, {})).toEqual(schema);
+  });
+
+  it('要求根 properties 必填', () => {
+    expect(() => validate({ title: '空表单' }, formStruct, {})).toThrow();
+  });
+
+  it('要求每个字段有 title', () => {
+    const schema = {
+      title: '错误表单',
+      properties: {
+        name: { type: 'string', inputType: 'text' }
+      }
+    };
+
+    try {
+      validate(schema, formStruct, {});
+    } catch (err) {
+      const verr = err as VError;
+      const map = verr.toMap();
+      expect((map.properties as any).name.title).toBe('Required');
+    }
+  });
+
+  it('拒绝非法 inputType', () => {
+    const schema = {
+      title: '错误表单',
+      properties: {
+        name: { type: 'string', inputType: 'bad-input', title: '姓名' }
+      }
+    };
+
+    expect(() => validate(schema, formStruct, {})).toThrow();
+  });
+
+  it('isInput 为 legend 和 figure 补 type: null', () => {
+    expect(isInput({ inputType: 'legend', title: '分组标题' }, {}, {})).toEqual({
+      inputType: 'legend',
+      title: '分组标题',
+      type: 'null'
+    });
+    expect(isInput({ inputType: 'figure', title: '说明', description: '一段说明' }, {}, {})).toEqual({
+      inputType: 'figure',
+      title: '说明',
+      description: '一段说明',
+      type: 'null'
+    });
+  });
+
+  it('isInput 不覆盖已有 type', () => {
+    expect(isInput({ inputType: 'legend', title: '分组标题', type: 'string' }, {}, {})).toEqual({
+      inputType: 'legend',
+      title: '分组标题',
+      type: 'string'
+    });
   });
 });
 

@@ -2,6 +2,7 @@
 export type {
   FormSchema,
   Validate,
+  Validates,
   VModes,
 } from './types.js';
 export {
@@ -33,6 +34,7 @@ export {
   validate,
   coreValidate,
   moreValidate,
+  formValidate,
   coreValidates,
   moreValidates,
 } from './validates.js';

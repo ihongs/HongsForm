@@ -38,19 +38,49 @@ export interface FormSchema {
     label?: string;  // 字段标签(用于表单, 默认同 title)
     description?: string; // 字段介绍
     placeholder?: string; // 占位提示(用于表单)
-    inputType?: string; // HTML 输入类型及扩展类型，如: text,textarea,select,check,radio,range,switch,datetime,date,time,tags,file,image,video 等
-    findable?: boolean | string | string[]; // 可查询, 数组指定字段, 对于 type 为 object, true 表示全是, false 表示全否, 默认按下级设置
-    sortable?: boolean | string | string[]; // 可排序, 数组指定字段, 对于 type 为 object, true 表示全是, false 表示全否, 默认按下级设置
+    inputType?: string; // HTML 输入类型及扩展类型，如 text,textarea,number,range,select,check,radio,switch,datetime,date,time,file 及扩展的 tags,image,video 等
 }
 
 // 校验参数
 export interface VModes {
     patchMode?: boolean; // 补充模式, 未给值的字段会跳过, 注意: 只跳过 undefined, 不跳过 null
     pickyMode?: boolean; // 敏感模式, 遇到第一个错即退出
-    valids?: object; // 同级已校验的干净数据
-    values?: object; // 原始输入数据
-    name?: string;
-    path?: string;
+    validates?: Validates[]; // 默认校验方法集合
+}
+
+// 校验状态
+export class VState {
+    name?: string | number | undefined;
+    parent?: VState | undefined;
+    values?: object | undefined; // 原始数据
+    valids?: object | undefined; // 干净数据
+
+    constructor(name: string | number | undefined, parent?: VState | undefined) {
+        this.name = name;
+        this.parent = parent;
+    }
+
+    getPath() {
+        // TODO
+    };
+
+    getValues(): object | undefined {
+        if (this.values !== undefined) {
+            return this.values;
+        }
+        if (this.parent !== undefined) {
+            return this.parent.getValues();
+        }
+    };
+
+    getValids(): object | undefined {
+        if (this.valids !== undefined) {
+            return this.valids;
+        }
+        if (this.parent !== undefined) {
+            return this.parent.getValids();
+        }
+    };
 }
 
 // 结构化错误：key + params
@@ -113,4 +143,9 @@ export const VENUM = Object.freeze({
 // 校验方法
 export interface Validate {
     (value: any, schema: any, modes: VModes): any;
+}
+
+// 校验方法集合
+export interface Validates {
+    (schema: any): Validate | undefined
 }
