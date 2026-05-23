@@ -1,11 +1,20 @@
 <template>
   <main class="container py-4">
-    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
       <div>
-        <h1 class="h3 mb-1">我的表单</h1>
-        <p class="text-secondary mb-0">设计表单、发布表单并查看提交数据</p>
+        <h1 class="h3 mb-1">表单管理</h1>
+        <p class="text-secondary mb-0">查看全站表单和提交数据，不提供表单创建和修改操作</p>
       </div>
-      <router-link class="btn btn-primary align-self-start" to="/forms/new">新建表单</router-link>
+      <form class="d-flex flex-wrap gap-2 align-self-start" @submit.prevent="searchForms">
+        <input v-model.trim="keyword" class="form-control" style="width: 220px" placeholder="搜索表单" />
+        <select v-model="status" class="form-select" style="width: 140px">
+          <option value="">全部状态</option>
+          <option value="1">草稿</option>
+          <option value="2">已发布</option>
+          <option value="0">禁用</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">查询</button>
+      </form>
     </div>
 
     <div v-if="loading" class="card border-0 shadow-sm">
@@ -24,21 +33,18 @@
                 <h2 class="h5 mb-2">{{ form.title || form.name }}</h2>
                 <p class="text-secondary mb-3">{{ form.description || '无描述' }}</p>
                 <div class="d-flex flex-wrap gap-2 align-items-center small text-secondary">
-                  <span :class="['badge', form.status === 2 ? 'text-bg-success' : 'text-bg-warning']">
-                    {{ form.status === 2 ? '已发布' : '草稿' }}
-                  </span>
+                  <span :class="['badge', statusClass(form.status)]">{{ statusText(form.status) }}</span>
+                  <span>{{ form.name }}</span>
                   <span>{{ fieldCount(form) }} 个字段</span>
                   <span>{{ form.dataCount || 0 }} 条数据</span>
+                  <span>创建者 {{ formatId(form.userId) }}</span>
+                  <span>创建 {{ formatTime(form.createdAt) }}</span>
+                  <span>更新 {{ formatTime(form.updatedAt) }}</span>
                 </div>
               </div>
               <div class="d-flex flex-wrap gap-2 align-items-start">
-                <router-link class="btn btn-outline-primary btn-sm" :to="`/forms/${form._id}/design`">编辑</router-link>
                 <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/data`">数据</router-link>
                 <a v-if="form.status === 2" class="btn btn-outline-secondary btn-sm" :href="`/form/${form._id}/`" target="_blank">打开</a>
-                <button class="btn btn-outline-success btn-sm" type="button" @click="togglePublish(form)">
-                  {{ form.status === 2 ? '取消发布' : '发布' }}
-                </button>
-                <button class="btn btn-outline-danger btn-sm" type="button" @click="remove(form)">删除</button>
               </div>
             </div>
           </section>
@@ -82,11 +88,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { agentApi } from '../api'
+import { adminApi } from '../api'
 
 const loading = ref(true)
 const error = ref('')
 const forms = ref([])
+const keyword = ref('')
+const status = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -100,6 +108,34 @@ const pageItems = computed(() => {
 
 function fieldCount(form) {
   return Object.keys(form.schema?.properties || {}).length
+}
+
+function formatId(value) {
+  if (!value) return '-'
+  return typeof value === 'string' ? value : value.toString()
+}
+
+function formatTime(value) {
+  return value ? new Date(value).toLocaleString() : '-'
+}
+
+function statusText(value) {
+  if (value === 2) return '已发布'
+  if (value === 1) return '草稿'
+  if (value === 0) return '禁用'
+  return '未知'
+}
+
+function statusClass(value) {
+  if (value === 2) return 'text-bg-success'
+  if (value === 1) return 'text-bg-warning'
+  if (value === 0) return 'text-bg-secondary'
+  return 'text-bg-light'
+}
+
+async function searchForms() {
+  page.value = 1
+  await loadForms()
 }
 
 async function changePageSize() {
@@ -117,10 +153,13 @@ async function loadForms() {
   loading.value = true
   error.value = ''
   try {
-    const result = await agentApi.listForms({
+    const params = {
+      keyword: keyword.value,
       page: page.value,
       pageSize: pageSize.value
-    })
+    }
+    if (status.value !== '') params.status = Number(status.value)
+    const result = await adminApi.listForms(params)
     forms.value = result.items || []
     total.value = result.total || 0
   } catch (err) {
@@ -128,22 +167,6 @@ async function loadForms() {
   } finally {
     loading.value = false
   }
-}
-
-async function togglePublish(form) {
-  if (form.status === 2) {
-    await agentApi.unpublishForm(form._id)
-  } else {
-    await agentApi.publishForm(form._id)
-  }
-  await loadForms()
-}
-
-async function remove(form) {
-  if (!confirm(`确定删除 ${form.title || form.name} 吗？`)) return
-  await agentApi.deleteForm(form._id)
-  if (forms.value.length === 1 && page.value > 1) page.value -= 1
-  await loadForms()
 }
 
 onMounted(loadForms)

@@ -8,7 +8,8 @@
         </router-link>
         <div class="navbar-nav flex-row align-items-center gap-3">
           <router-link class="nav-link" to="/dashboard">首页</router-link>
-          <router-link class="nav-link" to="/forms">表单</router-link>
+          <router-link class="nav-link" to="/forms">表单管理</router-link>
+          <router-link class="nav-link" to="/users">用户管理</router-link>
           <button class="btn btn-outline-secondary btn-sm" type="button" @click="logout">退出</button>
         </div>
       </div>
