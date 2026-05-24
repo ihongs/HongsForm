@@ -168,7 +168,7 @@ function drawBlockHole(ctx: CanvasRenderingContext2D, x: number, y: number, size
 }
 
 function generateOrdeal() {
-  const blockSize = 50
+  const blockSize = 40
   const padding = 10
   const targetX = Math.random() * (props.width - blockSize - padding * 2) + padding
   const targetY = Math.random() * (props.height - blockSize - padding * 2) + padding

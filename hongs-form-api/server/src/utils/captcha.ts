@@ -55,7 +55,7 @@ export class CaptchaServer {
   }
 
   async generateOrdeal(): Promise<CaptchaOrdeal> {
-    const blockSize = 50;
+    const blockSize = 40;
     const padding = 10;
     const targetX = Math.random() * (this.config.width - blockSize - padding * 2) + padding;
     const targetY = Math.random() * (this.config.height - blockSize - padding * 2) + padding;
