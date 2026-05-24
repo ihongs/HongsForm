@@ -7,9 +7,10 @@
 ## 集合列表
 
 1. [user](#user-用户集合) - 用户集合
-2. [form](#form-表单集合) - 表单定义集合
-3. [formData](#formData-表单数据集合) - 表单提交数据集合
-4. [roster](#roster-键值存储集合) - 临时键值存储集合
+2. [userAuth](#userAuth-用户认证集合) - 用户认证凭证集合
+3. [form](#form-表单集合) - 表单定义集合
+4. [formData](#formData-表单数据集合) - 表单提交数据集合
+5. [roster](#roster-键值存储集合) - 临时键值存储集合
 
 ---
 
@@ -84,6 +85,55 @@ db.user.createIndex({ deletedAt: 1 });
   "lastLoginAt": ISODate("2024-01-15T10:30:00Z"),
   "createdAt": ISODate("2024-01-01T00:00:00Z"),
   "updatedAt": ISODate("2024-01-15T10:30:00Z"),
+  "deletedAt": null
+}
+```
+
+---
+
+## userAuth (用户认证集合)
+
+存储用户认证凭证，包括 API Key 等。
+
+### 字段说明
+
+| 字段名 | 类型 | 必填 | 默认值 | 说明 | 索引 |
+|--------|------|------|--------|------|------|
+| `_id` | ObjectId | 是 | 自动生成 | 凭证唯一标识 | 主键 |
+| `userId` | ObjectId | 是 | - | 所属用户 ID | 普通索引 |
+| `type` | String | 是 | - | 凭证类型：`apiKey` | - |
+| `name` | String | 否 | null | 凭证名称 | - |
+| `sk` | String | 是 | - | 密钥（API Key 值） | - |
+| `expiresAt` | Date | 否 | null | 过期时间（null 表示永不过期） | - |
+| `createdAt` | Date | 是 | `new Date()` | 创建时间 | - |
+| `updatedAt` | Date | 是 | `new Date()` | 更新时间 | - |
+| `deletedAt` | Date | 否 | null | 删除时间（软删除） | - |
+
+### 索引配置
+
+```javascript
+// 用户 ID + 类型索引（查询用户凭证）
+db.userAuth.createIndex({ userId: 1, type: 1 });
+
+// 删除时间索引 (软删除)
+db.userAuth.createIndex({ deletedAt: 1 });
+
+// 创建时间索引（排序用）
+db.userAuth.createIndex({ createdAt: -1 });
+```
+
+### 示例数据
+
+```javascript
+{
+  "_id": ObjectId("60d21b4667d0d8992e610c89"),
+  "userId": ObjectId("60d21b4667d0d8992e610c85"),
+  "type": "apiKey",
+  "name": "MCP 服务密钥",
+  "sk": "abc123def456...",
+  "expiresAt": null,
+  "createdAt": ISODate("2026-05-24T10:00:00Z"),
+  "updatedAt": ISODate("2026-05-24T10:00:00Z"),
   "deletedAt": null
 }
 ```
