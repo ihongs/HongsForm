@@ -41,14 +41,16 @@ async function copyFile(src, dest) {
     path.join(site, 'dist'),
   );
 
-  // 复制 package.json + package-lock.json 【关键】
+  // 配置文件
+  await copyFile(
+    path.join(serv, '.env.example'),
+    path.join(site, '.env.example')
+  );
+
+  // 复制 package.json【关键】
   await copyFile(
     path.join(serv, 'package.json'),
     path.join(site, 'package.json')
-  );
-  await copyFile(
-    path.join(serv, 'package-lock.json'),
-    path.join(site, 'package-lock.json')
   );
 
   // ==============================================
@@ -60,6 +62,7 @@ async function copyFile(src, dest) {
     path.join(root, 'hongs-form-web/public'),
     path.join(site, 'public'),
   );
+
   // 后台管理
   await copy(
     path.join(root, 'hongs-form-web/admin/dist'),
@@ -80,5 +83,5 @@ async function copyFile(src, dest) {
   console.log('🚀 服务器部署命令：');
   console.log('cd site');
   console.log('npm install --production');
-  console.log('node dist/index.js');
+  console.log('npm start');
 })();

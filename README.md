@@ -122,10 +122,16 @@ try {
 
 ```bash
 cd HongsForm
-node build-site.js
+node make-site.js
+```
+
+本地构建好后，将 site 打包放到线上，执行以下命令完成环境搭建和启动。注意启动 mongodb，相关配置在 `site/.env`。
+
+```
 cd site
 npm install --production
-node dist/index.js
+cp .evn.example .env
+npm start
 ```
 
 ## License
