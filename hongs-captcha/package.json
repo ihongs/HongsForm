@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Hongs Captcha - A clean and lightweight captcha library",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "files": ["src"],
-  "keywords": ["captcha", "slider", "vue", "verify"],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": ["captcha", "slider", "verify"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
 }

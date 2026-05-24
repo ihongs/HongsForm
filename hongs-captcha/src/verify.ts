@@ -1,6 +1,6 @@
-import type { CaptchaOrdeal, CaptchaAnswer, CaptchaResult, CaptchaConfig } from './types'
-import { CaptchaCodes } from './types'
-import { MemoryStorage, type Storage } from './storage'
+import type { CaptchaOrdeal, CaptchaAnswer, CaptchaResult, CaptchaConfig } from './types.js'
+import { CaptchaCodes } from './types.js'
+import { MemoryStorage, type Storage } from './storage.js'
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)

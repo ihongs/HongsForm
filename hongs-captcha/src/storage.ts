@@ -1,4 +1,4 @@
-import type { CaptchaOrdeal } from './types'
+import type { CaptchaOrdeal } from './types.js'
 
 export interface Storage {
   set(ordeal: CaptchaOrdeal): Promise<void>

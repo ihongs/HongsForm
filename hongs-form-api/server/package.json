@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "mongodb": "^6.3.0",
-    "hongs-form": "file:../../hongs-form"
+    "hongs-form": "file:../../hongs-form",
+    "hongs-captcha": "file:../../hongs-captcha"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

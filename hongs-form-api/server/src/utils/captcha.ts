@@ -1,5 +1,5 @@
-import type { CaptchaOrdeal, CaptchaAnswer, CaptchaResult, CaptchaConfig } from '../../../../hongs-captcha/src/types.js';
-import { CaptchaCodes } from '../../../../hongs-captcha/src/types.js';
+import type { CaptchaOrdeal, CaptchaAnswer, CaptchaResult, CaptchaConfig } from 'hongs-captcha';
+import { CaptchaCodes } from 'hongs-captcha';
 import { roster } from './roster.js';
 
 const CAPTCHA_PREFIX = 'captcha:';
