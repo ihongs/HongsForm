@@ -1,6 +1,8 @@
 # hongs-form
 
-基于 JSON Schema 模式的极简表单校验库。
+基于 JSON Schema 模式的极简表单库。
+
+与 JSON Schema 的最大区别在于：不仅验证、还要转换。故 `type=string` 也可以接受数字，`type=number` 也可以接受字符串，只要能够被转为数字即可。所有 `type` 都隐性包含 'null'，当处于 patch mode 时，null 视为将值设为 null，否则 (undefined) 视为不做变动。故单独的 `type=null` 没有意义，视作非存储的字段（仅用于前端显式），会被丢弃。这个 shcema 不仅用于校验、转换，还用于前端将其渲染为表单页面。
 
 ## 特性
 
