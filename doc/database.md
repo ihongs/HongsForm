@@ -9,6 +9,7 @@
 1. [user](#user-用户集合) - 用户集合
 2. [form](#form-表单集合) - 表单定义集合
 3. [formData](#formData-表单数据集合) - 表单提交数据集合
+4. [roster](#roster-键值存储集合) - 临时键值存储集合
 
 ---
 
@@ -333,3 +334,44 @@ db.formData.createIndex({ channel: 1 });
 2. 高频查询的统计数据可单独建立统计表
 3. 超过一定时间的历史数据可考虑归档到冷存储
 4. 考虑为 `data` 字段内常用查询属性建立单字段索引
+
+---
+
+## roster (键值存储集合)
+
+临时键值存储集合，用于存储验证码等临时数据。
+
+### 字段说明
+
+| 字段名 | 类型 | 必填 | 默认值 | 说明 | 索引 |
+|--------|------|------|--------|------|------|
+| `_id` | ObjectId | 是 | 自动生成 | 唯一标识 | 主键 |
+| `key` | String | 是 | - | 键，唯一索引 | 唯一索引 |
+| `value` | Any | 否 | null | 值 | - |
+| `expiresAt` | Date | 是 | - | 过期时间 | 索引 |
+| `createdAt` | Date | 是 | new Date() | 创建时间 | - |
+| `updatedAt` | Date | 是 | new Date() | 更新时间 | - |
+
+### 索引配置
+
+```javascript
+db.roster.createIndex({ key: 1 }, { unique: true });
+db.roster.createIndex({ expiresAt: 1 });
+```
+
+### 示例数据
+
+```javascript
+{
+  "_id": ObjectId("60d21b4667d0d8992e610c88"),
+  "key": "verify:email:user@example.com",
+  "value": { "code": "123456", "type": "login" },
+  "expiresAt": ISODate("2024-01-15T15:00:00Z"),
+  "createdAt": ISODate("2024-01-15T14:30:00Z"),
+  "updatedAt": ISODate("2024-01-15T14:30:00Z")
+}
+```
+
+### 清理策略
+
+定期清理已过期的记录，默认清理一周前过期的数据。

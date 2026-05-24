@@ -1,0 +1,12 @@
+{
+  "name": "hongs-captcha",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Hongs Captcha - A clean and lightweight captcha library",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": ["src"],
+  "keywords": ["captcha", "slider", "vue", "verify"],
+  "author": "",
+  "license": "MIT"
+}

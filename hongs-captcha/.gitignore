@@ -1,7 +1,6 @@
 node_modules
 dist
 .DS_Store
-.vscode
-.trae
-.idea
 *.log
+.vscode
+.idea

@@ -61,6 +61,24 @@ export const agentApi = {
   login(username, password) {
     return rpc.call('login', { username, password })
   },
+  generateCaptchaOrdeal() {
+    return rpc.call('generateCaptchaOrdeal')
+  },
+  verifyCaptcha(answer) {
+    return rpc.call('verifyCaptcha', { answer })
+  },
+  sendEmailVerificationCode(email, captchaAnswer) {
+    return rpc.call('sendEmailVerificationCode', { email, type: 'login', captchaAnswer })
+  },
+  sendSmsVerificationCode(phone, captchaAnswer) {
+    return rpc.call('sendSmsVerificationCode', { phone, type: 'login', captchaAnswer })
+  },
+  loginOrRegisterByEmail(email, code) {
+    return rpc.call('loginOrRegisterByEmail', { email, code })
+  },
+  loginOrRegisterByPhone(phone, code) {
+    return rpc.call('loginOrRegisterByPhone', { phone, code })
+  },
   listForms(params = {}) {
     return rpc.call('form.list', params)
   },

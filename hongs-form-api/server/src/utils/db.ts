@@ -11,7 +11,7 @@ export async function connectDb(uri: string): Promise<Db> {
   db = client.db();
   console.log('MongoDB connected successfully');
 
-  // 初始化索引
+  // Initialize indexes
   await initIndexes(db);
 
   return db;
@@ -68,6 +68,11 @@ async function initIndexes(db: Db) {
   await formDataCol.createIndex({ createdAt: -1 });
   await formDataCol.createIndex({ formId: 1, createdAt: -1 });
   await formDataCol.createIndex({ channel: 1 });
+
+  // Roster 集合索引
+  const rosterCol = db.collection('roster');
+  await rosterCol.createIndex({ key: 1 }, { unique: true });
+  await rosterCol.createIndex({ expiresAt: 1 });
 
   console.log('Database indexes initialized');
 }
