@@ -82,6 +82,7 @@ function drawBackground(ctx, width, height) {
     ctx.fill()
   }
   
+  /*
   const cx = width / 2
   const cy = height / 2
   ctx.beginPath()
@@ -94,6 +95,7 @@ function drawBackground(ctx, width, height) {
   ctx.arc(cx, cy, 8, 0, Math.PI * 2)
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
   ctx.fill()
+  */
 }
 
 function drawBlock(ctx, bgCanvas, x, y, size, srcX) {
