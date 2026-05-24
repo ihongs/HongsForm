@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { ObjectId } from 'mongodb';
-import { connectDb, closeDb } from '../src/utils/db.js';
-import { loadEnv } from '../src/utils/env.js';
+import { connectDb, closeDb } from '../utils/db.js';
+import { loadEnv } from '../utils/env.js';
 
 function generateSalt(): string {
   return randomBytes(16).toString('hex');
@@ -282,6 +282,9 @@ async function main() {
     console.log(`user ${user.username}: ${result.status} ${result.id.toString()}`);
   }
 
+  const admin = userResults.get('admin');
+  if (!admin) throw new Error('Admin user not initialized');
+
   const agent = userResults.get('agent');
   if (!agent) throw new Error('Agent user not initialized');
 
@@ -290,7 +293,7 @@ async function main() {
     console.log(`form ${form.name}: ${result.status} ${result.id.toString()}`);
   }
 
-  console.log('seed completed');
+  console.log('test init completed');
   console.log('admin login: admin / admin123');
   console.log('agent login: agent / agent123');
 }

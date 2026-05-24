@@ -6,11 +6,12 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "node --watch --import tsx src/server.ts",
-    "build": "tsc && powershell -Command \"New-Item -ItemType Directory -Path 'dist/api/mcp/scopes/agent/prompts' -Force; Copy-Item -Path src/api/mcp/scopes/agent/prompts/*.md -Destination dist/api/mcp/scopes/agent/prompts/ -Force\"",
-    "start": "node dist/server.js",
     "lint": "tsc --noEmit",
-    "seed": "tsx scripts/seed.ts",
-    "cleanup-roster": "tsx scripts/cleanup-roster.ts"
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "clean": "node dist/scripts/clean.js",
+    "dev:clean": "tsx src/scripts/clean.ts",
+    "dev:test-seed": "tsx src/scripts/test-init.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

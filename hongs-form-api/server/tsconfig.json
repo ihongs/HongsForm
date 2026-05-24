@@ -7,20 +7,25 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
+    "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "allowSyntheticDefaultImports": true
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
-    "node_modules",
     "dist",
+    "node_modules",
     "**/*.test.ts",
     "**/*.spec.ts"
+  ],
+  "assets": [
+    "src/api/mcp/scopes/agent/prompts/**/*.md"
   ]
 }
