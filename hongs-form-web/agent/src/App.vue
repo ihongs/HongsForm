@@ -9,6 +9,7 @@
         <div class="navbar-nav flex-row align-items-center gap-3">
           <router-link class="nav-link" to="/dashboard">首页</router-link>
           <router-link class="nav-link" to="/forms">表单</router-link>
+          <router-link class="nav-link" to="/api-keys">API Key</router-link>
           <button class="btn btn-outline-secondary btn-sm" type="button" title="主题设置" @click="openThemeModal">
             <i :class="themeIcon" aria-hidden="true"></i>
             <span class="visually-hidden">主题设置</span>

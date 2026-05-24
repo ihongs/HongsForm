@@ -108,5 +108,15 @@ export const agentApi = {
   },
   getStats(formId) {
     return rpc.call('formData.stats', { formId })
+  },
+  // API Key 管理
+  listApiKeys() {
+    return rpc.call('userAuth.list')
+  },
+  createApiKey(name) {
+    return rpc.call('userAuth.create', { name })
+  },
+  deleteApiKey(id) {
+    return rpc.call('userAuth.delete', { id })
   }
 }

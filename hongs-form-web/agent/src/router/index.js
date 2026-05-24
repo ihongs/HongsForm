@@ -5,6 +5,7 @@ import DashboardView from '../views/DashboardView.vue'
 import FormsView from '../views/FormsView.vue'
 import DesignerView from '../views/DesignerView.vue'
 import DataView from '../views/DataView.vue'
+import ApiKeyView from '../views/ApiKeyView.vue'
 
 const router = createRouter({
   history: createWebHistory('/agent/'),
@@ -15,7 +16,8 @@ const router = createRouter({
     { path: '/forms', component: FormsView, meta: { auth: true } },
     { path: '/forms/new', component: DesignerView, meta: { auth: true } },
     { path: '/forms/:id/design', component: DesignerView, meta: { auth: true } },
-    { path: '/forms/:id/data', component: DataView, meta: { auth: true } }
+    { path: '/forms/:id/data', component: DataView, meta: { auth: true } },
+    { path: '/api-keys', component: ApiKeyView, meta: { auth: true } }
   ]
 })
 
