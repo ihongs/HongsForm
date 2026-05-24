@@ -20,10 +20,10 @@
 }
 ```
 
-- `type: "object"` 表示整张表单是对象。
-- `properties` 保存字段定义，key 是提交数据里的字段名。
-- `required` 兼容 JSON Schema 的必填属性名列表形式，例如 `["name", "phone"]`。
+- `type: "object"` 表示整张表单是对象，这是顶层固定写法。
+- `properties` 的 key 即提交数据里的字段名。
 - `properties` 的插入顺序就是前端渲染顺序。
+- `required` 兼容 JSON Schema 的必填属性名列表形式，例如 `["name", "phone"]`。
 
 ## 字段通用属性
 
@@ -135,6 +135,8 @@ agent 前端设计器内部使用数组记录字段，便于排序和编辑：
 | `date` | `type: "string", format: "date"` | 日期 |
 | `time` | `type: "string", pattern` | 时间，格式 `HH:mm` 或 `HH:mm:ss` |
 | `file` | `type: "string"` | 当前先保存文件名，完整上传能力后续扩展 |
+| `legend` | `type: "null"` | 小标题，表现为标题下面一条线 |
+| `figure` | `type: "null"` | 内容块，表现一块内容，支持 markdown 格式 |
 
 ## 必填规则
 
