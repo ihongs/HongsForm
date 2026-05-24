@@ -1,6 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { parse } from 'node:url';
 import { handleAdminRpc, handleAgentRpc, handleFormRpc } from './api/rpc/index.js';
+import { handleAgentMcp } from './api/mcp/index.js';
 import { connectDb } from './utils/db.js';
 import { loadEnv } from './utils/env.js';
 
@@ -15,8 +16,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
   // 设置 CORS 头
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, MCP-Protocol-Version');
 
   // 处理预检请求
   if (req.method === 'OPTIONS') {
@@ -37,6 +38,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
   if (pathname === '/api/rpc/admin' && req.method === 'POST') {
     await handleAdminRpc(req, res);
+    return;
+  }
+
+  if (pathname === '/api/mcp/agent' && (req.method === 'POST' || req.method === 'GET')) {
+    await handleAgentMcp(req, res);
     return;
   }
 
@@ -61,6 +67,7 @@ async function start() {
     console.log(`RPC form endpoint: http://${HOST}:${PORT}/api/rpc/form`);
     console.log(`RPC agent endpoint: http://${HOST}:${PORT}/api/rpc/agent`);
     console.log(`RPC admin endpoint: http://${HOST}:${PORT}/api/rpc/admin`);
+    console.log(`MCP agent endpoint: http://${HOST}:${PORT}/api/mcp/agent`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
   });
 }

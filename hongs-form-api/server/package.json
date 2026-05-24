@@ -6,13 +6,14 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "node --watch --import tsx src/server.ts",
-    "build": "tsc",
+    "build": "tsc && powershell -Command \"New-Item -ItemType Directory -Path 'dist/api/mcp/scopes/agent/prompts' -Force; Copy-Item -Path src/api/mcp/scopes/agent/prompts/*.md -Destination dist/api/mcp/scopes/agent/prompts/ -Force\"",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "cleanup-roster": "tsx scripts/cleanup-roster.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "mongodb": "^6.3.0",
     "hongs-form": "file:../../hongs-form",
     "hongs-captcha": "file:../../hongs-captcha"
