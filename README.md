@@ -57,9 +57,9 @@ try {
 
 ### 端点
 
-```
-POST /api/rpc
-```
+- `POST /api/rpc/admin` 管理后台，管理全部表单和数据
+- `POST /api/rpc/agent` 客户平台，管理自有表单和数据，以及构建表单
+- `POST /api/rpc/form`  表单填报
 
 ### 示例请求
 
@@ -87,46 +87,46 @@ POST /api/rpc
 
 通过 MCP 协议与 OpenClaw 等 AI 模型集成，实现智能表单生成。
 
-### MCP 工具
+### 端点
+
+- `POST /api/mcp/agent` 发布表单，导出数据
+- `POST /api/mcp/form`  填报表单
+
+### 示例请求
 
 ```json
 {
-  "name": "form.create",
-  "description": "根据自然语言描述自动生成表单 Schema",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "schema": { "type": "object" },
-      "name": { "type": "string" }
+  "jsonrpc": "2.0",
+  "id": "随便唯一ID",
+  "method": "tools/call",
+  "params": {
+    "name": "form.create",
+    "arguments": {
+      "name": "我的表单",
+      "title": "周末登山报名",
+      "description": "勇攀高峰，相伴云端",
+      "schema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
     }
   }
 }
 ```
 
-## 开发
+## 构建网站
 
 ```bash
-# 构建核心库
-cd hongs-form && npm run build
-
-# 启动 API
-cd ../hongs-form-api/server && npm run dev
-
-# 启动表单前端
-cd ../../hongs-form-web/form && npm run dev
-
-# 测试核心库
-cd ../../hongs-form && npm test
+cd HongsForm
+node build-site.js
+cd site
+npm install --production
+node dist/index.js
 ```
-
-## 路线图
-
-- [x] 核心验证库
-- [ ] JSON-RPC 2.0 API 服务
-- [ ] MongoDB 数据持久化
-- [ ] MCP 服务器集成
-- [ ] Web 管理后台
-- [ ] AI 表单生成
 
 ## License
 
