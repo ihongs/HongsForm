@@ -4,6 +4,7 @@ import { agentRegistry } from './registry.js';
 import './methods/auth.js';
 import './methods/forms.js';
 import './methods/formData.js';
+import './methods/userAuth.js';
 
 export const handleAgentRpc = createRpcHandler(agentRegistry, {
   requireAuth: true,

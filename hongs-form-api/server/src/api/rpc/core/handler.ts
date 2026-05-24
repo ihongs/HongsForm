@@ -58,7 +58,10 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
   const userAuth = await getDb().collection('userAuth').findOne({
     sk,
     deletedAt: null,
-    expiresAt: { $gt: new Date() }
+    $or: [
+      { expiresAt: null },
+      { expiresAt: { $gt: new Date() } }
+    ]
   });
   if (!userAuth) return null;
 
