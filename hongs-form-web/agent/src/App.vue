@@ -90,8 +90,9 @@ const scheduleEnd = ref(formatTimeInput(themeValue.startsWith('3:') ? themeValue
 let themeTimer = null
 
 const themeOptions = [
-  { value: '1', label: '浅色', icon: 'bi bi-sun', description: '始终使用浅色模式' },
-  { value: '2', label: '深色', icon: 'bi bi-moon-stars', description: '始终使用深色模式' },
+  { value: '' , label: '自动', icon: 'bi bi-circle-half'  , description: '跟随系统颜色设置' },
+  { value: '1', label: '浅色', icon: 'bi bi-sun'          , description: '始终使用浅色模式' },
+  { value: '2', label: '深色', icon: 'bi bi-moon-stars'   , description: '始终使用深色模式' },
   { value: '3', label: '定时', icon: 'bi bi-clock-history', description: '按时间段自动开启深色模式' }
 ]
 
@@ -126,9 +127,9 @@ function applyTheme() {
   if (themeMode.value === '1') {
     document.documentElement.setAttribute('data-bs-theme', 'light')
   } else if (themeMode.value === '2') {
-    document.documentElement.setAttribute('data-bs-theme', 'dark')
+    document.documentElement.setAttribute('data-bs-theme', 'dark' )
   } else if (themeMode.value === '3') {
-    document.documentElement.setAttribute('data-bs-theme', isScheduledDark() ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-bs-theme', isScheduledDark( ) ? 'dark' : 'light')
   } else {
     document.documentElement.setAttribute('data-bs-theme', mediaQuery.matches ? 'dark' : 'light')
   }
