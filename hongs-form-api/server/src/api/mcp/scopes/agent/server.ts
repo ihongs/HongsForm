@@ -13,7 +13,7 @@ function getFormUrl(formId: string): string {
   return `${BASE_URL}/form/${formId}`;
 }
 
-function toMcpError(e:any):unknown {
+function toMcpError(e:any):any {
   let text:string = e.message;
   if (typeof e.toMap === 'function') {
     text = JSON.stringify({message: e.message, extra: e.toMap()});
