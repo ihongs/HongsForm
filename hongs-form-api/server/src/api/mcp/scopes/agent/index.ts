@@ -27,9 +27,22 @@ export async function handleAgentMcp(req: IncomingMessage, res: ServerResponse):
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
+      
+      const errorData: any = { code: -32603, message: 'Internal server error' };
+      /*
+      if (error instanceof Error) {
+        errorData.message = error.message;
+        if (typeof (error as any).toMap === 'function') {
+          errorData.data = { errors: (error as any).toMap() };
+        } else if ((error as any).errors) {
+          errorData.data = { errors: (error as any).errors };
+        }
+      }
+      */
+      
       res.end(JSON.stringify({
         jsonrpc: '2.0',
-        error: { code: -32603, message: 'Internal server error' },
+        error: errorData,
         id: null
       }));
     }

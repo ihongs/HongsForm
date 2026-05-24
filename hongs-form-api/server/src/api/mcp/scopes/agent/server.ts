@@ -13,6 +13,19 @@ function getFormUrl(formId: string): string {
   return `${BASE_URL}/form/${formId}`;
 }
 
+function toMcpError(e:any):unknown {
+  let text:string = e.message;
+  if (typeof e.toMap === 'function') {
+    text = JSON.stringify({message: e.message, extra: e.toMap()});
+  } else if (e.errors) {
+    text = JSON.stringify({message: e.message, extra: e.errors });
+  }
+  return {
+    content: [{ type: 'text', text: text }],
+    isError: true
+  };
+}
+
 export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
   const server = new McpServer(
     {
@@ -33,6 +46,16 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
     return auth.userId;
   };
 
+  async function requireOwnedForm(userId:ObjectId, formId: string): Promise<any> {
+    const form = await db.collection('form').findOne({
+      _id: new ObjectId(formId),
+      userId,
+      deletedAt: null
+    });
+    if (!form) throw new Error('Form not found');
+    return form;
+  }
+
   server.registerTool(
     'form.list',
     {
@@ -46,9 +69,9 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
     },
     async (params: any) => {
+      const userId = requireAuth();
       const { page = 1, pageSize = 20, keyword = '', status } = params;
       const skip = (page - 1) * pageSize;
-      const userId = requireAuth();
 
       const query: any = { userId, deletedAt: null };
       if (status !== undefined) query.status = status;
@@ -86,10 +109,9 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
     },
     async (params: any) => {
+      const userId = requireAuth();
       const { id } = params;
       if (!id) throw new Error('Form ID is required');
-
-      const userId = requireAuth();
 
       const form = await db.collection('form').findOne({
         _id: new ObjectId(id),
@@ -119,7 +141,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
         name: z.string().describe('表单名称'),
         title: z.string().optional().describe('表单标题'),
         description: z.string().optional().describe('表单描述'),
-        schema: z.object({}).describe('表单 schema'),
+        schema: z.unknown().describe('表单 schema, 参考 form.prompt'),
         config: z.object({
           anonymous: z.boolean().optional(),
           oncePerUser: z.boolean().optional(),
@@ -132,13 +154,25 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
     },
     async (params: any) => {
+      const userId = requireAuth();
       const { name, title, description, schema, config = {}, icon, color } = params;
       if (!name) throw new Error('Form name is required');
       if (!schema) throw new Error('Form schema is required');
 
-      const userId = requireAuth();
+      let schemaData;
+      if (typeof schema == 'string') {
+        schemaData = JSON.parse(schema);
+      } else {
+        schemaData = schema;
+      }
 
-      const validatedSchema = formValidate(schema);
+      let validatedSchema;
+      try {
+        validatedSchema = formValidate(schemaData);
+      } catch (e: any) {
+        return toMcpError(e);
+      }
+
       const now = new Date();
       const result = await db.collection('form').insertOne({
         userId,
@@ -189,38 +223,28 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
     },
     async (params: any) => {
-      const { id, ...updateData } = params;
+      const userId = requireAuth();
+      const { id, name, title, description, schema, config = {}, icon, color } = params;
       if (!id) throw new Error('Form ID is required');
 
-      const userId = requireAuth();
-
-      const form = await db.collection('form').findOne({
-        _id: new ObjectId(id),
-        userId,
-        deletedAt: null
-      });
-      if (!form) throw new Error('Form not found');
-
-      const allowedFields = ['name', 'title', 'description', 'schema', 'config', 'icon', 'color', 'status'];
-      const cleanUpdateData: any = { updatedAt: new Date() };
-
-      for (const key of allowedFields) {
-        if (updateData[key] !== undefined) {
-          if (key === 'schema') {
-            cleanUpdateData.schema = formValidate(updateData.schema);
-          } else {
-            cleanUpdateData[key] = updateData[key];
-          }
-        }
+      let schemaData;
+      if (typeof schema == 'string') {
+        schemaData = JSON.parse(schema);
+      } else {
+        schemaData = schema;
       }
 
-      if (cleanUpdateData.status === 2 && !form.publishedAt) {
-        cleanUpdateData.publishedAt = new Date();
+      let validatedSchema;
+      try {
+        validatedSchema = formValidate(schemaData);
+      } catch (e: any) {
+        return toMcpError(e);
       }
+      validatedSchema.updatedAt = new Date();
 
       await db.collection('form').updateOne(
-        { _id: new ObjectId(id) },
-        { $set: cleanUpdateData }
+        { _id: new ObjectId(id), userId: userId, deletedAt: null },
+        { $set: validatedSchema }
       );
 
       return {
@@ -230,87 +254,37 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
   );
 
   server.registerTool(
-    'formData.list',
+    'formData.export',
     {
-      title: 'List Form Data',
-      description: '列出指定表单的提交数据',
+      title: 'Export Form Data',
+      description: '导出指定表单的数据',
       inputSchema: {
         formId: z.string().describe('表单 ID'),
-        page: z.number().optional().describe('页码，默认 1'),
-        pageSize: z.number().optional().describe('每页数量，默认 20'),
-        startDate: z.string().optional().describe('开始日期'),
-        endDate: z.string().optional().describe('结束日期')
+        skip: z.number().optional().describe('跳过数量'),
+        limit: z.number().optional().describe('导出数量，默认 100')
       }
     },
     async (params: any) => {
-      const { formId, page = 1, pageSize = 20, startDate, endDate } = params;
+      const userId = requireAuth();
+      const { formId, limit, skip } = params;
       if (!formId) throw new Error('Form ID is required');
 
-      const userId = requireAuth();
+      requireOwnedForm(userId, formId);
 
-      const form = await db.collection('form').findOne({
-        _id: new ObjectId(formId),
-        userId,
-        deletedAt: null
-      });
-      if (!form) throw new Error('Form not found');
-
-      const skip = (page - 1) * pageSize;
       const query: any = { formId: new ObjectId(formId), deletedAt: null };
-
-      if (startDate || endDate) {
-        query.createdAt = {};
-        if (startDate) query.createdAt.$gte = new Date(startDate);
-        if (endDate) query.createdAt.$lte = new Date(endDate);
-      }
 
       const [items, total] = await Promise.all([
         db.collection('formData')
           .find(query)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(pageSize)
+          .sort({ createdAt: 1 })
+          .skip(skip || 0)
+          .limit(limit)
           .toArray(),
         db.collection('formData').countDocuments(query)
       ]);
 
       return {
-        content: [{ type: 'text', text: JSON.stringify({ items, total, page, pageSize }) }]
-      };
-    }
-  );
-
-  server.registerTool(
-    'formData.get',
-    {
-      title: 'Get Form Data',
-      description: '获取指定表单数据的详情',
-      inputSchema: {
-        id: z.string().describe('表单数据 ID')
-      }
-    },
-    async (params: any) => {
-      const { id } = params;
-      if (!id) throw new Error('Form Data ID is required');
-
-      const userId = requireAuth();
-
-      const formData = await db.collection('formData').findOne({
-        _id: new ObjectId(id),
-        deletedAt: null
-      });
-
-      if (!formData) throw new Error('Form data not found');
-
-      const form = await db.collection('form').findOne({
-        _id: formData.formId,
-        userId,
-        deletedAt: null
-      });
-      if (!form) throw new Error('Form not found');
-
-      return {
-        content: [{ type: 'text', text: JSON.stringify(formData) }]
+        content: [{ type: 'text', text: JSON.stringify({ items, total, limit, skip }) }]
       };
     }
   );
