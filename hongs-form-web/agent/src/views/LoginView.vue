@@ -9,13 +9,13 @@
           <div class="mb-3">
             <ul class="nav nav-pills nav-justified mb-3">
               <li class="nav-item">
+                <button class="nav-link" :class="{ active: authType === 'password' }" @click="authType = 'password'">密码</button>
+              </li>
+              <li class="nav-item">
                 <button class="nav-link" :class="{ active: authType === 'email' }" @click="authType = 'email'">邮箱</button>
               </li>
               <li class="nav-item">
                 <button class="nav-link" :class="{ active: authType === 'phone' }" @click="authType = 'phone'">手机</button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" :class="{ active: authType === 'password' }" @click="authType = 'password'">密码</button>
               </li>
             </ul>
           </div>
@@ -87,7 +87,7 @@ import { agentApi, setSession } from '../api'
 import SliderVerify from './SliderVerify.vue'
 
 const router = useRouter()
-const authType = ref('email')
+const authType = ref('password')
 const username = ref('')
 const password = ref('')
 const email = ref('')
