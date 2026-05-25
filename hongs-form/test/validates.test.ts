@@ -1504,4 +1504,59 @@ describe('第 15 阶段：default 默认值', () => {
     const result = validate({}, schema, {});
     expect(result.name).toBe('默认名');
   });
+
+  it('默认值函数可使用 state.getValids() 获取其他字段校验结果', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        tags: { type: 'array', items: { type: 'string' } },
+        tagCount: {
+          type: 'number',
+          default: (value: any, schema: any, config: any, state: VState) => {
+            const valids = state.getValids() as any;
+            const tags = valids?.tags;
+            return tags?.length ?? 0;
+          },
+        },
+      },
+    };
+    // tags 字段在校验后会填充到 state.valids 中
+    const result = validate({ tags: ['a', 'b', 'c'] }, schema, {});
+    expect(result.tagCount).toBe(3);
+  });
+
+  it('默认值函数可使用 state.getValues() 获取其他字段原始值', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        fullName: {
+          type: 'string',
+          default: (value: any, schema: any, config: any, state: VState) => {
+            const values = state.getValues() as any;
+            return `${values?.firstName ?? ''} ${values?.lastName ?? ''}`.trim();
+          },
+        },
+      },
+    };
+    const result = validate({ firstName: '张', lastName: '三' }, schema, {});
+    expect(result.fullName).toBe('张 三');
+  });
+
+  it('默认值函数在无依赖字段时正常工作', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          default: (value: any, schema: any, config: any, state: VState) => {
+            return '默认标题';
+          },
+        },
+      },
+    };
+    const result = validate({}, schema, {});
+    expect(result.title).toBe('默认标题');
+  });
 });

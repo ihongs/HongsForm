@@ -58,7 +58,7 @@ export const requires: Validate = function (value: any, schema: any, config: any
 };
 
 // 默认值 (default)
-export const defaults: Validate = function (value: any, schema: any, config: any) {
+export const defaults: Validate = function (value: any, schema: any, config: any, state?: VState) {
     if (value !== undefined) {
         return value;
     }
@@ -77,10 +77,10 @@ export const defaults: Validate = function (value: any, schema: any, config: any
         def = schema.default;
         break;
     default:
-        return schema.default;
+        def = schema.default;
     }
     if (typeof def === 'function') {
-        return def();
+        return def(value, schema, config, state);
     }
     return def;
 };
