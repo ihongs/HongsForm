@@ -1,6 +1,7 @@
 // 内置默认翻译数据
 export const defaultMessages: Record<string, string> = {
   required: 'Required',
+  requires: 'Required: {value}',
   array: 'Must be array',
   object: 'Must be object',
   number: 'Must be number',

@@ -1,4 +1,4 @@
-import { Tr } from './i18n.js';
+import { Tr, tr } from './i18n.js';
 
 // 表单结构
 export interface FormSchema {
@@ -95,15 +95,29 @@ export class VState {
 
 // 校验错误
 export class VError extends Error {
+    key: string;
+    params?: Record<string, unknown>;
     errors?: Record<string, unknown>;
 
-    constructor(message: string, errors?: Record<string, unknown>) {
-        super(message);
+    constructor(key: string, params?: Record<string, unknown>, errors?: Record<string, unknown>) {
+        super(key);
+        this.key = key;
+        this.params = params;
         this.errors = errors;
     }
 
+    // 不要再用，将移除
     toMap(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
         return this.getErrors(translator);
+    }
+
+    toString (): string {
+        return this.getError();
+    }
+
+    // 获取顶层错误消息
+    getError (translator?: (key: string, params?: Record<string, unknown>) => string): string {
+        return translator ? translator(this.key, this.params) : tr(this.key, this.params);
     }
 
     // 获取字段错误信息
@@ -112,13 +126,17 @@ export class VError extends Error {
         if (this.errors) {
             for (const [key, value] of Object.entries(this.errors)) {
                 if (value instanceof VError) {
-                    result[key] = value.getErrors(translator);
-                } else if (value instanceof Tr) {
-                    result[key] = translator ? translator(value.key, value.params) : value.toString();
-                } else if (typeof value === 'object' && value !== null && value.toString !== Object.prototype.toString) {
-                    result[key] = value.toString();
+                    if (value.errors) {
+                        result[key] = value.getErrors(translator);
+                    } else {
+                        result[key] = value.getError (translator);
+                    }
                 } else {
-                    result[key] = value;
+                    if (value instanceof Tr) {
+                        result[key] = translator ? translator(value.key, value.params) : value.toString();
+                    } else {
+                        result[key] = String(value);
+                    }
                 }
             }
         }

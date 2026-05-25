@@ -1,5 +1,4 @@
 import { FormSchema, Validate, Verify, VState, VError, VPASS, VQUIT } from './types.js';
-import { tr } from './i18n.js';
 
 // 可选/非必填 (optional)
 export const optional: Validate = function (value: any, schema: any, config: any) {
@@ -19,17 +18,17 @@ export const required: Validate = function (value: any, schema: any, config: any
 
     // undefined/null/空串
     if (value === undefined || value === null || value === '') {
-        throw new Error(tr('required'));
+        throw new VError('required');
     }
 
     // 空数组
     if (Array.isArray(value) && value.length === 0) {
-        throw new Error(tr('required'));
+        throw new VError('required');
     }
 
     // 空对象
     if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) {
-        throw new Error(tr('required'));
+        throw new VError('required');
     }
 
     return value;
@@ -40,19 +39,19 @@ export const requires: Validate = function (value: any, schema: any, config: any
     if (!schema.required || !Array.isArray(schema.required)) return value;
     if (typeof value !== 'object' || value === null) return value;
 
-    const errors: Record<string, unknown> = {};
+    const errorFields: string[] = [];
     for (const field of schema.required) {
         if (config.patchMode && value[field] === undefined) continue;
         try {
             required(value[field], {}, config);
         } catch (err) {
-            errors[field] = err instanceof Error ? err.message : String(err);
+            errorFields.push(field);
             if (config.pickyMode) break;
         }
     }
 
-    if (Object.keys(errors).length > 0) {
-        throw new VError(tr('properties'), errors);
+    if (errorFields.length > 0) {
+        throw new VError('requires', {value: errorFields.join(', ')});
     }
 
     return value;
@@ -92,24 +91,24 @@ export const isString: Validate = function (value: any, schema: any, config: any
 
     // 枚举校验
     if (schema.enum && !schema.enum.includes(value)) {
-        throw new Error(tr('enum'));
+        throw new VError('enum');
     }
 
     // 长度校验
     if (schema.minLength != null && value.length < schema.minLength) {
-        throw new Error(tr('minLength', { value: schema.minLength }));
+        throw new VError('minLength', { value: schema.minLength });
     }
     if (schema.maxLength != null && value.length > schema.maxLength) {
-        throw new Error(tr('maxLength', { value: schema.maxLength }));
+        throw new VError('maxLength', { value: schema.maxLength });
     }
 
     // 正则校验，pattern 优先；未配置 pattern 时使用 format 对应的内置 pattern
     const pattern = schema.pattern ?? (schema.format ? patterns[schema.format] : undefined);
     if (schema.format && !schema.pattern && !pattern) {
-        throw new Error(tr('format', { value: schema.format }));
+        throw new VError('format', { value: schema.format });
     }
     if (pattern && !new RegExp(pattern).test(value)) {
-        throw new Error(tr('pattern'));
+        throw new VError('pattern');
     }
 
     return value;
@@ -124,23 +123,23 @@ export const isNumber: Validate = function (value: any, schema: any, config: any
     if (typeof value !== 'number') {
         const num = Number(value);
         if (isNaN(num)) {
-            throw new Error(tr('number'));
+            throw new VError('number');
         }
         value = num;
     }
 
     // 范围校验
     if (schema.minimum != null && value < schema.minimum) {
-        throw new Error(tr('minimum', { value: schema.minimum }));
+        throw new VError('minimum', { value: schema.minimum });
     }
     if (schema.maximum != null && value > schema.maximum) {
-        throw new Error(tr('maximum', { value: schema.maximum }));
+        throw new VError('maximum', { value: schema.maximum });
     }
     if (schema.exclusiveMinimum != null && value <= schema.exclusiveMinimum) {
-        throw new Error(tr('exclusiveMinimum', { value: schema.exclusiveMinimum }));
+        throw new VError('exclusiveMinimum', { value: schema.exclusiveMinimum });
     }
     if (schema.exclusiveMaximum != null && value >= schema.exclusiveMaximum) {
-        throw new Error(tr('exclusiveMaximum', { value: schema.exclusiveMaximum }));
+        throw new VError('exclusiveMaximum', { value: schema.exclusiveMaximum });
     }
 
     return value;
@@ -155,7 +154,7 @@ export const isInteger: Validate = function (value: any, schema: any, config: an
     if (typeof value !== 'number' || !Number.isInteger(value)) {
         const num = Number(value);
         if (isNaN(num) || !Number.isInteger(num)) {
-            throw new Error(tr('integer'));
+            throw new VError('integer');
         }
         value = num;
     }
@@ -176,7 +175,7 @@ export const isBoolean: Validate = function (value: any, schema: any, config: an
     if (value === 1 || value === '1' || value === 'true') return true;
     if (value === 0 || value === '0' || value === 'false') return false;
 
-    throw new Error(tr('boolean'));
+    throw new VError('boolean');
 };
 
 // 日期/时间 (inputType=datetime|date|time, 按 type 返回时间戳或格式化字符串, 默认返回 Date 对象)
@@ -187,13 +186,13 @@ export const isDateTime: Validate = function (value: any, schema: any, config: a
     // 已是 Date 对象
     if (value instanceof Date) {
         if (isNaN(value.getTime())) {
-            throw new Error(tr('date'));
+            throw new VError('date');
         }
     } else {
         // 转换
         const date = new Date(value);
         if (isNaN(date.getTime())) {
-            throw new Error(tr('date'));
+            throw new VError('date');
         }
         value = date;
     }
@@ -230,16 +229,16 @@ export const isArray: Validate = function (value: any, schema: any, config: any,
         if (typeof value === 'string') {
             value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
         } else {
-            throw new Error(tr('array'));
+            throw new VError('array');
         }
     }
 
     // 预校验：数量范围，有错直接抛
     if (schema.minItems != null && value.length < schema.minItems) {
-        throw new Error(tr('minItems', { value: schema.minItems }));
+        throw new VError('minItems', { value: schema.minItems });
     }
     if (schema.maxItems != null && value.length > schema.maxItems) {
-        throw new Error(tr('maxItems', { value: schema.maxItems }));
+        throw new VError('maxItems', { value: schema.maxItems });
     }
 
     // 唯一性校验
@@ -248,7 +247,7 @@ export const isArray: Validate = function (value: any, schema: any, config: any,
         for (const item of value) {
             const key = typeof item === 'object' ? JSON.stringify(item) : item;
             if (seen.has(key)) {
-                throw new Error(tr('uniqueItems'));
+                throw new VError('uniqueItems');
             }
             seen.add(key);
         }
@@ -276,8 +275,7 @@ export const isArray: Validate = function (value: any, schema: any, config: any,
                     itemSchema = items[i];
                 } else if (schema.additionalItems === false) {
                     // 不允许额外元素
-                    errors[String(i)] = tr('additionalItems');
-                    result.push(value[i]);
+                    errors[String(i)] = new VError('additionalItems');
                     continue;
                 } else if (typeof schema.additionalItems === 'object') {
                     // 用 additionalItems schema 校验
@@ -299,24 +297,17 @@ export const isArray: Validate = function (value: any, schema: any, config: any,
                     result.push(val);
                 }
             } catch (err) {
-                // VError 保持原样用于递归展开，普通错误转成 message 字符串
-                if (err instanceof VError) {
-                    errors[String(i)] = err;
-                } else {
-                    errors[String(i)] = err instanceof Error ? err.message : String(err);
-                }
-                result.push(value[i]); // 出错的保留原值
+                errors[String(i)] = err;
                 if (config.pickyMode) break;
             }
         }
 
-        // 替换原数组
-        value.splice(0, value.length, ...result);
-
         // 有错误就抛
         if (Object.keys(errors).length > 0) {
-            throw new VError(tr('items'), errors);
+            throw new VError('items', {}, errors);
         }
+
+        return result;
     }
 
     return value;
@@ -329,10 +320,10 @@ export const isObject: Validate = function (value: any, schema: any, config: any
 
     // 确保是对象
     if (typeof value !== 'object' || Array.isArray(value)) {
-        throw new Error(tr('object'));
+        throw new VError('object');
     }
 
-    const result: Record<string, unknown> = { ...value };
+    const result: Record<string, unknown> = { };
     const objectState = new VState(state?.name, state?.parent);
     objectState.valids = result;
     objectState.values = value;
@@ -340,10 +331,10 @@ export const isObject: Validate = function (value: any, schema: any, config: any
     // 属性数量预校验
     const count = Object.keys(result).length;
     if (schema.minProperties != null && count < schema.minProperties) {
-        throw new Error(tr('minProperties', { value: schema.minProperties }));
+        throw new VError('minProperties', { value: schema.minProperties });
     }
     if (schema.maxProperties != null && count > schema.maxProperties) {
-        throw new Error(tr('maxProperties', { value: schema.maxProperties }));
+        throw new VError('maxProperties', { value: schema.maxProperties });
     }
 
     const errors: Record<string, unknown> = {};
@@ -357,8 +348,6 @@ export const isObject: Validate = function (value: any, schema: any, config: any
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result[key] = val;
-                } else {
-                    delete result[key];
                 }
             } catch (err) {
                 errors[key] = err;
@@ -369,7 +358,7 @@ export const isObject: Validate = function (value: any, schema: any, config: any
 
     // pickyMode 下遇到第一个错误立即中止
     if (config.pickyMode && Object.keys(errors).length > 0) {
-        throw new VError(tr('properties'), errors);
+        throw new VError('properties', {}, errors);
     }
 
     // additionalProperties (JSON Schema 规则)
@@ -380,7 +369,7 @@ export const isObject: Validate = function (value: any, schema: any, config: any
         const allowed = new Set(Object.keys(schema.properties || {}));
         for (const key of Object.keys(result)) {
             if (!allowed.has(key)) {
-                errors[key] = tr('additionalProperties');
+                errors[key] = new VError('additionalProperties');
             }
         }
     } else if (typeof schema.additionalProperties === 'object') {
@@ -392,8 +381,6 @@ export const isObject: Validate = function (value: any, schema: any, config: any
                     const val = validate(result[key], schema.additionalProperties, config, fieldState);
                     if (val !== undefined) {
                         result[key] = val;
-                    } else {
-                        delete result[key];
                     }
                 } catch (err) {
                     errors[key] = err;
@@ -405,13 +392,13 @@ export const isObject: Validate = function (value: any, schema: any, config: any
 
     // 有错误就抛
     if (Object.keys(errors).length > 0) {
-        throw new VError(tr('properties'), errors);
+        throw new VError('properties', {}, errors);
     }
 
     return result;
 };
 
-// form schema 的 input 校验
+// form schema 的 input 校准
 export const isInput: Validate = function(value: any, schema: any, config: any) {
     if (!value.type) {
         switch (value.inputType) {
@@ -442,7 +429,7 @@ export const formStruct: FormSchema = {
                     description: { type: 'string' },
                     label: { type: 'string' },
                     placeholder: { type: 'string' },
-                    type: { type: 'string', enum: ['string', 'number', 'integer', 'boolean', 'array', 'null'] },
+                    type: { type: 'string', enum: ['string', 'number', 'integer', 'boolean', 'array', 'date', 'null'] },
                     required: { type: 'boolean' },
                     format: { type: 'string' },
                     pattern: { type: 'string' },
