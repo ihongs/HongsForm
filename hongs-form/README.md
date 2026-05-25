@@ -6,6 +6,8 @@
 
 `required: true` 表示所在层级的字段值不能为 `undefined`、`null`、空串，但 patch mode 会忽略 `undefined`。同时支持 JSON Schema 中的 `required: []` 下级属性约束。建议用前者，层级分明；前者的错误消息分层放置，后者的错误消息放在上层。
 
+`default` 可在没有值时赋予指定的值，也可为函数，用于动态生成默认值。比如 `default: () => new Date()`。额外指定 `defaultOn: 'post|patch|always'` 可在对应的时机产生默认值，`post` 新增时（`patchMode: false`），`patch` 更新时（`patchMode: true`），`always` 总产生默认值（默认）。
+
 特别增加 `type=date`，这将转为 Date 对象，接受时间戳（毫秒）和 ISO 日期时间格式（YYYY-MM-DDTHH:mm:ss.sssZ）的字符串。也可用 `type=number` 或 `type=string` 加 `inputType=datetime|date|time`，这会转为时间戳或格式化的字符串。
 
 ## 特性

@@ -57,6 +57,34 @@ export const requires: Validate = function (value: any, schema: any, config: any
     return value;
 };
 
+// 默认值 (default)
+export const defaults: Validate = function (value: any, schema: any, config: any) {
+    if (value !== undefined) {
+        return value;
+    }
+    let def;
+    switch (schema.defaultOn) {
+    case 'post':
+        if (config.patchMode) {
+            return VPASS;
+        }
+        def = schema.default;
+        break;
+    case 'patch':
+        if (! config.patchMode) {
+            return VPASS
+        }
+        def = schema.default;
+        break;
+    default:
+        return schema.default;
+    }
+    if (typeof def === 'function') {
+        return def();
+    }
+    return def;
+};
+
 export const patterns: Record<string, string> = {
     'date-time': '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$',
     'date': '^\\d{4}-\\d{2}-\\d{2}$',
@@ -469,6 +497,24 @@ export const formStruct: FormSchema = {
 // 校验规则集合。注意：不要将 validate/baseValidate 包装成 verify 并加入 verifies 中，这会导致循环引用。
 export const verifies: Verify[] = [
     (schema) => {
+        if (schema.default) {
+            return defaults;
+        }
+    },
+    (schema) => {
+        if (schema.required === undefined
+        ||  schema.required === false) {
+            return optional;
+        }
+        if (schema.required === true ) {
+            return required;
+        }
+        // schema.required = ['field1', 'field2']: 对象属性必填 (JSON Schema 风格)
+        if (Array.isArray(schema.required)) {
+            return requires;
+        }
+    },
+    (schema) => {
         if (schema.type == 'null') {
             return isNull;
         }
@@ -478,41 +524,18 @@ export const verifies: Verify[] = [
         if (schema.type == 'object') {
             return isObject;
         }
-    },
-    (schema) => {
-        // schema.required = ['field1', 'field2']: 对象属性必填 (JSON Schema 风格)
-        if (Array.isArray(schema.required)) {
-            return requires;
-        }
-        if (schema.required === true) {
-            return required;
-        }
-        if (schema.required === false
-        ||  schema.required === undefined ) {
-            return optional;
-        }
-    },
-    (schema) => {
         if (schema.type == 'string') {
             return isString;
         }
-    },
-    (schema) => {
         if (schema.type == 'number') {
             return isNumber;
         }
-    },
-    (schema) => {
         if (schema.type == 'integer') {
             return isInteger;
         }
-    },
-    (schema) => {
         if (schema.type == 'boolean') {
             return isBoolean;
         }
-    },
-    (schema) => {
         if (schema.type == 'date'
         ||  schema.inputType == 'datetime'
         ||  schema.inputType == 'date'
@@ -520,7 +543,21 @@ export const verifies: Verify[] = [
         ) {
             return isDateTime;
         }
-    }
+    },
+    (schema) => {
+        // 复查一遍，以免上面有清理字符串、删除忽略项等导致值变为空了
+        if (schema.required === undefined
+        ||  schema.required === false) {
+            return optional;
+        }
+        if (schema.required === true ) {
+            return required;
+        }
+        // schema.required = ['field1', 'field2']: 对象属性必填 (JSON Schema 风格)
+        if (Array.isArray(schema.required)) {
+            return requires;
+        }
+    },
 ];
 
 const validates = function (validateFns: Validate[], value: any, schema: any, config: any, state?: VState) {
