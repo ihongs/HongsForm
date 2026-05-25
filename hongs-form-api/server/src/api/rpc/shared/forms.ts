@@ -28,7 +28,6 @@ export function publicFormSchema(form: any): Record<string, unknown> {
     color: form.color,
     schema: form.schema,
     config: {
-      anonymous: form.config?.anonymous,
       startAt: form.config?.startAt,
       endAt: form.config?.endAt
     },

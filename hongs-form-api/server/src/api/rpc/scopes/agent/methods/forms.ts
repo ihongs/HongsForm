@@ -55,9 +55,6 @@ registerAgentMethod('form.create', async (params, ctx) => {
     color: color || '#1890ff',
     schema: validatedSchema,
     config: {
-      anonymous: false,
-      oncePerUser: false,
-      maxSubmissions: null,
       startAt: null,
       endAt: null,
       ...config
