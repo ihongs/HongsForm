@@ -10,11 +10,7 @@ export const handleAgentRpc = createRpcHandler(agentRegistry, {
   requireAuth: true,
   publicMethods: new Set([
     'login',
-    'sendEmailVerificationCode',
-    'sendSmsVerificationCode',
     'loginOrRegisterByEmail',
-    'loginOrRegisterByPhone',
-    'generateCaptchaOrdeal',
-    'verifyCaptcha'
+    'loginOrRegisterByPhone'
   ])
 });

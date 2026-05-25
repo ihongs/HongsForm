@@ -118,7 +118,8 @@ Endpoint：`POST /api/rpc/common`
 | `token无效或已过期` | token 不存在或已超过 1 小时有效期 |
 | `请勿重复发送` | token 已被使用过 |
 | `验证失败` | 算力答案不正确 |
-| `1小时内发送次数过多，请稍后再试` | 该手机号 1 小时内已发送 5 次 |
+| `请X秒后再试` | 距离上次发送不足 55 秒，请等待 |
+| `1小时内发送次数过多，请稍后再试` | 该手机号/邮箱 1 小时内已发送 5 次 |
 
 #### `verify.sendEmailCode`
 
@@ -181,8 +182,17 @@ hash = SHA256("1716630000000_12345641")
 // 对 target（手机号/邮箱）做 md5 防止超长 key 攻击
 const targetMd5 = MD5(target);
 
-// 获取
-const currentCount = await roster.get("verify.sms.limit." + targetMd5) || 0;
+// 获取完整记录（包含 updatedAt）
+const countRecord = await roster.getRecord("verify.sms.limit." + targetMd5);
+const currentCount = countRecord?.value || 0;
+
+// 验证上次发送时间间隔（至少 55 秒）
+if (countRecord?.updatedAt) {
+  const timeSinceLast = (Date.now() - countRecord.updatedAt.getTime()) / 1000;
+  if (timeSinceLast < 55) {
+    throw new Error(`请${Math.ceil(55 - timeSinceLast)}秒后再试`);
+  }
+}
 
 // 设置（1小时过期）
 await roster.set("verify.sms.limit." + targetMd5, currentCount + 1, 3600);
@@ -208,7 +218,7 @@ const phoneMd5 = MD5(phone);
 await roster.set("verify.sms.code." + phoneMd5, code, 300);
 
 // 其他接口验证时获取并立即删除（防止重复使用）
-const storedCode = await roster.getAndDelete("verify.sms.code." + phoneMd5);
+const storedCode = await roster.getAndRemove("verify.sms.code." + phoneMd5);
 ```
 
 #### 4）邮箱验证码存储
@@ -221,11 +231,11 @@ const emailMd5 = MD5(email);
 await roster.set("verify.email.code." + emailMd5, code, 300);
 
 // 其他接口验证时获取并立即删除（防止重复使用）
-const storedCode = await roster.getAndDelete("verify.email.code." + emailMd5);
+const storedCode = await roster.getAndRemove("verify.email.code." + emailMd5);
 ```
 
 **验证码验证说明**：
-- 使用 `getAndDelete` 原子操作获取并删除验证码，防止重复使用
+- 使用 `getAndRemove` 原子操作获取并删除验证码，防止重复使用
 - 验证码有效期为 5 分钟
 
 ### Token 安全规则

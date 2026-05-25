@@ -37,15 +37,12 @@
               <input v-model.trim="email" type="email" class="form-control" autocomplete="email" />
             </div>
             <div class="mb-3">
-              <SliderVerify v-if="!captchaVerified" @success="onCaptchaSuccess" />
-              <div v-if="captchaVerified" class="mb-3">
-                <label class="form-label">验证码</label>
-                <div class="input-group">
-                  <input v-model="code" class="form-control" maxlength="6" />
-                  <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || countdown > 0" @click="sendEmailCode">
-                    {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : '获取验证码' }}
-                  </button>
-                </div>
+              <label class="form-label">验证码</label>
+              <div class="input-group">
+                <input v-model="code" class="form-control" maxlength="6" />
+                <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || computing || countdown > 0" @click="sendEmailCode">
+                  {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : computing ? '验证中...' : '获取验证码' }}
+                </button>
               </div>
             </div>
           </div>
@@ -56,15 +53,12 @@
               <input v-model.trim="phone" type="tel" class="form-control" autocomplete="tel" />
             </div>
             <div class="mb-3">
-              <SliderVerify v-if="!captchaVerified" @success="onCaptchaSuccess" />
-              <div v-if="captchaVerified" class="mb-3">
-                <label class="form-label">验证码</label>
-                <div class="input-group">
-                  <input v-model="code" class="form-control" maxlength="6" />
-                  <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || countdown > 0" @click="sendSmsCode">
-                    {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : '获取验证码' }}
-                  </button>
-                </div>
+              <label class="form-label">验证码</label>
+              <div class="input-group">
+                <input v-model="code" class="form-control" maxlength="6" />
+                <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || computing || countdown > 0" @click="sendSmsCode">
+                  {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : computing ? '验证中...' : '获取验证码' }}
+                </button>
               </div>
             </div>
           </div>
@@ -83,8 +77,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { agentApi, setSession } from '../api'
-import SliderVerify from './SliderVerify.vue'
+import { agentApi, verifyApi, setSession } from '../api'
 
 const router = useRouter()
 const authType = ref('password')
@@ -95,16 +88,13 @@ const phone = ref('')
 const code = ref('')
 const loading = ref(false)
 const sendingCode = ref(false)
+const computing = ref(false)
 const countdown = ref(0)
 const error = ref('')
-const captchaVerified = ref(false)
-let captchaAnswer = null
 
 let countdownTimer = null
 
 watch(authType, () => {
-  captchaVerified.value = false
-  captchaAnswer = null
   code.value = ''
 })
 
@@ -118,9 +108,25 @@ function startCountdown() {
   }, 1000)
 }
 
-function onCaptchaSuccess(answer) {
-  captchaAnswer = answer
-  captchaVerified.value = true
+async function sha256(str) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(str)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
+}
+
+async function computeAnswer(nonce, difficulty) {
+  const prefix = '0'.repeat(difficulty)
+  let answer = 0
+  while (true) {
+    const hash = await sha256(nonce + answer)
+    if (hash.startsWith(prefix)) {
+      return answer
+    }
+    answer++
+  }
 }
 
 async function sendEmailCode() {
@@ -129,21 +135,19 @@ async function sendEmailCode() {
     error.value = '请输入邮箱地址'
     return
   }
-  if (!captchaAnswer) {
-    error.value = '请先完成验证码验证'
-    return
-  }
 
   sendingCode.value = true
+  computing.value = true
   try {
-    await agentApi.sendEmailVerificationCode(email.value, captchaAnswer)
+    const { token, nonce, difficulty } = await verifyApi.generateToken()
+    const answer = await computeAnswer(nonce, difficulty)
+    await verifyApi.sendEmailCode(token, nonce, answer, email.value)
     startCountdown()
   } catch (err) {
     error.value = err.message || '发送失败'
-    captchaVerified.value = false
-    captchaAnswer = null
   } finally {
     sendingCode.value = false
+    computing.value = false
   }
 }
 
@@ -153,21 +157,19 @@ async function sendSmsCode() {
     error.value = '请输入手机号码'
     return
   }
-  if (!captchaAnswer) {
-    error.value = '请先完成验证码验证'
-    return
-  }
 
   sendingCode.value = true
+  computing.value = true
   try {
-    await agentApi.sendSmsVerificationCode(phone.value, captchaAnswer)
+    const { token, nonce, difficulty } = await verifyApi.generateToken()
+    const answer = await computeAnswer(nonce, difficulty)
+    await verifyApi.sendSmsCode(token, nonce, answer, phone.value)
     startCountdown()
   } catch (err) {
     error.value = err.message || '发送失败'
-    captchaVerified.value = false
-    captchaAnswer = null
   } finally {
     sendingCode.value = false
+    computing.value = false
   }
 }
 

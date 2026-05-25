@@ -56,22 +56,11 @@ class RpcClient {
 }
 
 export const rpc = new RpcClient()
+export const commonRpc = new RpcClient('/api/rpc/common')
 
 export const agentApi = {
   login(username, password) {
     return rpc.call('login', { username, password })
-  },
-  generateCaptchaOrdeal() {
-    return rpc.call('generateCaptchaOrdeal')
-  },
-  verifyCaptcha(answer) {
-    return rpc.call('verifyCaptcha', { answer })
-  },
-  sendEmailVerificationCode(email, captchaAnswer) {
-    return rpc.call('sendEmailVerificationCode', { email, type: 'login', captchaAnswer })
-  },
-  sendSmsVerificationCode(phone, captchaAnswer) {
-    return rpc.call('sendSmsVerificationCode', { phone, type: 'login', captchaAnswer })
   },
   loginOrRegisterByEmail(email, code) {
     return rpc.call('loginOrRegisterByEmail', { email, code })
@@ -118,5 +107,17 @@ export const agentApi = {
   },
   deleteApiKey(id) {
     return rpc.call('userAuth.delete', { id })
+  }
+}
+
+export const verifyApi = {
+  generateToken() {
+    return commonRpc.call('verify.generateToken')
+  },
+  sendSmsCode(token, nonce, answer, phone) {
+    return commonRpc.call('verify.sendSmsCode', { token, nonce, answer, phone })
+  },
+  sendEmailCode(token, nonce, answer, email) {
+    return commonRpc.call('verify.sendEmailCode', { token, nonce, answer, email })
   }
 }

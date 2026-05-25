@@ -6,6 +6,7 @@ const DIFFICULTY = 4;
 const MAX_PER_HOUR = 5;
 const EXPIRE_1H = 3600;
 const EXPIRE_5M = 300;
+const MIN_INTERVAL_SECONDS = 55;
 
 // 生成随机验证码
 function generateCode(length = 6): string {
@@ -58,10 +59,20 @@ registerCommonMethod('verify.sendSmsCode', async (params) => {
 
   const phoneMd5 = md5(phone);
   const countKey = `verify.sms.limit.${phoneMd5}`;
-  const currentCount = await roster.get(countKey) || 0;
+  const countRecord = await roster.getRecord(countKey);
+
+  const currentCount = countRecord?.value || 0;
 
   if (currentCount >= MAX_PER_HOUR) {
     throw new Error('1小时内发送次数过多，请稍后再试');
+  }
+
+  if (countRecord?.updatedAt) {
+    const timeSinceLast = (Date.now() - countRecord.updatedAt.getTime()) / 1000;
+    if (timeSinceLast < MIN_INTERVAL_SECONDS) {
+      const waitSeconds = Math.ceil(MIN_INTERVAL_SECONDS - timeSinceLast);
+      throw new Error(`请${waitSeconds}秒后再试`);
+    }
   }
 
   await roster.set(countKey, currentCount + 1, EXPIRE_1H);
@@ -101,10 +112,20 @@ registerCommonMethod('verify.sendEmailCode', async (params) => {
 
   const emailMd5 = md5(email);
   const countKey = `verify.sms.limit.${emailMd5}`;
-  const currentCount = await roster.get(countKey) || 0;
+  const countRecord = await roster.getRecord(countKey);
+
+  const currentCount = countRecord?.value || 0;
 
   if (currentCount >= MAX_PER_HOUR) {
     throw new Error('1小时内发送次数过多，请稍后再试');
+  }
+
+  if (countRecord?.updatedAt) {
+    const timeSinceLast = (Date.now() - countRecord.updatedAt.getTime()) / 1000;
+    if (timeSinceLast < MIN_INTERVAL_SECONDS) {
+      const waitSeconds = Math.ceil(MIN_INTERVAL_SECONDS - timeSinceLast);
+      throw new Error(`请${waitSeconds}秒后再试`);
+    }
   }
 
   await roster.set(countKey, currentCount + 1, EXPIRE_1H);
