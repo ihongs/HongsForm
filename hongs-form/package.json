@@ -1,6 +1,6 @@
 {
   "name": "hongs-form",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Minimalist form validation library based on JSON Schema patterns",
   "type": "module",
   "main": "dist/index.js",
@@ -34,6 +34,7 @@
   ],
   "author": "Hongs",
   "license": "MIT",
+  "homepage": "https://github.com/ihongs/HongsForm",
   "repository": {
     "type": "git",
     "url": "https://github.com/ihongs/HongsForm.git"
@@ -41,7 +42,6 @@
   "bugs": {
     "url": "https://github.com/ihongs/HongsForm/issues"
   },
-  "homepage": "https://github.com/ihongs/HongsForm#readme",
   "engines": {
     "node": ">=16.0.0"
   },

@@ -103,11 +103,16 @@ export class VError extends Error {
     }
 
     toMap(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
+        return this.getErrors(translator);
+    }
+
+    // 获取字段错误信息
+    getErrors(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
         const result: Record<string, unknown> = {};
         if (this.errors) {
             for (const [key, value] of Object.entries(this.errors)) {
                 if (value instanceof VError) {
-                    result[key] = value.toMap(translator);
+                    result[key] = value.getErrors(translator);
                 } else if (value instanceof Tr) {
                     result[key] = translator ? translator(value.key, value.params) : value.toString();
                 } else if (typeof value === 'object' && value !== null && value.toString !== Object.prototype.toString) {
@@ -118,6 +123,11 @@ export class VError extends Error {
             }
         }
         return result;
+    }
+
+    // 获取错误数据以便 JSON PRC 附加 data
+    getData(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
+        return { code: "form.invalid", errors: this.getErrors(translator) };
     }
 }
 
