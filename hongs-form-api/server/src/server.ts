@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { parse } from 'node:url';
-import { handleAdminRpc, handleAgentRpc, handleFormRpc } from './api/rpc/index.js';
+import { handleAdminRpc, handleAgentRpc, handleFormRpc, handleCommonRpc } from './api/rpc/index.js';
 import { handleAgentMcp } from './api/mcp/index.js';
 import { connectDb } from './utils/db.js';
 import { loadEnv } from './utils/env.js';
@@ -41,6 +41,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return;
   }
 
+  if (pathname === '/api/rpc/common' && req.method === 'POST') {
+    await handleCommonRpc(req, res);
+    return;
+  }
+
   if (pathname === '/api/mcp/agent' && (req.method === 'POST' || req.method === 'GET')) {
     await handleAgentMcp(req, res);
     return;
@@ -67,6 +72,7 @@ async function start() {
     console.log(`RPC form endpoint: http://${HOST}:${PORT}/api/rpc/form`);
     console.log(`RPC agent endpoint: http://${HOST}:${PORT}/api/rpc/agent`);
     console.log(`RPC admin endpoint: http://${HOST}:${PORT}/api/rpc/admin`);
+    console.log(`RPC common endpoint: http://${HOST}:${PORT}/api/rpc/common`);
     console.log(`MCP agent endpoint: http://${HOST}:${PORT}/api/mcp/agent`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
   });

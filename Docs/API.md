@@ -4,15 +4,25 @@
 
 HongsForm API 使用 JSON-RPC 2.0，通过不同 endpoint 区分调用范围。endpoint 已经表达 scope，因此 agent/admin 内的方法名不再重复带 `agent.` / `admin.` 前缀。
 
+### API endpoint 及 method 命名规范
+
+- endpoint 命名：`/api/rpc/<scope>`
+- method 命名：`[<entity|module>.]<method>`
+
+何为 scope？scope 是 API 的区域划分，通常对应不同的前端。如 `/api/rpc/admin` 是管理后台相关的方法，`/api/rpc/agent` 是客户应用相关的方法。还有些公共的独立设置。
+
+何为 entity/module？entity 是 API 的操作实体，如 `form`、`user` 等；module 是对一些共同归属方法的聚合。有些方法没有具体的 entity/module，还有些方法是顶级方法。
+
+为何 `/api/rpc/form` 的方法有 `form.` 前缀？因为前一个 `form` 是 endpoint scope，后一个 `form` 是 entity。`/api/rpc/form` 也可能有不是操作 `form` 实体的其他方法，如 `login`：要求登录的表单。
+
 ### 基本信息
 
 | Scope | Endpoint | 鉴权 | 用途 |
 |------|----------|------|------|
+| common | `/api/rpc/common` | 不强制鉴权 | 公共方法 |
 | form | `/api/rpc/form` | 不强制鉴权 | 公开表单读取与提交 |
-| agent | `/api/rpc/agent` | 除 `login` 外需要 `Authorization: Bearer ...` | 表单创建者后台 |
-| admin | `/api/rpc/admin` | 除 `login` 外需要 admin 身份的 `Authorization: Bearer ...` | 系统管理后台 |
-
-`/api/rpc` 兼容入口已移除，应始终使用明确 scope endpoint。
+| agent | `/api/rpc/agent` | 除 `login` 外需要 agent 身份的 `Authorization` | 客户应用平台 |
+| admin | `/api/rpc/admin` | 除 `login` 外需要 admin 身份的 `Authorization` | 系统管理后台 |
 
 ### JSON-RPC 格式
 

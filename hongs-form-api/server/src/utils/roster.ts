@@ -21,6 +21,13 @@ class Roster {
     return record ? record.value : null;
   }
 
+  async getAndDelete(key: string): Promise<any | null> {
+    const record = await this.get(key);
+    if (! record) return null;
+    await this.delete(key);
+    return record;
+  }
+
   async set(key: string, value: any, expires: Date | number): Promise<void> {
     const db = getDb();
     const now = new Date();
