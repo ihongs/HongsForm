@@ -145,7 +145,11 @@ export class VError extends Error {
 
     // 获取错误数据以便 JSON PRC 附加 data
     getData(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
-        return { code: "form.invalid", errors: this.getErrors(translator) };
+        return {
+            code: "form.invalid",
+            error: this.getError(translator),
+            errors: this.getErrors(translator)
+        };
     }
 }
 
