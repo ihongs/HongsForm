@@ -56,10 +56,11 @@ class RpcClient {
 }
 
 export const rpc = new RpcClient()
+export const commonRpc = new RpcClient('/api/rpc/common')
 
 export const adminApi = {
-  login(username, password) {
-    return rpc.call('login', { username, password })
+  login(username, password, verifyToken, verifyNonce, verifyAnswer) {
+    return rpc.call('login', { username, password, verifyToken, verifyNonce, verifyAnswer })
   },
   listUsers(params = {}) {
     return rpc.call('user.list', params)
@@ -96,5 +97,17 @@ export const adminApi = {
   },
   getStats(formId) {
     return rpc.call('formData.stats', { formId })
+  }
+}
+
+export const verifyApi = {
+  generateToken() {
+    return commonRpc.call('verify.generateToken')
+  },
+  sendSmsCode(token, nonce, answer, phone) {
+    return commonRpc.call('verify.sendSmsCode', { token, nonce, answer, phone })
+  },
+  sendEmailCode(token, nonce, answer, email) {
+    return commonRpc.call('verify.sendEmailCode', { token, nonce, answer, email })
   }
 }

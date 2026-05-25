@@ -3,6 +3,9 @@ import { createToken } from '../../../utils/auth.js';
 import { RpcContext } from '../core/types.js';
 import { roster } from '../../../utils/roster.js';
 
+const DIFFICULTY = 4;
+const EXPIRE_1H = 3600;
+
 export function generateSalt(): string {
   return randomBytes(16).toString('hex');
 }
@@ -16,10 +19,33 @@ export function toSafeUser(user: any): Record<string, unknown> {
   return userInfo;
 }
 
+// 验证算力答案
+function verifyProof(nonce: string, answer: number, difficulty: number): boolean {
+  const hash = createHash('sha256').update(`${nonce}${answer}`).digest('hex');
+  return hash.startsWith('0'.repeat(difficulty));
+}
+
 export async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | null, ctx: RpcContext): Promise<Record<string, unknown>> {
-  const { username, password } = params as any;
+  const { username, password, verifyToken, verifyNonce, verifyAnswer } = params as any;
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
+  if (!verifyToken) throw new Error('Verification token is required');
+  if (!verifyNonce) throw new Error('Verification nonce is required');
+  if (verifyAnswer === undefined) throw new Error('Verification answer is required');
+
+  // 立即删除 token，防止重复使用（无论登录成功与否）
+  const tokenRecord = await roster.getRecordAndRemove(`verify.token.${verifyToken}`);
+  if (!tokenRecord) {
+    throw new Error('Verification token invalid or expired');
+  }
+  const tokenStatus = tokenRecord.value;
+  if (tokenStatus === 1) {
+    throw new Error('Verification token already used');
+  }
+
+  if (!verifyProof(verifyNonce, verifyAnswer, DIFFICULTY)) {
+    throw new Error('Verification failed');
+  }
 
   const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
   if (!user) throw new Error('User not found');

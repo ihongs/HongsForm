@@ -64,9 +64,9 @@
           </div>
 
           <div v-if="error" class="alert alert-danger py-2" role="alert">{{ error }}</div>
-          <button class="btn btn-primary w-100" :disabled="loading">
+          <button class="btn btn-primary w-100" :disabled="loading || (authType === 'password' && computing)">
             <span v-if="loading" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-            {{ loading ? '处理中...' : (authType === 'password' ? '登录' : '登录 / 注册') }}
+            {{ loading ? '处理中...' : (computing && authType === 'password' ? '验证中...' : (authType === 'password' ? '登录' : '登录 / 注册')) }}
           </button>
         </div>
       </form>
@@ -185,7 +185,14 @@ async function submit() {
         loading.value = false
         return
       }
-      session = await agentApi.login(username.value, password.value)
+      computing.value = true
+      try {
+        const { token, nonce, difficulty } = await verifyApi.generateToken()
+        const answer = await computeAnswer(nonce, difficulty)
+        session = await agentApi.login(username.value, password.value, token, nonce, answer)
+      } finally {
+        computing.value = false
+      }
     } else if (authType.value === 'email') {
       if (!email.value || !code.value) {
         error.value = '请输入邮箱和验证码'

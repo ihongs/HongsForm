@@ -16,9 +16,9 @@
           </div>
 
           <div v-if="error" class="alert alert-danger py-2" role="alert">{{ error }}</div>
-          <button class="btn btn-primary w-100" :disabled="loading">
+          <button class="btn btn-primary w-100" :disabled="loading || computing">
             <span v-if="loading" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? '登录中...' : (computing ? '验证中...' : '登录') }}
           </button>
         </div>
       </form>
@@ -29,13 +29,35 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { adminApi, setSession } from '../api'
+import { adminApi, verifyApi, setSession } from '../api'
 
 const router = useRouter()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
+const computing = ref(false)
 const error = ref('')
+
+async function sha256(str) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(str)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
+}
+
+async function computeAnswer(nonce, difficulty) {
+  const prefix = '0'.repeat(difficulty)
+  let answer = 0
+  while (true) {
+    const hash = await sha256(nonce + answer)
+    if (hash.startsWith(prefix)) {
+      return answer
+    }
+    answer++
+  }
+}
 
 async function submit() {
   error.value = ''
@@ -46,7 +68,15 @@ async function submit() {
 
   loading.value = true
   try {
-    const session = await adminApi.login(username.value, password.value)
+    computing.value = true
+    let session
+    try {
+      const { token, nonce, difficulty } = await verifyApi.generateToken()
+      const answer = await computeAnswer(nonce, difficulty)
+      session = await adminApi.login(username.value, password.value, token, nonce, answer)
+    } finally {
+      computing.value = false
+    }
     setSession(session)
     router.push('/forms')
   } catch (err) {

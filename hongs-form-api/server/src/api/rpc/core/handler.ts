@@ -78,6 +78,11 @@ function buildErrorData(err: unknown): unknown {
     errorData = { errors: (err as any).toMap() };
   } else if (err instanceof Error && (err as any).errors) {
     errorData = { errors: (err as any).errors };
+  } else
+  if (err instanceof Error && typeof (err as any).getData === 'function') {
+    errorData = (err as any).getData();
+  } else if (err instanceof Error && (err as any).data) {
+    errorData = (err as any).data;
   }
 
   if (isDev && err instanceof Error && err.stack) {
