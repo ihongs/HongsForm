@@ -1,9 +1,9 @@
 
 export type {
   FormSchema,
+  FormConfig,
   Validate,
-  Validates,
-  VModes,
+  Verify,
 } from './types.js';
 export {
   VError,
@@ -34,10 +34,9 @@ export {
   isDateTime,
   isArray,
   isObject,
+  isInput,
+  verifies,
   validate,
-  coreValidate,
-  moreValidate,
+  baseValidate,
   formValidate,
-  coreValidates,
-  moreValidates,
 } from './validates.js';
