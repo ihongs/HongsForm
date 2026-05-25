@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "hongs-captcha": "file:../../hongs-captcha",
     "hongs-form": "^0.1.0",
     "mongodb": "^6.3.0"
   },
