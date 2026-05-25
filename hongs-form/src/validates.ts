@@ -1,8 +1,8 @@
-import { FormSchema, Validate, Validates, VModes, VState, VError, VPASS, VQUIT } from './types.js';
+import { FormSchema, Validate, Verify, VState, VError, VPASS, VQUIT } from './types.js';
 import { tr } from './i18n.js';
 
 // 可选/非必填 (optional)
-export const optional: Validate = function (value: any, schema: any, modes: VModes) {
+export const optional: Validate = function (value: any, schema: any, config: any) {
     if (value === undefined) {
         return VQUIT;
     }
@@ -11,9 +11,9 @@ export const optional: Validate = function (value: any, schema: any, modes: VMod
 
 // 必选/必填 (required)
 // patchMode=true 且值为 undefined: 返回 VQUIT 中止后续校验
-export const required: Validate = function (value: any, schema: any, modes: VModes) {
+export const required: Validate = function (value: any, schema: any, config: any) {
     // patchMode 下 undefined：中止后续校验
-    if (modes.patchMode && value === undefined) {
+    if (config.patchMode && value === undefined) {
         return VQUIT;
     }
 
@@ -36,18 +36,18 @@ export const required: Validate = function (value: any, schema: any, modes: VMod
 };
 
 // 对象属性必填校验 (JSON Schema 风格: schema.required = ['field1', 'field2'])
-export const requires: Validate = function (value: any, schema: any, modes: VModes) {
+export const requires: Validate = function (value: any, schema: any, config: any) {
     if (!schema.required || !Array.isArray(schema.required)) return value;
     if (typeof value !== 'object' || value === null) return value;
 
     const errors: Record<string, unknown> = {};
     for (const field of schema.required) {
-        if (modes.patchMode && value[field] === undefined) continue;
+        if (config.patchMode && value[field] === undefined) continue;
         try {
-            required(value[field], {}, modes);
+            required(value[field], {}, config);
         } catch (err) {
             errors[field] = err instanceof Error ? err.message : String(err);
-            if (modes.patchMode) break;
+            if (config.pickyMode) break;
         }
     }
 
@@ -81,7 +81,7 @@ export const patterns: Record<string, string> = {
 };
 
 // 字符串 (type=string)
-export const isString: Validate = function (value: any, schema: any, modes: VModes) {
+export const isString: Validate = function (value: any, schema: any, config: any) {
     // null/undefined/空字符串 不处理
     if (value == null || value == '') return value;
 
@@ -116,7 +116,7 @@ export const isString: Validate = function (value: any, schema: any, modes: VMod
 };
 
 // 数字 (type=number)
-export const isNumber: Validate = function (value: any, schema: any, modes: VModes) {
+export const isNumber: Validate = function (value: any, schema: any, config: any) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -147,7 +147,7 @@ export const isNumber: Validate = function (value: any, schema: any, modes: VMod
 };
 
 // 整数 (type=integer)
-export const isInteger: Validate = function (value: any, schema: any, modes: VModes) {
+export const isInteger: Validate = function (value: any, schema: any, config: any) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -161,11 +161,11 @@ export const isInteger: Validate = function (value: any, schema: any, modes: VMo
     }
 
     // 范围校验（复用 number 的逻辑）
-    return isNumber(value, schema, modes);
+    return isNumber(value, schema, config);
 };
 
 // 布尔值 (type=boolean)
-export const isBoolean: Validate = function (value: any, schema: any, modes: VModes) {
+export const isBoolean: Validate = function (value: any, schema: any, config: any) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -180,7 +180,7 @@ export const isBoolean: Validate = function (value: any, schema: any, modes: VMo
 };
 
 // 日期/时间 (inputType=datetime|date|time, 按 type 返回时间戳或格式化字符串, 默认返回 Date 对象)
-export const isDateTime: Validate = function (value: any, schema: any, modes: VModes) {
+export const isDateTime: Validate = function (value: any, schema: any, config: any) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -216,12 +216,12 @@ export const isDateTime: Validate = function (value: any, schema: any, modes: VM
 };
 
 // null 类型不处理、不存储
-export const isNull: Validate = function (value: any, schema: any, modes: VModes) {
+export const isNull: Validate = function (value: any, schema: any, config: any) {
     return VQUIT;
 }
 
 // 多选/多填 (type=array)
-export const isArray: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
+export const isArray: Validate = function (value: any, schema: any, config: any, state?: VState) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -293,7 +293,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
             }
 
             try {
-                const val = validate(value[i], itemSchema, modes, itemState);
+                const val = validate(value[i], itemSchema, config, itemState);
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result.push(val);
@@ -306,7 +306,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
                     errors[String(i)] = err instanceof Error ? err.message : String(err);
                 }
                 result.push(value[i]); // 出错的保留原值
-                if (modes.patchMode) break;
+                if (config.pickyMode) break;
             }
         }
 
@@ -323,7 +323,7 @@ export const isArray: Validate = function (value: any, schema: any, modes: VMode
 };
 
 // 默认/对象 (type=object)
-export const isObject: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
+export const isObject: Validate = function (value: any, schema: any, config: any, state?: VState) {
     // null/undefined 不处理
     if (value == null) return value;
 
@@ -353,7 +353,7 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
         for (const [key, propSchema] of Object.entries(schema.properties)) {
             const fieldState = new VState(key, objectState);
             try {
-                const val = validate(result[key], propSchema, modes, fieldState);
+                const val = validate(result[key], propSchema, config, fieldState);
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result[key] = val;
@@ -361,21 +361,20 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
                     delete result[key];
                 }
             } catch (err) {
-                // VError 保持原样用于递归展开，普通错误转成 message 字符串
-                if (err instanceof VError) {
-                    errors[key] = err;
-                } else {
-                    errors[key] = err instanceof Error ? err.message : String(err);
-                }
-                // patchMode 下遇到第一个错误立即中止
-                if (modes.patchMode) break;
+                errors[key] = err;
+                if (config.pickyMode) break;
             }
         }
     }
 
+    // pickyMode 下遇到第一个错误立即中止
+    if (config.pickyMode && Object.keys(errors).length > 0) {
+        throw new VError(tr('properties'), errors);
+    }
+
     // additionalProperties (JSON Schema 规则)
-    // undefined / true: 保留不校验
-    // false: 报错，收集错误
+    // true / undefined: 不校验
+    // false: 有多余的都挑出来报错
     // schema object: 用该 schema 校验
     if (schema.additionalProperties === false) {
         const allowed = new Set(Object.keys(schema.properties || {}));
@@ -390,20 +389,15 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
             if (!allowed.has(key)) {
                 const fieldState = new VState(key, objectState);
                 try {
-                    const val = validate(result[key], schema.additionalProperties, modes, fieldState);
+                    const val = validate(result[key], schema.additionalProperties, config, fieldState);
                     if (val !== undefined) {
                         result[key] = val;
                     } else {
                         delete result[key];
                     }
                 } catch (err) {
-                    // VError 保持原样用于递归展开，普通错误转成 message 字符串
-                    if (err instanceof VError) {
-                        errors[key] = err;
-                    } else {
-                        errors[key] = err instanceof Error ? err.message : String(err);
-                    }
-                    if (modes.patchMode) break;
+                    errors[key] = err;
+                    if (config.pickyMode) break;
                 }
             }
         }
@@ -417,156 +411,8 @@ export const isObject: Validate = function (value: any, schema: any, modes: VMod
     return result;
 };
 
-// 核心校验规则
-export const coreValidates: Validates[] = [
-    (schema) => {
-        if (schema.type == 'null') {
-            return isNull;
-        }
-        if (schema.type == 'array') {
-            return isArray;
-        }
-        if (schema.type == 'object') {
-            return isObject;
-        }
-    },
-    (schema) => {
-        // schema.required = ['field1', 'field2']: 对象属性必填 (JSON Schema 风格)
-        if (Array.isArray(schema.required)) {
-            return requires;
-        }
-        if (schema.required === true) {
-            return required;
-        }
-        if (schema.required === false
-        ||  schema.required === undefined ) {
-            return optional;
-        }
-    }
-];
-
-// 扩展校验规则
-export const moreValidates: Validates[] = [
-    (schema) => {
-        if (schema.type == 'string') {
-            return isString;
-        }
-    },
-    (schema) => {
-        if (schema.type == 'number') {
-            return isNumber;
-        }
-    },
-    (schema) => {
-        if (schema.type == 'integer') {
-            return isInteger;
-        }
-    },
-    (schema) => {
-        if (schema.type == 'boolean') {
-            return isBoolean;
-        }
-    },
-    (schema) => {
-        if (schema.inputType == 'datetime'
-        ||  schema.inputType == 'date'
-        ||  schema.inputType == 'time'
-        ) {
-            return isDateTime;
-        }
-    }
-];
-
-const validates = function (validateFns: Validate[], value: any, schema: any, modes: VModes, state?: VState) {
-    // 默认 type 为 object
-    const sch = { type: 'object', ...schema };
-
-    // 依次执行校验
-    let result = value;
-    for (const fn of validateFns) {
-        const r = fn(result, sch, modes, state);
-        // 遇到 VPASS，跳过当前校验
-        if (r === VPASS) {
-            continue;
-        }
-        // 遇到 VQUIT，中止后续校验
-        if (r === VQUIT) {
-            break;
-        }
-        result = r;
-    }
-
-    return result;
-};
-
-// 校验方法, 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
-export const validate: Validate = function (value: any, schema: any, modes: VModes, state?: VState) {
-    // 默认 type 为 object
-    const sch = { type: 'object', ...schema };
-
-    // 获取校验函数列表
-    let validateFns: Validate[] = [];
-
-    if (sch.validate) {
-        validateFns = Array.isArray(sch.validate) ? sch.validate : [sch.validate];
-    } else
-    if (modes.validates) {
-        // 从内部 validates 中匹配
-        for (const matcher of modes.validates) {
-            const fn = matcher(sch);
-            if (fn) validateFns.push(fn);
-        }
-    } else {
-        // 从外部 validates 中匹配
-        for (const matcher of coreValidates) {
-            const fn = matcher(sch);
-            if (fn) validateFns.push(fn);
-        }
-        for (const matcher of moreValidates) {
-            const fn = matcher(sch);
-            if (fn) validateFns.push(fn);
-        }
-    }
-
-    return validates(validateFns, value, schema, modes, state);
-};
-
-// 核心校验, 用于自定义 validate: [coreValidate, yourValidate]
-export const coreValidate: Validate = function(value: any, schema: any, modes: VModes, state?: VState) {
-    // 默认 type 为 object
-    const sch = { type: 'object', ...schema };
-
-    // 获取校验函数列表
-    let validateFns: Validate[] = [];
-
-    // 从 verifies 中匹配
-    for (const matcher of coreValidates) {
-        const fn = matcher(sch);
-        if (fn) validateFns.push(fn);
-    }
-
-    return validates(validateFns, value, schema, modes, state);
-}
-
-// 扩展校验, 用于自定义 validate: [moreValidate, yourValidate]
-export const moreValidate: Validate = function(value: any, schema: any, modes: VModes, state?: VState) {
-    // 默认 type 为 object
-    const sch = { type: 'object', ...schema };
-
-    // 获取校验函数列表
-    let validateFns: Validate[] = [];
-
-    // 从 verifies 中匹配
-    for (const matcher of moreValidates) {
-        const fn = matcher(sch);
-        if (fn) validateFns.push(fn);
-    }
-
-    return validates(validateFns, value, schema, modes, state);
-}
-
 // form schema 的 input 校验
-export const isInput: Validate = function(value: any, schema: any, modes: VModes) {
+export const isInput: Validate = function(value: any, schema: any, config: any) {
     if (!value.type) {
         switch (value.inputType) {
             case 'legend':
@@ -626,7 +472,121 @@ export const formStruct: FormSchema = {
     }
 };
 
+// 校验规则集合
+export const verifies: Verify[] = [
+    (schema) => {
+        if (schema.type == 'null') {
+            return isNull;
+        }
+        if (schema.type == 'array') {
+            return isArray;
+        }
+        if (schema.type == 'object') {
+            return isObject;
+        }
+    },
+    (schema) => {
+        // schema.required = ['field1', 'field2']: 对象属性必填 (JSON Schema 风格)
+        if (Array.isArray(schema.required)) {
+            return requires;
+        }
+        if (schema.required === true) {
+            return required;
+        }
+        if (schema.required === false
+        ||  schema.required === undefined ) {
+            return optional;
+        }
+    },
+    (schema) => {
+        if (schema.type == 'string') {
+            return isString;
+        }
+    },
+    (schema) => {
+        if (schema.type == 'number') {
+            return isNumber;
+        }
+    },
+    (schema) => {
+        if (schema.type == 'integer') {
+            return isInteger;
+        }
+    },
+    (schema) => {
+        if (schema.type == 'boolean') {
+            return isBoolean;
+        }
+    },
+    (schema) => {
+        if (schema.type == 'date'
+        ||  schema.inputType == 'datetime'
+        ||  schema.inputType == 'date'
+        ||  schema.inputType == 'time'
+        ) {
+            return isDateTime;
+        }
+    }
+];
+
+const validates = function (validateFns: Validate[], value: any, schema: any, config: any, state?: VState) {
+    // 依次执行校验
+    let result = value;
+    for (const fn of validateFns) {
+        const r = fn(result, schema, config, state);
+        // 遇到 VPASS，跳过当前校验
+        if (r === VPASS) {
+            continue;
+        }
+        // 遇到 VQUIT，中止后续校验
+        if (r === VQUIT) {
+            break;
+        }
+        result = r;
+    }
+
+    return result;
+};
+
+// 校验方法, 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
+export const validate: Validate = function (value: any, schema: any, config: any, state?: VState) {
+    // 默认 type 为 object
+    const sch = { type: 'object', ...schema };
+
+    // 获取校验函数列表
+    let validateFns: Validate[] = [];
+
+    if (sch.validate) {
+        validateFns = Array.isArray(sch.validate) ? sch.validate : [sch.validate];
+    } else {
+        let matchers = config.verifies || verifies;
+        for(const fx of matchers) {
+            const fn = fx(sch);
+            if (fn) validateFns.push(fn);
+        }
+    }
+
+    return validates(validateFns, value, schema, config, state);
+};
+
+// 基础校验方法, 未指定 validate 时应用 validates. 此方法可以放入自定义 validate
+export const baseValidate: Validate = function (value: any, schema: any, config: any, state?: VState) {
+    // 默认 type 为 object
+    const sch = { type: 'object', ...schema };
+
+    // 获取校验函数列表
+    let validateFns: Validate[] = [];
+
+    let matchers = config.verifies || verifies;
+    for(const fx of matchers) {
+        const fn = fx(sch);
+        if (fn) validateFns.push(fn);
+    }
+
+    return validates(validateFns, value, schema, config, state);
+};
+
 // form schema 校验
-export function formValidate(schema: any) {
+export const formValidate = function (schema: any) {
     return validate(schema, formStruct, {});
 }

@@ -2,7 +2,7 @@ import { Tr } from './i18n.js';
 
 // 表单结构
 export interface FormSchema {
-    type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
+    type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'date' | 'null';
     enum?: unknown[];
     default?: unknown;
     required?: boolean;
@@ -44,10 +44,10 @@ export interface FormSchema {
 }
 
 // 校验参数
-export interface VModes {
+export interface FormConfig {
     patchMode?: boolean; // 补充模式, 未给值的字段会跳过, 注意: 只跳过 undefined, 不跳过 null
     pickyMode?: boolean; // 敏感模式, 遇到第一个错即退出
-    validates?: Validates[]; // 默认校验方法集合
+    verifies?: Verify[]; // 默认校验规则集合
 }
 
 // 校验状态
@@ -150,10 +150,10 @@ export const VQUIT = vEnum('VQUIT');
 
 // 校验方法
 export interface Validate {
-    (value: any, schema: any, modes: VModes, state?: VState): any;
+    (value: any, schema: any, config: any, state?: VState): any;
 }
 
-// 校验方法集合
-export interface Validates {
+// 校验规则（判断是否适用某个校验方法）
+export interface Verify {
     (schema: any): Validate | undefined
 }

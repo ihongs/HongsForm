@@ -2,7 +2,9 @@
 
 基于 JSON Schema 模式的极简表单库。
 
-与 JSON Schema 的最大区别在于：不仅验证、还要转换。故 `type=string` 也可以接受数字，`type=number` 也可以接受字符串，只要能够被转为数字即可。所有 `type` 都隐性包含 'null'，当处于 patch mode 时，null 视为将值设为 null，否则 (undefined) 视为不做变动。故单独的 `type=null` 没有意义，视作非存储的字段（仅用于前端显式），会被丢弃。这个 shcema 不仅用于校验、转换，还用于前端将其渲染为表单页面。
+与 JSON Schema 的最大区别在于：不仅验证、还要转换。故 `type=string` 也可以接受数字，`type=number` 也可以接受字符串，只要能够被转换即可。所有 `type` 都隐性包含 'null'，当处于 patch mode 时，null 视为将值设为 null，否则 (undefined) 视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段（仅用于前端显式），会被丢弃。这个 shcema 不仅用于校验、转换，还用于前端将其渲染为表单页面。如果的你的字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
+
+特别增加 `type=date`，这将转为 Date 对象，接受时间戳（毫秒）和 ISO 日期时间格式（YYYY-MM-DDTHH:mm:ss.sssZ）的字符串。也可用 `type=number` 或 `type=string` 加 `inputType=datetime|date|time`，这会转为时间戳或格式化的字符串。**建议用** `type=number` 加 `inputType=datetime|date|time`，方便存储，避免后续转换的不确定性及前端解析的麻烦。**不建议用** `type=object` 加 `inputType=datetime|date|time`，因为 object 默认先验下级，需自定义来规避默认流程（当然，我可以在默认的 object 前判断 inputType，但这太 ugly）。
 
 ## 特性
 
