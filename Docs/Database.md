@@ -155,9 +155,8 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `description` | String | 否 | null | 表单描述 | - |
 | `schema` | Object | 是 | - | 表单 Schema（JSON Schema） | - |
 | `config` | Object | 否 | `{}` | 表单配置 | - |
-| `config.publish` | Boolean | 否 | `false` | 是否已发布 | - |
-| `config.anonymous` | Boolean | 否 | `false` | 是否允许匿名提交 | - |
-| `config.oncePerUser` | Boolean | 否 | `false` | 每用户限填一次 | - |
+| `config.oncePerPhone | Boolean | 否 | `false` | 每个手机限填一次 | - |
+| `config.oncePerEmail | Boolean | 否 | `false` | 每个邮箱限填一次 | - |
 | `config.maxSubmissions` | Number | 否 | null | 最大提交数限制 | - |
 | `config.startAt` | Date | 否 | null | 提交开始时间 | - |
 | `config.endAt` | Date | 否 | null | 提交结束时间 | - |
