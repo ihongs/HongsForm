@@ -74,14 +74,9 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
 function buildErrorData(err: unknown): unknown {
   let errorData: any;
 
-  if (err instanceof Error && typeof (err as any).toMap === 'function') {
-    errorData = { errors: (err as any).toMap() };
-  } else if (err instanceof Error && (err as any).errors) {
-    errorData = { errors: (err as any).errors };
-  } else
-  if (err instanceof Error && typeof (err as any).getData === 'function') {
+  if (typeof (err as any).getData === 'function') {
     errorData = (err as any).getData();
-  } else if (err instanceof Error && (err as any).data) {
+  } else if ((err as any).data) {
     errorData = (err as any).data;
   }
 

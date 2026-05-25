@@ -106,11 +106,6 @@ export class VError extends Error {
         this.errors = errors;
     }
 
-    // 不要再用，将移除
-    toMap(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
-        return this.getErrors(translator);
-    }
-
     toString (): string {
         return this.getError();
     }
