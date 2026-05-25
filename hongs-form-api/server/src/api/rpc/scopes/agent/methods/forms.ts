@@ -1,7 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { formValidate } from 'hongs-form';
 import { registerAgentMethod } from '../registry.js';
-import { findOwnedForm, requireUserId } from '../../../shared/forms.js';
+import { findOwnedForm, requireUserId, validateFormCreate } from '../../../shared/forms.js';
 
 registerAgentMethod('form.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, keyword = '', status } = params as any;
@@ -38,27 +38,16 @@ registerAgentMethod('form.get', async (params, ctx) => {
 });
 
 registerAgentMethod('form.create', async (params, ctx) => {
-  const { name, title, description, schema, config = {}, icon, color } = params as any;
   const userId = requireUserId(ctx);
-  if (!name) throw new Error('Form name is required');
-  if (!schema) throw new Error('Form schema is required');
+  
+  // 校验参数
+  const createData = validateFormCreate(params);
 
-  const validatedSchema = formValidate(schema);
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
+    ...createData,
     userId,
     type: 'form',
-    name,
-    title: title || name,
-    description: description || null,
-    icon: icon || null,
-    color: color || '#1890ff',
-    schema: validatedSchema,
-    config: {
-      startAt: null,
-      endAt: null,
-      ...config
-    },
     status: 1,
     publishedAt: null,
     createdAt: now,
@@ -70,11 +59,12 @@ registerAgentMethod('form.create', async (params, ctx) => {
 });
 
 registerAgentMethod('form.update', async (params, ctx) => {
-  const { id, userId: _userId, _id, createdAt, deletedAt, publishedAt, dataCount, ...updateData } = params as any;
+  const { id } = params as any;
   if (!id) throw new Error('Form ID is required');
   await findOwnedForm(ctx, id);
 
-  if (updateData.schema) updateData.schema = formValidate(updateData.schema);
+  // 校验参数
+  const updateData = validateFormCreate(params);
   updateData.updatedAt = new Date();
 
   const result = await ctx.db.collection('form').updateOne(

@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { formValidate } from 'hongs-form';
 import { registerAdminMethod } from '../registry.js';
+import { findOwnedForm, requireUserId, validateFormCreate } from '../../../shared/forms.js';
 
 registerAdminMethod('form.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, keyword = '', userId, status } = params as any;
@@ -44,30 +45,17 @@ registerAdminMethod('form.get', async (params, ctx) => {
 });
 
 registerAdminMethod('form.create', async (params, ctx) => {
-  const { userId, name, title, description, schema, config = {}, icon, color } = params as any;
+  const { userId } = params as any;
   if (!userId) throw new Error('User ID is required');
-  if (!name) throw new Error('Form name is required');
-  if (!schema) throw new Error('Form schema is required');
-
-  const validatedSchema = formValidate(schema);
+  
+  // 校验参数
+  const createData = validateFormCreate(params);
+  
   const now = new Date();
   const result = await ctx.db.collection('form').insertOne({
+    ...createData,
     userId: new ObjectId(userId),
     type: 'form',
-    name,
-    title: title || name,
-    description: description || null,
-    icon: icon || null,
-    color: color || '#1890ff',
-    schema: validatedSchema,
-    config: {
-      anonymous: false,
-      oncePerUser: false,
-      maxSubmissions: null,
-      startAt: null,
-      endAt: null,
-      ...config
-    },
     status: 1,
     publishedAt: null,
     createdAt: now,
@@ -79,12 +67,13 @@ registerAdminMethod('form.create', async (params, ctx) => {
 });
 
 registerAdminMethod('form.update', async (params, ctx) => {
-  const { id, ...updateData } = params as any;
+  const { id } = params as any;
   if (!id) throw new Error('Form ID is required');
-
-  if (updateData.userId) updateData.userId = new ObjectId(updateData.userId);
-  if (updateData.schema) updateData.schema = formValidate(updateData.schema);
+  
+  // 校验参数
+  const updateData = validateFormCreate(params);
   updateData.updatedAt = new Date();
+  if (updateData.userId) updateData.userId = new ObjectId(updateData.userId);
 
   const result = await ctx.db.collection('form').updateOne(
     { _id: new ObjectId(id), deletedAt: null },

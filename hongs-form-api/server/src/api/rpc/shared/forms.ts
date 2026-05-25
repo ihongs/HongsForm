@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { RpcContext } from '../core/types.js';
+import { validate, baseValidate, formValidate } from 'hongs-form';
 
 export function requireUserId(ctx: RpcContext): ObjectId {
   if (!ctx.userId) throw new Error('Unauthorized');
@@ -33,4 +34,51 @@ export function publicFormSchema(form: any): Record<string, unknown> {
     },
     status: form.status
   };
+}
+
+const formEntitySchema = {
+  type: 'object',
+  properties: {
+    name: {
+      type: 'string',
+      required: true
+    },
+    type: {
+      type: 'string',
+      enum: ['form', 'survey']
+    },
+    title: {
+      type: 'string'
+    },
+    description: {
+      type: 'string'
+    },
+    schema: {
+      type: 'object',
+      required: true,
+      properties: {},
+      additionalProperties: true,
+      validate: [baseValidate, formValidate]
+    },
+    config: {
+      type: 'object',
+      properties: {
+        oncePerPhone: { type: 'boolean' },
+        oncePerEmail: { type: 'boolean' },
+        showAfterSubmit: { type: 'boolean' },
+        maxSubmissions: { type: 'number' },
+        startAt: { type: 'date' },
+        endAt: { type: 'date' }
+      }
+    },
+    status: { type: 'number', enum: [0, 1, 2] }
+  }
+};
+
+export function validateFormCreate(params: any): any {
+  return validate(params, formEntitySchema, {});
+}
+
+export function validateFormUpdate(params: any): any {
+  return validate(params, formEntitySchema, {patchMode: true});
 }

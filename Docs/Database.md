@@ -151,12 +151,14 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `_id` | ObjectId | 是 | 自动生成 | 表单唯一标识 | 主键 |
 | `userId` | ObjectId | 是 | - | 创建者用户 ID | 普通索引 |
 | `name` | String | 是 | - | 表单名称 | - |
+| `type` | String | 是 | - | 表单类型：`form` 表单，`vote` 投票 | - |
 | `title` | String | 否 | name | 表单标题 | - |
 | `description` | String | 否 | null | 表单描述 | - |
 | `schema` | Object | 是 | - | 表单 Schema（JSON Schema） | - |
 | `config` | Object | 否 | `{}` | 表单配置 | - |
 | `config.oncePerPhone | Boolean | 否 | `false` | 每个手机限填一次 | - |
 | `config.oncePerEmail | Boolean | 否 | `false` | 每个邮箱限填一次 | - |
+| `config.showAfterSubmit` | Boolean | 否 | `false` | 提交后显示结果，仅对投票表单有效 | - |
 | `config.maxSubmissions` | Number | 否 | null | 最大提交数限制 | - |
 | `config.startAt` | Date | 否 | null | 提交开始时间 | - |
 | `config.endAt` | Date | 否 | null | 提交结束时间 | - |
