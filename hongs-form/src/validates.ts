@@ -324,12 +324,12 @@ export const isObject: Validate = function (value: any, schema: any, config: any
     }
 
     const result: Record<string, unknown> = { };
-    const objectState = new VState(state?.name, state?.parent);
+    const objectState = state || new VState();
     objectState.valids = result;
     objectState.values = value;
 
     // 属性数量预校验
-    const count = Object.keys(result).length;
+    const count = Object.keys(value).length;
     if (schema.minProperties != null && count < schema.minProperties) {
         throw new VError('minProperties', { value: schema.minProperties });
     }
@@ -344,7 +344,7 @@ export const isObject: Validate = function (value: any, schema: any, config: any
         for (const [key, propSchema] of Object.entries(schema.properties)) {
             const fieldState = new VState(key, objectState);
             try {
-                const val = validate(result[key], propSchema, config, fieldState);
+                const val = validate(value[key], propSchema, config, fieldState);
                 // undefined 不要收集到结果
                 if (val !== undefined) {
                     result[key] = val;
@@ -365,20 +365,13 @@ export const isObject: Validate = function (value: any, schema: any, config: any
     // true / undefined: 不校验
     // false: 有多余的都挑出来报错
     // schema object: 用该 schema 校验
-    if (schema.additionalProperties === false) {
+    if (typeof schema.additionalProperties === 'object') {
         const allowed = new Set(Object.keys(schema.properties || {}));
-        for (const key of Object.keys(result)) {
-            if (!allowed.has(key)) {
-                errors[key] = new VError('additionalProperties');
-            }
-        }
-    } else if (typeof schema.additionalProperties === 'object') {
-        const allowed = new Set(Object.keys(schema.properties || {}));
-        for (const key of Object.keys(result)) {
+        for (const key of Object.keys(value)) {
             if (!allowed.has(key)) {
                 const fieldState = new VState(key, objectState);
                 try {
-                    const val = validate(result[key], schema.additionalProperties, config, fieldState);
+                    const val = validate(value[key], schema.additionalProperties, config, fieldState);
                     if (val !== undefined) {
                         result[key] = val;
                     }
@@ -386,6 +379,20 @@ export const isObject: Validate = function (value: any, schema: any, config: any
                     errors[key] = err;
                     if (config.pickyMode) break;
                 }
+            }
+        }
+    } else if (schema.additionalProperties === false) {
+        const allowed = new Set(Object.keys(schema.properties || {}));
+        for (const key of Object.keys(value)) {
+            if (!allowed.has(key)) {
+                errors[key] = new VError('additionalProperties');
+            }
+        }
+    } else {
+        const allowed = new Set(Object.keys(schema.properties || {}));
+        for (const [key, val] of Object.entries(value)) {
+            if (!allowed.has(key)) {
+                result[key] = val;
             }
         }
     }
@@ -459,7 +466,7 @@ export const formStruct: FormSchema = {
     }
 };
 
-// 校验规则集合
+// 校验规则集合。注意：不要将 validate/baseValidate 包装成 verify 并加入 verifies 中，这会导致循环引用。
 export const verifies: Verify[] = [
     (schema) => {
         if (schema.type == 'null') {

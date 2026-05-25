@@ -57,7 +57,7 @@ export class VState {
     values?: object | undefined; // 原始数据
     valids?: object | undefined; // 干净数据
 
-    constructor(name: string | number | undefined, parent?: VState | undefined) {
+    constructor(name?: string | number | undefined, parent?: VState | undefined) {
         this.name = name;
         this.parent = parent;
     }

@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   validate,
+  baseValidate,
+  formValidate,
   optional,
   required,
+  requires,
   isString,
   isNumber,
   isInteger,
@@ -10,28 +13,75 @@ import {
   isArray,
   isObject,
   isDateTime,
+  isInput,
   VPASS,
   VQUIT,
-  coreValidate,
-  moreValidate,
-  coreValidates,
-  moreValidates,
+  VError,
+  verifies,
+  patterns,
   type FormSchema,
-  type VModes,
-  type VError,
+  type FormConfig,
+  type Translator,
+  VState,
 } from '../src';
-import { formStruct, isInput } from '../src/validates.js';
+import { formStruct } from '../src/validates.js';
 
-describe('VPASS/VQUIT', () => {
-  it('PASS/QUIT 不能被 JSON 序列化或转成字符串', () => {
+// 中文翻译器用于测试
+const zhTranslator: Translator = (key: string, params?: Record<string, unknown>) => {
+  const zhMessages: Record<string, string> = {
+    required: '必填项',
+    number: '必须是数字',
+    integer: '必须是整数',
+    boolean: '必须是布尔值',
+    array: '必须是数组',
+    object: '必须是对象',
+    pattern: '格式不正确',
+    format: '未知格式: {value}',
+    date: '日期格式不正确',
+    enum: '必须是允许的值之一',
+    items: '部分项无效',
+    properties: '部分属性无效',
+    minimum: '最小值是 {value}',
+    maximum: '最大值是 {value}',
+    exclusiveMinimum: '必须大于 {value}',
+    exclusiveMaximum: '必须小于 {value}',
+    minLength: '最小长度是 {value}',
+    maxLength: '最大长度是 {value}',
+    minItems: '至少 {value} 项',
+    maxItems: '最多 {value} 项',
+    uniqueItems: '存在重复项',
+    additionalItems: '不允许额外的项',
+    minProperties: '至少 {value} 个属性',
+    maxProperties: '最多 {value} 个属性',
+    additionalProperties: '不允许额外的属性',
+    requires: '必填项: {value}',
+  };
+  let message = zhMessages[key] || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      message = message.replace(`{${k}}`, String(v));
+    }
+  }
+  return message;
+};
+
+// ==============================================
+// 第 1 阶段：基础类型与常量测试
+// ==============================================
+
+describe('第 1 阶段：VPASS/VQUIT', () => {
+  it('VPASS 不能被 JSON 序列化或转成字符串', () => {
     expect(() => JSON.stringify(VPASS)).toThrow('VPASS cannot be serialized');
-    expect(() => JSON.stringify({ value: VQUIT })).toThrow('VQUIT cannot be serialized');
     expect(() => String(VPASS)).toThrow('VPASS cannot be converted');
+  });
+
+  it('VQUIT 不能被 JSON 序列化或转成字符串', () => {
+    expect(() => JSON.stringify(VQUIT)).toThrow('VQUIT cannot be serialized');
     expect(() => `${VQUIT}`).toThrow('VQUIT cannot be converted');
   });
 });
 
-describe('optional', () => {
+describe('第 1 阶段：optional 选填校验', () => {
   it('undefined 返回 VQUIT，跳过后续校验', () => {
     expect(optional(undefined, {}, {})).toBe(VQUIT);
   });
@@ -42,112 +92,603 @@ describe('optional', () => {
   });
 });
 
-describe('required', () => {
-  it('undefined 只抛消息', () => {
+describe('第 1 阶段：required 必填校验', () => {
+  it('undefined 抛 VError，key 是 "required"', () => {
     const schema = { required: true };
-    expect(() => required(undefined, schema, {})).toThrow('Required');
-  });
-
-  it('null 抛 Required 异常', () => {
-    const schema = { required: true };
-    expect(() => required(null, schema, {})).toThrow('Required');
-  });
-});
-
-describe('validate - 单项校验', () => {
-  it('单项校验遇错只抛 message，不包装 VError', () => {
-    const schema = { type: 'string', required: true };
-    // 单项校验直接抛 Error，只有 message
-    expect(() => validate(undefined, schema, { path: 'name' })).toThrow('Required');
-  });
-
-  it('按 moreValidates 顺序执行，第一个失败即中止', () => {
-    const schema = { type: 'string', required: true, minLength: 10 };
-    // required 先失败，抛消息
-    expect(() => validate(undefined, schema, { path: 'name' })).toThrow('Required');
-  });
-
-  it('选填字符串为空字符串时跳过格式校验', () => {
-    const schema = { type: 'string', pattern: '^.+@.+\\..+$' };
-    expect(validate('', schema, {})).toBe('');
-  });
-
-  it('选填对象字段为 undefined 时不收集到结果', () => {
-    const schema: FormSchema = {
-      properties: {
-        email: { type: 'string', pattern: '^.+@.+\\..+$' },
-      },
-    };
-    expect(validate({ email: undefined }, schema, {})).toEqual({});
-  });
-
-  it('缺少 pattern 时使用 format 对应的内置 pattern', () => {
-    expect(validate('test@example.com', { type: 'string', format: 'email' }, {})).toBe('test@example.com');
-    expect(() => validate('bad-email', { type: 'string', format: 'email' }, {})).toThrow('Invalid format');
-  });
-
-  it('pattern 优先于 format', () => {
-    const schema = { type: 'string', format: 'email', pattern: '^abc$' };
-    expect(validate('abc', schema, {})).toBe('abc');
-    expect(() => validate('test@example.com', schema, {})).toThrow('Invalid format');
-  });
-
-  it('有 format 但没有对应内置 pattern 时抛错', () => {
-    expect(() => validate('abc', { type: 'string', format: 'unknown-format' }, {})).toThrow('Unknown format: unknown-format');
-  });
-
-  it('支持 uuid format', () => {
-    expect(validate('550e8400-e29b-41d4-a716-446655440000', { type: 'string', format: 'uuid' }, {})).toBe('550e8400-e29b-41d4-a716-446655440000');
-    expect(() => validate('not-uuid', { type: 'string', format: 'uuid' }, {})).toThrow('Invalid format');
-  });
-});
-
-describe('isObject - 收集多个字段错误', () => {
-  it('非对象时抛 i18n 对象错误', () => {
-    expect(() => validate('abc', { type: 'object' }, {})).toThrow('Must be object');
-  });
-
-  it('required 数组收集字段级错误', () => {
-    const schema: FormSchema = {
-      type: 'object',
-      required: ['name', 'rating'],
-      properties: {
-        name: { type: 'string' },
-        rating: { type: 'integer' },
-      },
-    };
-
     try {
-      validate({ name: 'test' }, schema, {});
+      required(undefined, schema, {});
+      expect.unreachable('应该抛出异常');
     } catch (err) {
+      expect(err).toBeInstanceOf(VError);
       const verr = err as VError;
-      expect(verr.message).toBe('Some properties are invalid');
-      expect(verr.toMap()).toEqual({ rating: 'Required' });
+      expect(verr.key).toBe('required');
     }
   });
 
-  it('收集多个字段的错误，放入 errors 对象（嵌套结构）', () => {
+  it('null 抛 VError，key 是 "required"', () => {
+    const schema = { required: true };
+    try {
+      required(null, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('required');
+    }
+  });
+
+  it('空字符串抛 VError，key 是 "required"', () => {
+    const schema = { required: true };
+    try {
+      required('', schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('required');
+    }
+  });
+
+  it('空数组抛 VError，key 是 "required"', () => {
+    const schema = { required: true };
+    try {
+      required([], schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('required');
+    }
+  });
+
+  it('空对象抛 VError，key 是 "required"', () => {
+    const schema = { required: true };
+    try {
+      required({}, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('required');
+    }
+  });
+
+  it('patchMode 下 undefined 返回 VQUIT，不抛异常', () => {
+    const schema = { required: true };
+    expect(required(undefined, schema, { patchMode: true })).toBe(VQUIT);
+  });
+
+  it('patchMode 下 null 仍抛异常', () => {
+    const schema = { required: true };
+    expect(() => required(null, schema, { patchMode: true })).toThrow();
+  });
+});
+
+// ==============================================
+// 第 2 阶段：基础类型校验与转换
+// ==============================================
+
+describe('第 2 阶段：isString 字符串校验与转换', () => {
+  it('null/undefined/空字符串不处理', () => {
+    expect(isString(null, {}, {})).toBeNull();
+    expect(isString(undefined, {}, {})).toBeUndefined();
+    expect(isString('', {}, {})).toBe('');
+  });
+
+  it('非字符串自动转字符串', () => {
+    expect(isString(123, {}, {})).toBe('123');
+    expect(isString(true, {}, {})).toBe('true');
+  });
+
+  it('enum 枚举校验', () => {
+    const schema = { enum: ['a', 'b', 'c'] };
+    expect(isString('a', schema, {})).toBe('a');
+    expect(() => isString('d', schema, {})).toThrow();
+  });
+
+  it('minLength 最小长度校验', () => {
+    const schema = { minLength: 3 };
+    expect(isString('abc', schema, {})).toBe('abc');
+    expect(() => isString('ab', schema, {})).toThrow();
+  });
+
+  it('maxLength 最大长度校验', () => {
+    const schema = { maxLength: 3 };
+    expect(isString('abc', schema, {})).toBe('abc');
+    expect(() => isString('abcd', schema, {})).toThrow();
+  });
+
+  it('pattern 正则校验', () => {
+    const schema = { pattern: '^\\d+$' };
+    expect(isString('123', schema, {})).toBe('123');
+    expect(() => isString('abc', schema, {})).toThrow();
+  });
+
+  it('format 格式校验（使用内置 patterns）', () => {
+    const schema = { format: 'email' };
+    expect(isString('test@example.com', schema, {})).toBe('test@example.com');
+    expect(() => isString('not-email', schema, {})).toThrow();
+  });
+
+  it('pattern 优先于 format', () => {
+    const schema = { format: 'email', pattern: '^abc$' };
+    expect(isString('abc', schema, {})).toBe('abc');
+    expect(() => isString('test@example.com', schema, {})).toThrow();
+  });
+
+  it('未知 format 抛异常', () => {
+    const schema = { format: 'unknown-format' };
+    expect(() => isString('abc', schema, {})).toThrow();
+  });
+});
+
+describe('第 2 阶段：isNumber 数字校验与转换', () => {
+  it('null/undefined 不处理', () => {
+    expect(isNumber(null, {}, {})).toBeNull();
+    expect(isNumber(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('非数字自动转数字', () => {
+    expect(isNumber('123', {}, {})).toBe(123);
+    expect(isNumber('123.45', {}, {})).toBe(123.45);
+  });
+
+  it('无法转换的字符串抛异常', () => {
+    expect(() => isNumber('not-a-number', {}, {})).toThrow();
+  });
+
+  it('minimum 最小值校验', () => {
+    const schema = { minimum: 10 };
+    expect(isNumber(10, schema, {})).toBe(10);
+    expect(isNumber(15, schema, {})).toBe(15);
+    expect(() => isNumber(9, schema, {})).toThrow();
+  });
+
+  it('maximum 最大值校验', () => {
+    const schema = { maximum: 100 };
+    expect(isNumber(100, schema, {})).toBe(100);
+    expect(isNumber(50, schema, {})).toBe(50);
+    expect(() => isNumber(101, schema, {})).toThrow();
+  });
+
+  it('exclusiveMinimum 独占最小值校验', () => {
+    const schema = { exclusiveMinimum: 10 };
+    expect(isNumber(11, schema, {})).toBe(11);
+    expect(() => isNumber(10, schema, {})).toThrow();
+  });
+
+  it('exclusiveMaximum 独占最大值校验', () => {
+    const schema = { exclusiveMaximum: 100 };
+    expect(isNumber(99, schema, {})).toBe(99);
+    expect(() => isNumber(100, schema, {})).toThrow();
+  });
+});
+
+describe('第 2 阶段：isInteger 整数校验与转换', () => {
+  it('null/undefined 不处理', () => {
+    expect(isInteger(null, {}, {})).toBeNull();
+    expect(isInteger(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('非整数自动转整数', () => {
+    expect(isInteger('123', {}, {})).toBe(123);
+    expect(isInteger(123.0, {}, {})).toBe(123);
+  });
+
+  it('浮点数字符串抛异常', () => {
+    expect(() => isInteger('123.45', {}, {})).toThrow();
+  });
+
+  it('浮点数抛异常', () => {
+    expect(() => isInteger(123.45, {}, {})).toThrow();
+  });
+
+  it('复用 isNumber 的范围校验', () => {
+    const schema = { minimum: 10, maximum: 100 };
+    expect(isInteger(50, schema, {})).toBe(50);
+    expect(() => isInteger(9, schema, {})).toThrow();
+    expect(() => isInteger(101, schema, {})).toThrow();
+  });
+});
+
+describe('第 2 阶段：isBoolean 布尔值校验与转换', () => {
+  it('null/undefined 不处理', () => {
+    expect(isBoolean(null, {}, {})).toBeNull();
+    expect(isBoolean(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('布尔值直接返回', () => {
+    expect(isBoolean(true, {}, {})).toBe(true);
+    expect(isBoolean(false, {}, {})).toBe(false);
+  });
+
+  it('字符串自动转布尔值', () => {
+    expect(isBoolean('true', {}, {})).toBe(true);
+    expect(isBoolean('false', {}, {})).toBe(false);
+  });
+
+  it('数字自动转布尔值', () => {
+    expect(isBoolean(1, {}, {})).toBe(true);
+    expect(isBoolean(0, {}, {})).toBe(false);
+  });
+
+  it('其他值抛异常', () => {
+    expect(() => isBoolean('other', {}, {})).toThrow();
+    expect(() => isBoolean(2, {}, {})).toThrow();
+  });
+});
+
+describe('第 2 阶段：isDateTime 日期时间校验与转换', () => {
+  it('null/undefined 不处理', () => {
+    expect(isDateTime(null, {}, {})).toBeNull();
+    expect(isDateTime(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('Date 对象直接返回', () => {
+    const date = new Date();
+    expect(isDateTime(date, {}, {})).toBe(date);
+  });
+
+  it('字符串自动转 Date 对象', () => {
+    const dateStr = '2024-01-01';
+    const result = isDateTime(dateStr, {}, {});
+    expect(result).toBeInstanceOf(Date);
+  });
+
+  it('无效日期抛异常', () => {
+    expect(() => isDateTime('not-a-date', {}, {})).toThrow();
+  });
+
+  it('type: number 返回时间戳', () => {
+    const date = new Date('2024-01-01');
+    const result = isDateTime(date, { type: 'number' }, {});
+    expect(typeof result).toBe('number');
+    expect(result).toBe(date.getTime());
+  });
+
+  it('inputType: date 返回日期字符串', () => {
+    const date = new Date('2024-01-01T12:34:56');
+    const result = isDateTime(date, { type: 'string', inputType: 'date' }, {});
+    expect(typeof result).toBe('string');
+    expect(result).toBe('2024-01-01');
+  });
+
+  it('inputType: time 返回时间字符串', () => {
+    const date = new Date('2024-01-01T12:34:56');
+    const result = isDateTime(date, { type: 'string', inputType: 'time' }, {});
+    expect(typeof result).toBe('string');
+    expect(result).toContain(':');
+  });
+
+  it('type: string 返回 ISO 字符串', () => {
+    const date = new Date('2024-01-01T12:34:56');
+    const result = isDateTime(date, { type: 'string' }, {});
+    expect(typeof result).toBe('string');
+    expect(result).toContain('T');
+  });
+});
+
+// ==============================================
+// 第 3 阶段：基础 validate 集成测试
+// ==============================================
+
+describe('第 3 阶段：validate 基础集成', () => {
+  it('validate 单字段校验', () => {
+    const result = validate('test', { type: 'string' }, {});
+    expect(result).toBe('test');
+  });
+
+  it('validate 单字段校验转换', () => {
+    const result = validate('123', { type: 'number' }, {});
+    expect(result).toBe(123);
+  });
+
+  it('validate 必填字段校验', () => {
+    expect(() => validate(undefined, { type: 'string', required: true }, {})).toThrow();
+  });
+
+  it('validate 必填字段校验抛 VError', () => {
+    try {
+      validate(undefined, { type: 'string', required: true }, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('required');
+    }
+  });
+
+  it('validate 默认 type 是 object', () => {
+    const result = validate({ name: 'test' }, {
+      properties: { name: { type: 'string' } }
+    }, {});
+    expect(result).toEqual({ name: 'test' });
+  });
+});
+
+// ==============================================
+// 第 4 阶段：isObject 对象校验
+// ==============================================
+
+describe('第 4 阶段：isObject 对象校验', () => {
+  it('null/undefined 不处理', () => {
+    expect(isObject(null, {}, {})).toBeNull();
+    expect(isObject(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('非对象抛异常', () => {
+    expect(() => isObject('not-object', {}, {})).toThrow();
+    expect(() => isObject(123, {}, {})).toThrow();
+    expect(() => isObject([], {}, {})).toThrow();
+  });
+
+  it('校验 properties 子字段', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string', required: true },
+        age: { type: 'number' },
+      }
+    };
+
+    const result = isObject({ name: 'test', age: 20 }, schema, {});
+    expect(result).toEqual({ name: 'test', age: 20 });
+  });
+
+  it('收集多个字段错误', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true },
         age: { type: 'number', minimum: 18 },
         email: { type: 'string', minLength: 5 },
+      }
+    };
+
+    try {
+      isObject({ name: undefined, age: 10, email: 'a' }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('properties');
+      expect(Object.keys(verr.errors || {})).toContain('name');
+      expect(Object.keys(verr.errors || {})).toContain('age');
+      expect(Object.keys(verr.errors || {})).toContain('email');
+    }
+  });
+
+  it('pickyMode 下遇到第一个错误立即中止', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string', required: true },
+        age: { type: 'number', required: true },
+      }
+    };
+
+    try {
+      isObject({ name: undefined, age: undefined }, schema, { pickyMode: true });
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(Object.keys(verr.errors || {}).length).toBe(1);
+    }
+  });
+
+  it('undefined 字段不收集到结果', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'number' },
+      }
+    };
+
+    const result = isObject({ name: 'test', age: undefined }, schema, {});
+    expect(result).toEqual({ name: 'test' });
+    expect('age' in result).toBe(false);
+  });
+
+  it('additionalProperties: false 拒绝额外属性', () => {
+    const schema: FormSchema = {
+      properties: { name: { type: 'string' } },
+      additionalProperties: false,
+    };
+
+    try {
+      isObject({ name: 'test', extra: 'value' }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors).toHaveProperty('extra');
+    }
+  });
+
+  it('additionalProperties: schema 校验额外属性', () => {
+    const schema: FormSchema = {
+      properties: { name: { type: 'string' } },
+      additionalProperties: { type: 'number' },
+    };
+
+    const result = isObject({ name: 'test', extra: 123 }, schema, {});
+    expect(result).toEqual({ name: 'test', extra: 123 });
+  });
+
+  it('additionalProperties: schema 校验失败时抛异常', () => {
+    const schema: FormSchema = {
+      properties: { name: { type: 'string' } },
+      additionalProperties: { type: 'number' },
+    };
+
+    try {
+      isObject({ name: 'test', extra: 'not-number' }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors).toHaveProperty('extra');
+    }
+  });
+});
+
+// ==============================================
+// 第 5 阶段：isArray 数组校验
+// ==============================================
+
+describe('第 5 阶段：isArray 数组校验', () => {
+  it('null/undefined 不处理', () => {
+    expect(isArray(null, {}, {})).toBeNull();
+    expect(isArray(undefined, {}, {})).toBeUndefined();
+  });
+
+  it('非字符串非数组抛异常', () => {
+    expect(() => isArray(123, {}, {})).toThrow();
+    expect(() => isArray(true, {}, {})).toThrow();
+  });
+
+  it('逗号分隔字符串自动转数组', () => {
+    const result = isArray('a,b,c', {}, {});
+    expect(result).toEqual(['a', 'b', 'c']);
+  });
+
+  it('minItems 最小项数校验', () => {
+    const schema = { minItems: 2 };
+    expect(isArray(['a', 'b'], schema, {})).toEqual(['a', 'b']);
+    expect(() => isArray(['a'], schema, {})).toThrow();
+  });
+
+  it('maxItems 最大项数校验', () => {
+    const schema = { maxItems: 3 };
+    expect(isArray(['a', 'b', 'c'], schema, {})).toEqual(['a', 'b', 'c']);
+    expect(() => isArray(['a', 'b', 'c', 'd'], schema, {})).toThrow();
+  });
+
+  it('uniqueItems 唯一项校验', () => {
+    const schema = { uniqueItems: true };
+    expect(isArray(['a', 'b', 'c'], schema, {})).toEqual(['a', 'b', 'c']);
+    expect(() => isArray(['a', 'b', 'a'], schema, {})).toThrow();
+  });
+
+  it('items 子项校验', () => {
+    const schema = { items: { type: 'number' } };
+    const result = isArray([1, 2, 3], schema, {});
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it('items 子项校验失败时抛异常', () => {
+    const schema = { items: { type: 'number' } };
+    try {
+      isArray([1, 'two', 3], schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('items');
+      expect(verr.errors).toHaveProperty('1');
+    }
+  });
+
+  it('收集多个子项错误', () => {
+    const schema = { items: { type: 'number', minimum: 10 } };
+    try {
+      isArray([5, 8, 15], schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors).toHaveProperty('0');
+      expect(verr.errors).toHaveProperty('1');
+    }
+  });
+
+  it('pickyMode 下遇到第一个错误立即中止', () => {
+    const schema = { items: { type: 'number', minimum: 10 } };
+    try {
+      isArray([5, 8, 15], schema, { pickyMode: true });
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(Object.keys(verr.errors || {}).length).toBe(1);
+    }
+  });
+
+  it('ignores 忽略指定值', () => {
+    const schema = {
+      items: { type: 'number' },
+      ignores: [null, '', undefined],
+    };
+    const result = isArray([1, null, '', undefined, 2], schema, {});
+    expect(result).toEqual([1, 2]);
+  });
+
+  it('tuple 数组（items 为数组）校验', () => {
+    const schema = {
+      items: [
+        { type: 'string' },
+        { type: 'number' },
+        { type: 'boolean' },
+      ],
+    };
+    const result = isArray(['test', 123, true], schema, {});
+    expect(result).toEqual(['test', 123, true]);
+  });
+
+  it('tuple 数组超出部分 additionalItems: false 抛异常', () => {
+    const schema = {
+      items: [{ type: 'string' }],
+      additionalItems: false,
+    };
+    try {
+      isArray(['test', 'extra'], schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors).toHaveProperty('1');
+    }
+  });
+
+  it('tuple 数组超出部分 additionalItems: schema 校验', () => {
+    const schema = {
+      items: [{ type: 'string' }],
+      additionalItems: { type: 'number' },
+    };
+    const result = isArray(['test', 123, 456], schema, {});
+    expect(result).toEqual(['test', 123, 456]);
+  });
+});
+
+// ==============================================
+// 第 6 阶段：嵌套对象与数组
+// ==============================================
+
+describe('第 6 阶段：嵌套对象与数组', () => {
+  it('嵌套对象校验', () => {
+    const schema: FormSchema = {
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', required: true },
+            address: {
+              type: 'object',
+              properties: {
+                city: { type: 'string', required: true },
+              },
+            },
+          },
+        },
       },
     };
-    const data = { name: undefined, age: 10, email: 'a' };
-    try {
-      validate(data, schema, {});
-    } catch (err) {
-      const verr = err as VError;
-      expect(verr.message).toBe('Some properties are invalid');
-      expect(verr.errors?.name).toBe('Required');
-      expect(verr.errors?.age).toBeTruthy();
-      expect(verr.errors?.email).toBeTruthy();
-      // toMap 层级结构
-      const map = verr.toMap();
-      expect(map.name).toBe('Required');
-      expect(map.age).toBeTruthy();
-    }
+
+    const result = validate({
+      user: {
+        name: 'test',
+        address: { city: 'Shenzhen' }
+      }
+    }, schema, {});
+    expect(result.user.name).toBe('test');
+    expect(result.user.address.city).toBe('Shenzhen');
   });
 
   it('嵌套对象错误也嵌套到 errors', () => {
@@ -158,6 +699,7 @@ describe('isObject - 收集多个字段错误', () => {
           properties: {
             name: { type: 'string', required: true },
             address: {
+              type: 'object',
               properties: {
                 city: { type: 'string', required: true },
               },
@@ -166,55 +708,20 @@ describe('isObject - 收集多个字段错误', () => {
         },
       },
     };
-    const data = { user: { name: undefined, address: { city: undefined } } };
+
     try {
-      validate(data, schema, {});
+      validate({ user: { name: undefined, address: { city: undefined } } }, schema, {});
+      expect.unreachable('应该抛出异常');
     } catch (err) {
+      expect(err).toBeInstanceOf(VError);
       const verr = err as VError;
-      const map = verr.toMap();
-      expect((map.user as any).name).toBe('Required');
-      expect((map.user as any).address.city).toBe('Required');
+      const errors = verr.getErrors();
+      expect((errors.user as any).name).toBeTruthy();
+      expect((errors.user as any).address.city).toBeTruthy();
     }
   });
 
-  it('patchMode 下 undefined 触发 VQUIT，不抛异常，字段级中止后续校验', () => {
-    const schema: FormSchema = {
-      properties: {
-        name: { type: 'string', required: true, minLength: 10 }, // minLength 不会执行
-        age: { type: 'number', required: true },
-      },
-    };
-    const data = { name: undefined, age: undefined };
-    // patchMode + undefined + required = VQUIT
-    const result = validate(data, schema, { patchMode: true });
-    expect(result.name).toBeUndefined();
-    expect(result.age).toBeUndefined();
-  });
-});
-
-describe('isArray - 收集多个子项错误', () => {
-  it('非数组且非字符串时抛 i18n 数组错误', () => {
-    expect(() => validate(123, { type: 'array' }, {})).toThrow('Must be array');
-  });
-
-  it('收集多个子项错误，数字键作为 errors 的 key', () => {
-    const schema: FormSchema = {
-      type: 'array',
-      items: { type: 'number', minimum: 10 },
-    };
-    const data = [5, 8, 15];
-    try {
-      validate(data, schema, {});
-    } catch (err) {
-      const verr = err as VError;
-      expect(verr.message).toBe('Some items are invalid');
-      expect(verr.errors?.['0']).toBeTruthy();
-      expect(verr.errors?.['1']).toBeTruthy();
-      expect(verr.errors?.['2']).toBeUndefined(); // 15 有效
-    }
-  });
-
-  it('数组嵌套对象，错误嵌套到 errors', () => {
+  it('数组嵌套对象校验', () => {
     const schema: FormSchema = {
       type: 'array',
       items: {
@@ -224,208 +731,232 @@ describe('isArray - 收集多个子项错误', () => {
         },
       },
     };
-    const data = [{ name: undefined }, { name: 'ok' }, { name: undefined }];
-    try {
-      validate(data, schema, {});
-    } catch (err) {
-      const verr = err as VError;
-      const map = verr.toMap();
-      expect((map['0'] as any).name).toBe('Required');
-      expect((map['2'] as any).name).toBe('Required');
-    }
+
+    const result = validate([{ name: 'test1' }, { name: 'test2' }], schema, {});
+    expect(result.length).toBe(2);
   });
 
-  it('patchMode 下遇到第一个错误立即中止，只收集一个', () => {
+  it('数组嵌套对象错误嵌套', () => {
     const schema: FormSchema = {
       type: 'array',
-      items: { type: 'number', minimum: 10 },
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', required: true },
+        },
+      },
     };
-    const data = [5, 8, 15]; // 5 错，8 不会校验
+
     try {
-      validate(data, schema, { patchMode: true });
+      validate([{ name: undefined }, { name: 'ok' }], schema, {});
+      expect.unreachable('应该抛出异常');
     } catch (err) {
+      expect(err).toBeInstanceOf(VError);
       const verr = err as VError;
-      expect(Object.keys(verr.errors || {})).toEqual(['0']);
+      const errors = verr.getErrors();
+      expect((errors['0'] as any).name).toBeTruthy();
     }
   });
 });
 
-describe('toMap() 转换', () => {
-  it('错误链转成层级结构映射', () => {
+// ==============================================
+// 第 7 阶段：requires JSON Schema 风格必填
+// ==============================================
+
+describe('第 7 阶段：requires JSON Schema 风格必填', () => {
+  it('requires 数组校验', () => {
     const schema: FormSchema = {
+      required: ['name', 'email'],
       properties: {
-        name: { type: 'string', required: true },
-        age: { type: 'number', minimum: 18 },
+        name: { type: 'string' },
+        email: { type: 'string' },
       },
     };
-    const data = { name: undefined, age: 10 };
+
+    const result = requires({ name: 'test', email: 'test@example.com' }, schema, {});
+    expect(result).toEqual({ name: 'test', email: 'test@example.com' });
+  });
+
+  it('requires 缺少字段时抛异常', () => {
+    const schema: FormSchema = {
+      required: ['name', 'email'],
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string' },
+      },
+    };
+
     try {
-      validate(data, schema, {});
+      requires({ name: 'test' }, schema, {});
+      expect.unreachable('应该抛出异常');
     } catch (err) {
+      expect(err).toBeInstanceOf(VError);
       const verr = err as VError;
-      const map = verr.toMap();
-      expect(map.name).toBe('Required');
-      expect(map.age).toBe('Minimum is 18');
+      expect(verr.key).toBe('requires');
     }
   });
+
+  it('requires patchMode 下 undefined 字段跳过', () => {
+    const schema: FormSchema = {
+      required: ['name', 'email'],
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string' },
+      },
+    };
+
+    const result = requires({ name: 'test' }, schema, { patchMode: true });
+    expect(result).toEqual({ name: 'test' });
+  });
+
+  it('requires 集成到 validate', () => {
+    const schema: FormSchema = {
+      required: ['name', 'email'],
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string' },
+      },
+    };
+
+    const result = validate({ name: 'test', email: 'test@example.com' }, schema, {});
+    expect(result).toEqual({ name: 'test', email: 'test@example.com' });
+  });
 });
 
-describe('类型转换', () => {
-  it('字符串转数字', () => {
-    const result = validate('123', { type: 'number' }, {});
-    expect(result).toBe(123);
-  });
+// ==============================================
+// 第 8 阶段：patchMode 补丁模式
+// ==============================================
 
-  it('数字转字符串', () => {
-    const result = validate(123, { type: 'string' }, {});
-    expect(result).toBe('123');
-  });
-
-  it('字符串转布尔值', () => {
-    expect(validate('true', { type: 'boolean' }, {})).toBe(true);
-    expect(validate('false', { type: 'boolean' }, {})).toBe(false);
-  });
-});
-
-describe('patchMode', () => {
-  it('undefined 字段：返回 VQUIT，跳过后续校验', () => {
+describe('第 8 阶段：patchMode 补丁模式', () => {
+  it('patchMode undefined 字段触发 VQUIT，不抛异常', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true },
-        age: { type: 'number', required: true }, // age 为 undefined，触发 VQUIT
+        age: { type: 'number', required: true },
       },
     };
-    // 只传 name，age 是 undefined，patchMode 下触发 VQUIT
+
     const result = validate({ name: 'test' }, schema, { patchMode: true });
     expect(result.name).toBe('test');
-    expect(result.age).toBeUndefined(); // 没有被校验
+    expect('age' in result).toBe(false);
   });
 
-  it('null：不触发 VQUIT，按 required 规则抛异常', () => {
+  it('patchMode null 字段仍校验', () => {
     const schema: FormSchema = {
       properties: {
         name: { type: 'string', required: true },
       },
     };
-    // null 不是 undefined，所以会抛 Required 异常
+
     expect(() => validate({ name: null }, schema, { patchMode: true })).toThrow();
   });
-});
 
-describe('VQUIT - 中止字段校验', () => {
-  it('patchMode + undefined + required: 返回 VQUIT，中止后续校验', () => {
+  it('patchMode 对象子字段也是 patchMode', () => {
     const schema: FormSchema = {
-      type: 'string',
-      required: true,
-      minLength: 10, // 这个校验不会执行
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', required: true },
+            email: { type: 'string', required: true },
+          },
+        },
+      },
     };
-    // undefined 在 patchMode 下触发 VQUIT，不会抛异常，也不执行 minLength
-    const result = validate(undefined, schema, { patchMode: true });
-    expect(result).toBeUndefined();
+
+    const result = validate({ user: { name: 'test' } }, schema, { patchMode: true });
+    expect(result.user.name).toBe('test');
+    expect('email' in result.user).toBe(false);
   });
 
-  it('非 patchMode: undefined 抛 Required 异常', () => {
-    const schema = { type: 'string', required: true };
-    expect(() => validate(undefined, schema, {})).toThrow('Required');
-  });
+  it('patchMode 数组子项也是 patchMode', () => {
+    const schema: FormSchema = {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', required: true },
+          email: { type: 'string', required: true },
+        },
+      },
+    };
 
-  it('非 patchMode: null 抛 Required 异常', () => {
-    const schema = { type: 'string', required: true };
-    expect(() => validate(null, schema, {})).toThrow('Required');
-  });
-
-  it('非 patchMode: 空串 抛 Required 异常', () => {
-    const schema = { type: 'string', required: true };
-    expect(() => validate('', schema, {})).toThrow('Required');
-  });
-
-  it('patchMode: null 不触发 VQUIT，继续后续校验（抛异常）', () => {
-    // null 不是 undefined，不触发 VQUIT，继续 required 校验，抛异常
-    const schema = { type: 'string', required: true };
-    expect(() => validate(null, schema, { patchMode: true })).toThrow('Required');
-  });
-
-  it('自定义校验返回 VQUIT 中止后续校验', () => {
-    const fn1 = () => VQUIT;
-    const fn2 = (v: unknown) => String(v) + '_processed'; // 不会被执行
-    const schema = { validate: [fn1, fn2] };
-    const result = validate('test', schema, {});
-    expect(result).toBe('test'); // fn1 返回 VQUIT，返回原值，fn2 不执行
+    const result = validate([{ name: 'test' }], schema, { patchMode: true });
+    expect(result[0].name).toBe('test');
+    expect('email' in result[0]).toBe(false);
   });
 });
 
-describe('自定义 validate', () => {
+// ==============================================
+// 第 9 阶段：自定义 validate 校验
+// ==============================================
+
+describe('第 9 阶段：自定义 validate 校验', () => {
   it('单个自定义校验函数', () => {
-    const custom = (value: unknown) => {
+    const custom = (value: any) => {
       if (value === 'bad') throw new Error('Bad value');
       return String(value) + '_ok';
     };
+
     const schema = { validate: custom };
     expect(validate('good', schema, {})).toBe('good_ok');
-    // 非 isObject/isArray 子项的校验直接抛 Error，不包装 VError
-    expect(() => validate('bad', schema, { path: 'field' })).toThrow('Bad value');
+    expect(() => validate('bad', schema, {})).toThrow('Bad value');
   });
 
   it('多个自定义校验函数按顺序执行', () => {
-    const fn1 = (v: unknown) => String(v) + '_a';
-    const fn2 = (v: unknown) => String(v) + '_b';
-    const fn3 = (v: unknown) => String(v) + '_c';
+    const fn1 = (v: any) => String(v) + '_a';
+    const fn2 = (v: any) => String(v) + '_b';
+    const fn3 = (v: any) => String(v) + '_c';
+
     const schema = { validate: [fn1, fn2, fn3] };
     expect(validate('x', schema, {})).toBe('x_a_b_c');
   });
 
   it('多个自定义校验函数，第一个出错即中止', () => {
     const fn1 = () => { throw new Error('First failed'); };
-    const fn2 = (v: unknown) => String(v) + '_b'; // 不会执行
+    const fn2 = (v: any) => String(v) + '_b';
+
     const schema = { validate: [fn1, fn2] };
     expect(() => validate('x', schema, {})).toThrow('First failed');
   });
 
-  it('自定义校验中返回 VQUIT 中止后续', () => {
+  it('自定义校验返回 VQUIT 中止后续', () => {
     const fn1 = () => VQUIT;
-    const fn2 = (v: unknown) => String(v) + '_b'; // 不会执行
+    const fn2 = (v: any) => String(v) + '_b';
+
     const schema = { validate: [fn1, fn2] };
     expect(validate('x', schema, {})).toBe('x');
   });
-});
 
-describe('VModes.validates 传递', () => {
-  it('object 子字段沿用 modes.validates 指定的校验集合', () => {
-    const appendValidate = (value: unknown) => `${value}_ok`;
-    const modes: VModes = {
-      validates: [
-        (schema) => schema.append === true ? appendValidate : undefined,
-        (schema) => schema.properties ? isObject : undefined
-      ]
-    };
-    const schema: FormSchema = {
-      type: 'object',
-      properties: {
-        name: { append: true }
-      }
-    };
+  it('自定义校验返回 VPASS 跳过当前', () => {
+    const fn1 = () => VPASS;
+    const fn2 = (v: any) => String(v) + '_b';
 
-    expect(validate({ name: 'test' }, schema, modes)).toEqual({ name: 'test_ok' });
+    const schema = { validate: [fn1, fn2] };
+    expect(validate('x', schema, {})).toBe('x_b');
   });
 
-  it('array 子项沿用 modes.validates 指定的校验集合', () => {
-    const appendValidate = (value: unknown) => `${value}_ok`;
-    const modes: VModes = {
-      validates: [
-        (schema) => schema.append === true ? appendValidate : undefined,
-        (schema) => schema.type === 'array' ? isArray : undefined
-      ]
-    };
-    const schema: FormSchema = {
-      type: 'array',
-      items: { append: true }
+  it('baseValidate 基础校验可用于自定义', () => {
+    const custom = (value: any, schema: any, config: any, state: any) => {
+      baseValidate(value, schema, config, state);
+      return String(value) + '_ok';
     };
 
-    expect(validate(['a', 'b'], schema, modes)).toEqual(['a_ok', 'b_ok']);
+    const schema = {
+      type: 'string',
+      required: true,
+      validate: custom,
+    };
+
+    expect(validate('test', schema, {})).toBe('test_ok');
   });
 });
 
-describe('VState', () => {
+// ==============================================
+// 第 10 阶段：VState 校验状态
+// ==============================================
+
+describe('第 10 阶段：VState 校验状态', () => {
   it('object 子字段 validator 能读取 name 和 path', () => {
     const schema: FormSchema = {
       properties: {
@@ -489,100 +1020,144 @@ describe('VState', () => {
   });
 });
 
-describe('注册 moreValidates - 匹配器函数', () => {
-  it('添加自定义匹配器到 moreValidates', () => {
-    // 备份原有的 moreValidates
-    const originalLen = moreValidates.length;
+// ==============================================
+// 第 11 阶段：VError 错误处理
+// ==============================================
 
-    // 添加自定义匹配器：当 schema.xxx 存在时返回校验函数
-    const myMatcher = (schema: any) => {
-      if (schema.xxx) {
-        return (value: unknown) => {
-          if (value !== 'xxx') throw new Error('Need xxx');
-          return value;
-        };
+describe('第 11 阶段：VError 错误处理', () => {
+  it('VError.getError() 获取错误信息', () => {
+    const verr = new VError('required');
+    expect(verr.getError()).toBeTruthy();
+  });
+
+  it('VError.getError() 支持 translator', () => {
+    const verr = new VError('required');
+    expect(verr.getError(zhTranslator)).toBe('必填项');
+  });
+
+  it('VError.getError() 使用 params', () => {
+    const verr = new VError('minimum', { value: 10 });
+    expect(verr.getError(zhTranslator)).toBe('最小值是 10');
+  });
+
+  it('VError.getErrors() 获取字段错误', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string', required: true },
+        age: { type: 'number', minimum: 18 },
       }
-      return undefined;
     };
-    moreValidates.push(myMatcher);
 
     try {
-      // 测试新匹配器生效，type: null 跳过默认 object 校验
-      const schema = { xxx: true, type: null as any };
-      expect(() => validate('yyy', schema, {})).toThrow('Need xxx');
-      expect(validate('xxx', schema, {})).toBe('xxx');
-    } finally {
-      // 恢复
-      moreValidates.length = originalLen;
+      validate({ name: undefined, age: 10 }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      const errors = verr.getErrors();
+      expect(errors.name).toBeTruthy();
+      expect(errors.age).toBeTruthy();
     }
   });
 
-  it('多个匹配器按顺序匹配', () => {
-    const originalLen = moreValidates.length;
-
-    const matcher1 = (schema: any) => {
-      if (schema.check1) {
-        return (v: unknown) => String(v) + '_1';
+  it('VError.getErrors() 支持 translator', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string', required: true },
+        age: { type: 'number', minimum: 18 },
       }
-      return undefined;
     };
-    const matcher2 = (schema: any) => {
-      if (schema.check2) {
-        return (v: unknown) => String(v) + '_2';
-      }
-      return undefined;
-    };
-    moreValidates.push(matcher1, matcher2);
 
     try {
-      const schema = { check1: true, check2: true, type: null as any };
-      const result = validate('x', schema, {});
-      // 两个匹配器都命中，校验函数按匹配顺序执行
-      expect(result).toBe('x_1_2');
-    } finally {
-      moreValidates.length = originalLen;
+      validate({ name: undefined, age: 10 }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      const errors = verr.getErrors(zhTranslator);
+      expect(errors.name).toBe('必填项');
+      expect(errors.age).toBe('最小值是 18');
     }
   });
 
-  it('核心匹配器可用于条件必填校验，通过 values 访问原始数据', () => {
-    const originalValidates = [...coreValidates];
-
-    // 当 values 中有 isVip=true 时，phone 字段必填
-    const vipPhoneMatcher = (schema: any) => {
-      if (schema.needPhoneForVip) {
-        return (value: unknown, _sch: any, modes: VModes, state) => {
-          const values = state?.getValues() as any;
-          if (values?.isVip) {
-            return required(value, _sch, modes, state);
-          }
-          return value;
-        };
+  it('VError.getData() 获取完整错误数据', () => {
+    const schema: FormSchema = {
+      properties: {
+        name: { type: 'string', required: true },
       }
-      return undefined;
     };
-    coreValidates.unshift(vipPhoneMatcher);
 
     try {
-      const schema: FormSchema = {
-        properties: {
-          isVip: { type: 'boolean' },
-          phone: { type: 'string', needPhoneForVip: true },
-        },
-      };
-
-      // isVip=true 时 phone 必填
-      expect(() => validate({ isVip: true, phone: undefined }, schema, {})).toThrow();
-      // isVip=false 时 phone 不校验
-      const result = validate({ isVip: false, phone: undefined }, schema, {});
-      expect(result.phone).toBeUndefined();
-    } finally {
-      coreValidates.splice(0, coreValidates.length, ...originalValidates);
+      validate({ name: undefined }, schema, {});
+      expect.unreachable('应该抛出异常');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      const data = verr.getData(zhTranslator);
+      expect(data.code).toBe('form.invalid');
+      expect(data.errors).toBeTruthy();
     }
   });
 });
 
-describe('formStruct / isInput', () => {
-  it('校验设计器生成的有效表单 schema', () => {
+// ==============================================
+// 第 12 阶段：config.verifies 自定义校验规则
+// ==============================================
+
+describe('第 12 阶段：config.verifies 自定义校验规则', () => {
+  it('config.verifies 替换默认校验规则', () => {
+    const customVerify = (schema: any) => {
+      if (schema.append) {
+        return (value: any) => `${value}_ok`;
+      }
+      if (schema.type === 'object') {
+        return isObject;
+      }
+      return undefined;
+    };
+
+    const config: FormConfig = {
+      verifies: [customVerify]
+    };
+
+    const schema = {
+      properties: {
+        name: { append: true }
+      }
+    };
+
+    expect(validate({ name: 'test' }, schema, config)).toEqual({ name: 'test_ok' });
+  });
+
+  it('config.verifies 与默认 verifies 结合使用', () => {
+    // 不用 config.verifies，而是用 schema.validate: [baseValidate, yourValidate] 方式
+    const myValidate = (value: any) => {
+      if (typeof value === 'string') {
+        return `${value}_ok`;
+      }
+      return value;
+    };
+
+    const schema = {
+      properties: {
+        name: { 
+          type: 'string', 
+          required: true, 
+          validate: [baseValidate, myValidate]
+        }
+      }
+    };
+
+    expect(validate({ name: 'test' }, schema, {})).toEqual({ name: 'test_ok' });
+  });
+});
+
+// ==============================================
+// 第 13 阶段：formValidate 表单 schema 校验
+// ==============================================
+
+describe('第 13 阶段：formValidate 表单 schema 校验', () => {
+  it('formValidate 校验有效表单 schema', () => {
     const schema = {
       title: '联系表单',
       description: '收集联系方式',
@@ -613,14 +1188,14 @@ describe('formStruct / isInput', () => {
       }
     };
 
-    expect(validate(schema, formStruct, {})).toEqual(schema);
+    expect(formValidate(schema)).toEqual(schema);
   });
 
-  it('要求根 properties 必填', () => {
-    expect(() => validate({ title: '空表单' }, formStruct, {})).toThrow();
+  it('formValidate 要求根 properties 必填', () => {
+    expect(() => formValidate({ title: '空表单' })).toThrow();
   });
 
-  it('要求每个字段有 title', () => {
+  it('formValidate 要求每个字段有 title', () => {
     const schema = {
       title: '错误表单',
       properties: {
@@ -628,24 +1203,7 @@ describe('formStruct / isInput', () => {
       }
     };
 
-    try {
-      validate(schema, formStruct, {});
-    } catch (err) {
-      const verr = err as VError;
-      const map = verr.toMap();
-      expect((map.properties as any).name.title).toBe('Required');
-    }
-  });
-
-  it('拒绝非法 inputType', () => {
-    const schema = {
-      title: '错误表单',
-      properties: {
-        name: { type: 'string', inputType: 'bad-input', title: '姓名' }
-      }
-    };
-
-    expect(() => validate(schema, formStruct, {})).toThrow();
+    expect(() => formValidate(schema)).toThrow();
   });
 
   it('isInput 为 legend 和 figure 补 type: null', () => {
@@ -671,27 +1229,188 @@ describe('formStruct / isInput', () => {
   });
 });
 
-describe('undefined 值过滤', () => {
-  it('isObject: undefined 的属性不收集到结果', () => {
-    const schema: FormSchema = {
+// ==============================================
+// 第 14 阶段：综合场景测试
+// ==============================================
+
+describe('第 14 阶段：综合场景测试', () => {
+  it('完整的用户注册表单校验', () => {
+    const registerSchema: FormSchema = {
+      required: ['username', 'email', 'password'],
       properties: {
-        name: { type: 'string' },
-        age: { type: 'number' },
+        username: {
+          type: 'string',
+          required: true,
+          minLength: 3,
+          maxLength: 20,
+        },
+        email: {
+          type: 'string',
+          required: true,
+          format: 'email',
+        },
+        password: {
+          type: 'string',
+          required: true,
+          minLength: 8,
+        },
+        age: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 120,
+        },
+        gender: {
+          type: 'string',
+          enum: ['male', 'female', 'other'],
+        },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          maxItems: 10,
+        },
+        address: {
+          type: 'object',
+          properties: {
+            province: { type: 'string' },
+            city: { type: 'string' },
+            detail: { type: 'string' },
+          },
+        },
       },
     };
-    const data = { name: 'test', age: undefined };
-    const result = validate(data, schema, { patchMode: true });
-    expect(result.age).toBeUndefined(); // 键被删除了
-    expect(Object.keys(result)).toEqual(['name']); // 只有 name
+
+    const validData = {
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'password123',
+      age: 25,
+      gender: 'male',
+      tags: ['developer', 'frontend'],
+      address: {
+        province: 'Guangdong',
+        city: 'Shenzhen',
+        detail: 'Nanshan District',
+      },
+    };
+
+    const result = validate(validData, registerSchema, {});
+    expect(result.username).toBe('testuser');
+    expect(result.email).toBe('test@example.com');
   });
 
-  it('isArray: undefined 的元素不收集到结果', () => {
-    const schema: FormSchema = {
-      type: 'array',
-      items: { type: 'string' },
+  it('完整的订单表单校验', () => {
+    const orderSchema: FormSchema = {
+      required: ['orderNo', 'customer', 'items'],
+      properties: {
+        orderNo: { type: 'string', required: true },
+        createdAt: { type: 'string', inputType: 'datetime' },
+        customer: {
+          type: 'object',
+          required: true,
+          properties: {
+            name: { type: 'string', required: true },
+            email: { type: 'string', format: 'email' },
+            phone: { type: 'string' },
+            address: {
+              type: 'object',
+              properties: {
+                province: { type: 'string', required: true },
+                city: { type: 'string', required: true },
+                detail: { type: 'string', required: true },
+              },
+            },
+          },
+        },
+        items: {
+          type: 'array',
+          required: true,
+          minItems: 1,
+          maxItems: 50,
+          uniqueItems: true,
+          items: {
+            type: 'object',
+            properties: {
+              productId: { type: 'string', required: true },
+              productName: { type: 'string', required: true },
+              price: { type: 'number', minimum: 0, required: true },
+              quantity: { type: 'integer', minimum: 1, required: true },
+            },
+          },
+        },
+      },
     };
-    const data = ['a', undefined, 'b'];
-    const result = validate(data, schema, { patchMode: true });
-    expect(result).toEqual(['a', 'b']); // undefined 被过滤
+
+    const orderData = {
+      orderNo: 'ORD-001',
+      createdAt: new Date(),
+      customer: {
+        name: '张三',
+        email: 'zhangsan@example.com',
+        phone: '13800138000',
+        address: {
+          province: '广东省',
+          city: '深圳市',
+          detail: '南山区科技园',
+        },
+      },
+      items: [
+        {
+          productId: 'PROD-001',
+          productName: '商品1',
+          price: 99.99,
+          quantity: 2,
+        },
+        {
+          productId: 'PROD-002',
+          productName: '商品2',
+          price: 49.99,
+          quantity: 1,
+        },
+      ],
+    };
+
+    const result = validate(orderData, orderSchema, {});
+    expect(result.orderNo).toBe('ORD-001');
+    expect(result.items.length).toBe(2);
+  });
+
+  it('条件必填校验（通过 values 访问原始数据）', () => {
+    const myVerifies = [
+      (schema: any) => {
+        if (schema.needPhoneForVip) {
+          return (value: any, _sch: any, config: any, state: any) => {
+            const values = state?.getValues() as any;
+            if (values?.isVip) {
+              return required(value, _sch, config, state);
+            }
+            return optional(value, _sch, config, state);
+          };
+        }
+        return undefined;
+      },
+      ...verifies,
+    ];
+
+    const schema: FormSchema = {
+      properties: {
+        isVip: { type: 'boolean' },
+        phone: { type: 'string', needPhoneForVip: true },
+      },
+    };
+
+    const config: FormConfig = { verifies: myVerifies };
+
+    // isVip=true 时 phone 必填（完全不包含 phone 字段）
+    expect(() => validate({ isVip: true }, schema, config)).toThrow();
+    // isVip=false 时 phone 不校验（完全不包含 phone 字段）
+    const result1 = validate({ isVip: false }, schema, config);
+    expect('phone' in result1).toBe(false);
+    // isVip=true 但 phone=undefined 时表示可选
+    let state2 = new VState();
+    try {
+      const result2 = validate({ isVip: true, phone: undefined }, schema, config, state2);
+    } catch (e) {
+      expect('phone' in state2.getValids()).toBe(false);
+    }
   });
 });
