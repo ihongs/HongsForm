@@ -35,7 +35,7 @@ export interface FormSchema {
     validate?: Validate | Validate[]; // 校验方法
     options?: Record<string, string>; // 选项标签, 缺失则与 enum 的值同名
     ignores?: unknown[]; // 忽略选项，用于表单占位，如补充（更新）模式下需要知道某个 check 字段是不变还是没选，丢掉后是空数组，表示用户要清空选项而非不变。适用于古典的 html form，现在的 mvvm 不需要
-    default?: unknown | unknown[] | (() => unknown); // 默认值或默认值生成函数
+    default?: unknown; // 默认值或默认值生成函数，通过 defaultOn 控制默认值产生时机
     defaultOn?: 'post' | 'patch' | 'always'; // 默认值产生时机，patch 更新时（`patchMode: true`），always 总产生默认值（默认）
     title?: string; // 字段标题
     label?: string;  // 字段标签(用于表单, 默认同 title)

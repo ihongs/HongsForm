@@ -288,7 +288,7 @@ export const isArray: Validate = function (value: any, schema: any, config: any,
         const items = isTuple ? schema.items : [schema.items];
         const result: unknown[] = [];
 
-        const ignores = schema.ignores ?? [null, '', undefined]; // 默认忽略 null, '', undefined
+        const ignores = schema.ignores ?? [undefined, null, ''];
         for (let i = 0; i < value.length; i++) {
             // 忽略值：在 ignores 中的不校验也不收集
             if (ignores.includes(value[i])) {
