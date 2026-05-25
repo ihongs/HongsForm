@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "hongs-form": "^0.1.0",
+    "hongs-form": "^0.1.1",
     "mongodb": "^6.3.0"
   },
   "devDependencies": {
