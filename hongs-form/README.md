@@ -97,6 +97,21 @@ const result = validate({
 // 结果: { age: 25, active: true, tags: ['a', 'b', 'c'] }
 ```
 
+### 默认值
+
+```typescript
+// 使用 default 设置默认值
+const result = validate({}, {
+  properties: {
+    title: { type: 'string', default: '无题' },
+    updateAt: { type: 'string', default: () => new Date().toISOString() },
+    createAt: { type: 'string', default: () => new Date().toISOString(), defaultOn: 'post' },
+  },
+}, { patchMode: false });
+// 结果: { title: '无题', updateAt: '2026-05-26...', createAt: '2026-05-26...' }
+// defaultOn: 'post' 新增时赋值(patchMode: false), 'patch' 更新时赋值(patchMode: true), 默认总赋值
+```
+
 ### 自定义校验
 
 ```typescript
