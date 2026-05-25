@@ -26,6 +26,7 @@ export {
   optional,
   required,
   requires,
+  defaults,
   patterns,
   isString,
   isNumber,

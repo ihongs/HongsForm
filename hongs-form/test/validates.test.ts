@@ -18,7 +18,7 @@ import {
   VQUIT,
   VError,
   verifies,
-  patterns,
+  defaults,
   type FormSchema,
   type FormConfig,
   type Translator,
@@ -1412,5 +1412,96 @@ describe('第 14 阶段：综合场景测试', () => {
     } catch (e) {
       expect('phone' in state2.getValids()).toBe(false);
     }
+  });
+});
+
+describe('第 15 阶段：default 默认值', () => {
+  it('undefined 值返回 schema.default', () => {
+    const schema = { type: 'string', default: 'hello' };
+    expect(defaults(undefined, schema, {})).toBe('hello');
+  });
+
+  it('有值时返回原始值，不使用默认值', () => {
+    const schema = { type: 'string', default: 'hello' };
+    expect(defaults('world', schema, {})).toBe('world');
+  });
+
+  it('defaultOn=post 默认值是函数时调用并返回结果', () => {
+    const schema = { type: 'string', default: () => 'computed', defaultOn: 'post' };
+    expect(defaults(undefined, schema, {})).toBe('computed');
+  });
+
+  it('默认值是函数且有值时返回原始值', () => {
+    const schema = { type: 'string', default: 'hello' };
+    expect(defaults('world', schema, {})).toBe('world');
+  });
+
+  it('defaultOn=post 在普通模式下返回默认值', () => {
+    const schema = { type: 'string', default: 'post-default', defaultOn: 'post' };
+    expect(defaults(undefined, schema, {})).toBe('post-default');
+  });
+
+  it('defaultOn=post 在 patchMode 下返回 VPASS', () => {
+    const schema = { type: 'string', default: 'post-default', defaultOn: 'post' };
+    expect(defaults(undefined, schema, { patchMode: true })).toBe(VPASS);
+  });
+
+  it('defaultOn=patch 在普通模式下返回 VPASS', () => {
+    const schema = { type: 'string', default: 'patch-default', defaultOn: 'patch' };
+    expect(defaults(undefined, schema, {})).toBe(VPASS);
+  });
+
+  it('defaultOn=patch 在 patchMode 下返回默认值', () => {
+    const schema = { type: 'string', default: 'patch-default', defaultOn: 'patch' };
+    expect(defaults(undefined, schema, { patchMode: true })).toBe('patch-default');
+  });
+
+  it('嵌套对象属性使用默认值', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', default: '匿名用户' },
+        age: { type: 'number', default: 18 },
+      },
+    };
+    const result = validate({}, schema, {});
+    expect(result.name).toBe('匿名用户');
+    expect(result.age).toBe(18);
+  });
+
+  it('嵌套对象有值时覆盖默认值', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', default: '匿名用户' },
+        age: { type: 'number', default: 18 },
+      },
+    };
+    const result = validate({ name: '张三', age: 25 }, schema, {});
+    expect(result.name).toBe('张三');
+    expect(result.age).toBe(25);
+  });
+
+  it('数组 items 有默认值时验证空数组返回默认值填充', () => {
+    const schema: FormSchema = {
+      type: 'array',
+      items: { type: 'string', default: 'default-item' },
+    };
+    // 验证空数组成员应用默认值
+    const result = validate(['x', 'y'], schema, {});
+    expect(result[0]).toBe('x');
+    expect(result[1]).toBe('y');
+  });
+
+  it('validate 配合 post 模式使用 defaultOn', () => {
+    const schema: FormSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', default: '默认名', defaultOn: 'post' },
+      },
+    };
+    // 在普通模式下，defaultOn=post 会应用默认值
+    const result = validate({}, schema, {});
+    expect(result.name).toBe('默认名');
   });
 });
