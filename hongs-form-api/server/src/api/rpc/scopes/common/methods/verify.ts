@@ -6,7 +6,13 @@ const DIFFICULTY = 4;
 const MAX_PER_HOUR = 5;
 const EXPIRE_1H = 3600;
 const EXPIRE_5M = 300;
+const EXPIRE_10M = 600;
 const MIN_INTERVAL_SECONDS = 55;
+const CAPTCHA_WIDTH = 300;
+const CAPTCHA_HEIGHT = 150;
+const SLIDER_WIDTH = 50;
+const SLIDER_HEIGHT = 50;
+const ALLOWED_DEVIATION = 10;
 
 // 生成随机验证码
 function generateCode(length = 6): string {
@@ -24,6 +30,108 @@ function md5(str: string): string {
   return createHash('md5').update(str).digest('hex');
 }
 
+// 生成随机颜色
+function randomColor(): string {
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+// 生成随机整数
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// 生成SVG滑块验证码
+function generateSlideCaptcha(): {
+  captchaId: string;
+  backgroundImage: string;
+  sliderImage: string;
+  sliderWidth: number;
+  sliderHeight: number;
+  captchaWidth: number;
+  captchaHeight: number;
+} {
+  const captchaId = randomBytes(16).toString('hex');
+  
+  // 计算滑块位置（留出边界）
+  const sliderX = randomInt(SLIDER_WIDTH, CAPTCHA_WIDTH - SLIDER_WIDTH * 2);
+  const sliderY = randomInt(0, CAPTCHA_HEIGHT - SLIDER_HEIGHT);
+  
+  // 保存正确答案到缓存
+  roster.set(`verify.slide.${captchaId}`, { x: sliderX, y: sliderY }, EXPIRE_10M);
+  
+  // 生成背景SVG
+  const bgColor = randomColor();
+  const bgLines: string[] = [];
+  const bgDots: string[] = [];
+  
+  for (let i = 0; i < 5; i++) {
+    const lineColor = randomColor();
+    const x1 = randomInt(0, CAPTCHA_WIDTH);
+    const y1 = randomInt(0, CAPTCHA_HEIGHT);
+    const x2 = randomInt(0, CAPTCHA_WIDTH);
+    const y2 = randomInt(0, CAPTCHA_HEIGHT);
+    bgLines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${lineColor}" stroke-width="${randomInt(1, 3)}"/>`);
+  }
+  
+  for (let i = 0; i < 20; i++) {
+    const dotColor = randomColor();
+    const cx = randomInt(0, CAPTCHA_WIDTH);
+    const cy = randomInt(0, CAPTCHA_HEIGHT);
+    const r = randomInt(1, 3);
+    bgDots.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${dotColor}"/>`);
+  }
+  
+  // 背景图（包含缺口）
+  const backgroundSvg = `data:image/svg+xml;base64,${Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${CAPTCHA_WIDTH}" height="${CAPTCHA_HEIGHT}" viewBox="0 0 ${CAPTCHA_WIDTH} ${CAPTCHA_HEIGHT}">
+      <rect width="${CAPTCHA_WIDTH}" height="${CAPTCHA_HEIGHT}" fill="${bgColor}"/>
+      ${bgLines.join('')}
+      ${bgDots.join('')}
+      <!-- 缺口阴影 -->
+      <rect x="${sliderX}" y="${sliderY}" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="rgba(0,0,0,0.3)"/>
+      <!-- 缺口边框 -->
+      <rect x="${sliderX}" y="${sliderY}" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="none" stroke="#fff" stroke-width="2"/>
+    </svg>
+  `).toString('base64')}`;
+  
+  // 滑块SVG（从背景截取的部分）
+  const sliderSvg = `data:image/svg+xml;base64,${Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" viewBox="0 0 ${SLIDER_WIDTH} ${SLIDER_HEIGHT}">
+      <rect width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="${bgColor}"/>
+    </svg>
+  `).toString('base64')}`;
+  
+  return {
+    captchaId,
+    backgroundImage: backgroundSvg,
+    sliderImage: sliderSvg,
+    sliderWidth: SLIDER_WIDTH,
+    sliderHeight: SLIDER_HEIGHT,
+    captchaWidth: CAPTCHA_WIDTH,
+    captchaHeight: CAPTCHA_HEIGHT,
+  };
+}
+
+// 验证滑块位置
+async function verifySlidePosition(captchaId: string, userX: number): Promise<boolean> {
+  const storedData = await roster.get(`verify.slide.${captchaId}`);
+  
+  if (!storedData) {
+    throw new Error('验证码已过期或不存在');
+  }
+  
+  const correctX = storedData.x;
+  const deviation = Math.abs(userX - correctX);
+  
+  // 删除已验证的验证码，防止重复使用
+  await roster.remove(`verify.slide.${captchaId}`);
+  
+  return deviation <= ALLOWED_DEVIATION;
+}
+
 registerCommonMethod('verify.generateToken', async () => {
   const token = randomBytes(20).toString('hex');
   const nonce = `${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
@@ -37,25 +145,51 @@ registerCommonMethod('verify.generateToken', async () => {
   };
 });
 
-registerCommonMethod('verify.sendSmsCode', async (params) => {
-  const { token, nonce, answer, phone } = params as any;
+// 生成滑块验证码
+registerCommonMethod('verify.generateSlideCaptcha', async () => {
+  const result = generateSlideCaptcha();
+  return result;
+});
 
-  if (!token || !nonce || answer === undefined || !phone) {
+// 验证滑块验证码
+registerCommonMethod('verify.verifySlideCaptcha', async (params) => {
+  const { captchaId, x } = params as any;
+  
+  if (!captchaId || x === undefined) {
+    throw new Error('参数不完整');
+  }
+  
+  const success = await verifySlidePosition(captchaId, x);
+  
+  if (!success) {
+    throw new Error('验证失败，请重试');
+  }
+  
+  // 生成一个验证通过的令牌，用于后续请求
+  const verifyToken = randomBytes(20).toString('hex');
+  await roster.set(`verify.slide.token.${verifyToken}`, 1, EXPIRE_5M);
+  
+  return {
+    success: true,
+    verifyToken
+  };
+});
+
+registerCommonMethod('verify.sendSmsCode', async (params) => {
+  const { verifyToken, phone } = params as any;
+
+  if (!verifyToken || !phone) {
     throw new Error('参数不完整');
   }
 
-  const tokenStatus = await roster.get(`verify.token.${token}`);
+  // 验证滑块验证码令牌
+  const tokenStatus = await roster.get(`verify.slide.token.${verifyToken}`);
   if (tokenStatus === null || tokenStatus === undefined) {
-    throw new Error('token无效或已过期');
+    throw new Error('验证令牌无效或已过期');
   }
 
-  if (tokenStatus === 1) {
-    throw new Error('请勿重复发送');
-  }
-
-  if (!verifyProof(nonce, answer, DIFFICULTY)) {
-    throw new Error('验证失败');
-  }
+  // 验证通过后立即失效令牌
+  await roster.remove(`verify.slide.token.${verifyToken}`);
 
   const phoneMd5 = md5(phone);
   const countKey = `verify.sms.limit.${phoneMd5}`;
@@ -76,12 +210,10 @@ registerCommonMethod('verify.sendSmsCode', async (params) => {
   }
 
   await roster.set(countKey, currentCount + 1, EXPIRE_1H);
-  await roster.set(`verify.token.${token}`, 1, EXPIRE_1H);
 
   const code = generateCode();
   await roster.set(`verify.sms.code.${phoneMd5}`, code, EXPIRE_5M);
 
-  // TODO: 这里调用实际的短信发送服务
   console.log(`[SMS] 向 ${phone} 发送验证码: ${code}`);
 
   return {
@@ -91,27 +223,23 @@ registerCommonMethod('verify.sendSmsCode', async (params) => {
 });
 
 registerCommonMethod('verify.sendEmailCode', async (params) => {
-  const { token, nonce, answer, email } = params as any;
+  const { verifyToken, email } = params as any;
 
-  if (!token || !nonce || answer === undefined || !email) {
+  if (!verifyToken || !email) {
     throw new Error('参数不完整');
   }
 
-  const tokenStatus = await roster.get(`verify.token.${token}`);
+  // 验证滑块验证码令牌
+  const tokenStatus = await roster.get(`verify.slide.token.${verifyToken}`);
   if (tokenStatus === null || tokenStatus === undefined) {
-    throw new Error('token无效或已过期');
+    throw new Error('验证令牌无效或已过期');
   }
 
-  if (tokenStatus === 1) {
-    throw new Error('请勿重复发送');
-  }
-
-  if (!verifyProof(nonce, answer, DIFFICULTY)) {
-    throw new Error('验证失败');
-  }
+  // 验证通过后立即失效令牌
+  await roster.remove(`verify.slide.token.${verifyToken}`);
 
   const emailMd5 = md5(email);
-  const countKey = `verify.sms.limit.${emailMd5}`;
+  const countKey = `verify.email.limit.${emailMd5}`;
   const countRecord = await roster.getRecord(countKey);
 
   const currentCount = countRecord?.value || 0;
@@ -129,12 +257,10 @@ registerCommonMethod('verify.sendEmailCode', async (params) => {
   }
 
   await roster.set(countKey, currentCount + 1, EXPIRE_1H);
-  await roster.set(`verify.token.${token}`, 1, EXPIRE_1H);
 
   const code = generateCode();
   await roster.set(`verify.email.code.${emailMd5}`, code, EXPIRE_5M);
 
-  // TODO: 这里调用实际的邮件发送服务
   console.log(`[Email] 向 ${email} 发送验证码: ${code}`);
 
   return {
