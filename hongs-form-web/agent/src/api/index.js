@@ -59,8 +59,8 @@ export const rpc = new RpcClient()
 export const commonRpc = new RpcClient('/api/rpc/common')
 
 export const agentApi = {
-  login(username, password, verifyToken, verifyNonce, verifyAnswer) {
-    return rpc.call('login', { username, password, verifyToken, verifyNonce, verifyAnswer })
+  login(username, password, verifyToken, verifyAnswer) {
+    return rpc.call('login', { username, password, verifyToken, verifyAnswer })
   },
   loginOrRegisterByEmail(email, code) {
     return rpc.call('loginOrRegisterByEmail', { email, code })
@@ -114,10 +114,16 @@ export const verifyApi = {
   generateToken() {
     return commonRpc.call('verify.generateToken')
   },
-  sendSmsCode(token, nonce, answer, phone) {
-    return commonRpc.call('verify.sendSmsCode', { token, nonce, answer, phone })
+  generateSlideCaptcha() {
+    return commonRpc.call('verify.generateSlideCaptcha')
   },
-  sendEmailCode(token, nonce, answer, email) {
-    return commonRpc.call('verify.sendEmailCode', { token, nonce, answer, email })
+  verifySlideCaptcha(captchaId, x) {
+    return commonRpc.call('verify.verifySlideCaptcha', { captchaId, x })
+  },
+  sendSmsCode(verifyToken, phone) {
+    return commonRpc.call('verify.sendSmsCode', { verifyToken, phone })
+  },
+  sendEmailCode(verifyToken, email) {
+    return commonRpc.call('verify.sendEmailCode', { verifyToken, email })
   }
 }

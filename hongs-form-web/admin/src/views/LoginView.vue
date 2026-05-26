@@ -73,7 +73,7 @@ async function submit() {
     try {
       const { token, nonce, difficulty } = await verifyApi.generateToken()
       const answer = await computeAnswer(nonce, difficulty)
-      session = await adminApi.login(username.value, password.value, token, nonce, answer)
+      session = await adminApi.login(username.value, password.value, token, answer)
     } finally {
       computing.value = false
     }

@@ -57,50 +57,53 @@ function generateSlideCaptcha(): {
   
   // 计算滑块位置（留出边界）
   const sliderX = randomInt(SLIDER_WIDTH, CAPTCHA_WIDTH - SLIDER_WIDTH * 2);
-  const sliderY = randomInt(0, CAPTCHA_HEIGHT - SLIDER_HEIGHT);
+  const sliderY = randomInt(SLIDER_HEIGHT / 2, CAPTCHA_HEIGHT - SLIDER_HEIGHT / 2);
   
   // 保存正确答案到缓存
   roster.set(`verify.slide.${captchaId}`, { x: sliderX, y: sliderY }, EXPIRE_10M);
   
-  // 生成背景SVG
-  const bgColor = randomColor();
-  const bgLines: string[] = [];
-  const bgDots: string[] = [];
+  // 生成背景SVG - 使用气泡效果
+  const bgColor = '#f5f5f5';
+  const bubbles: string[] = [];
   
-  for (let i = 0; i < 5; i++) {
-    const lineColor = randomColor();
-    const x1 = randomInt(0, CAPTCHA_WIDTH);
-    const y1 = randomInt(0, CAPTCHA_HEIGHT);
-    const x2 = randomInt(0, CAPTCHA_WIDTH);
-    const y2 = randomInt(0, CAPTCHA_HEIGHT);
-    bgLines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${lineColor}" stroke-width="${randomInt(1, 3)}"/>`);
-  }
-  
-  for (let i = 0; i < 20; i++) {
-    const dotColor = randomColor();
+  for (let i = 0; i < 30; i++) {
+    const bubbleColor = randomColor();
     const cx = randomInt(0, CAPTCHA_WIDTH);
     const cy = randomInt(0, CAPTCHA_HEIGHT);
-    const r = randomInt(1, 3);
-    bgDots.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${dotColor}"/>`);
+    const r = randomInt(5, 25);
+    const opacity = Math.random() * 0.5 + 0.3;
+    bubbles.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bubbleColor}" fill-opacity="${opacity}"/>`);
   }
   
-  // 背景图（包含缺口）
+  // 目标圆的颜色（明显区分于背景）
+  const targetColor = '#e74c3c';
+  const targetRadius = SLIDER_WIDTH / 2;
+  
+  // 背景图（包含目标圆）
   const backgroundSvg = `data:image/svg+xml;base64,${Buffer.from(`
     <svg xmlns="http://www.w3.org/2000/svg" width="${CAPTCHA_WIDTH}" height="${CAPTCHA_HEIGHT}" viewBox="0 0 ${CAPTCHA_WIDTH} ${CAPTCHA_HEIGHT}">
       <rect width="${CAPTCHA_WIDTH}" height="${CAPTCHA_HEIGHT}" fill="${bgColor}"/>
-      ${bgLines.join('')}
-      ${bgDots.join('')}
-      <!-- 缺口阴影 -->
-      <rect x="${sliderX}" y="${sliderY}" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="rgba(0,0,0,0.3)"/>
-      <!-- 缺口边框 -->
-      <rect x="${sliderX}" y="${sliderY}" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="none" stroke="#fff" stroke-width="2"/>
+      ${bubbles.join('')}
+      <!-- 目标圆 - 三个等间距同心圆 -->
+      <circle cx="${sliderX + targetRadius}" cy="${sliderY + targetRadius}" r="${targetRadius}" fill="${targetColor}" fill-opacity="0.7"/>
+      <circle cx="${sliderX + targetRadius}" cy="${sliderY + targetRadius}" r="${targetRadius - 6}" fill="none" stroke="#fff" stroke-width="2"/>
+      <circle cx="${sliderX + targetRadius}" cy="${sliderY + targetRadius}" r="${targetRadius - 12}" fill="none" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="${sliderX + targetRadius}" cy="${sliderY + targetRadius}" r="${targetRadius - 18}" fill="none" stroke="#fff" stroke-width="1"/>
     </svg>
   `).toString('base64')}`;
   
-  // 滑块SVG（从背景截取的部分）
+  // 滑块SVG（瞄准镜样式）
   const sliderSvg = `data:image/svg+xml;base64,${Buffer.from(`
     <svg xmlns="http://www.w3.org/2000/svg" width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" viewBox="0 0 ${SLIDER_WIDTH} ${SLIDER_HEIGHT}">
-      <rect width="${SLIDER_WIDTH}" height="${SLIDER_HEIGHT}" fill="${bgColor}"/>
+      <!-- 瞄准镜外圈 - 更透明 -->
+      <circle cx="${SLIDER_WIDTH / 2}" cy="${SLIDER_HEIGHT / 2}" r="${targetRadius}" fill="rgba(39, 174, 96, 0.5)"/>
+      <circle cx="${SLIDER_WIDTH / 2}" cy="${SLIDER_HEIGHT / 2}" r="${targetRadius - 2}" fill="none" stroke="#fff" stroke-width="2" stroke-opacity="0.8"/>
+      <!-- 十字准星 -->
+      <line x1="${SLIDER_WIDTH / 2}" y1="5" x2="${SLIDER_WIDTH / 2}" y2="${SLIDER_HEIGHT - 5}" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="5" y1="${SLIDER_HEIGHT / 2}" x2="${SLIDER_WIDTH - 5}" y2="${SLIDER_HEIGHT / 2}" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <!-- 中心点 -->
+      <circle cx="${SLIDER_WIDTH / 2}" cy="${SLIDER_HEIGHT / 2}" r="5" fill="#fff" fill-opacity="0.9"/>
+      <circle cx="${SLIDER_WIDTH / 2}" cy="${SLIDER_HEIGHT / 2}" r="2.5" fill="${targetColor}"/>
     </svg>
   `).toString('base64')}`;
   
@@ -136,7 +139,7 @@ registerCommonMethod('verify.generateToken', async () => {
   const token = randomBytes(20).toString('hex');
   const nonce = `${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
-  await roster.set(`verify.token.${token}`, 0, EXPIRE_1H);
+  await roster.set(`verify.token.${token}`, { nonce, difficulty: DIFFICULTY }, EXPIRE_1H);
 
   return {
     token,

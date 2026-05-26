@@ -26,11 +26,10 @@ function verifyProof(nonce: string, answer: number, difficulty: number): boolean
 }
 
 export async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | null, ctx: RpcContext): Promise<Record<string, unknown>> {
-  const { username, password, verifyToken, verifyNonce, verifyAnswer } = params as any;
+  const { username, password, verifyToken, verifyAnswer } = params as any;
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
   if (!verifyToken) throw new Error('Verification token is required');
-  if (!verifyNonce) throw new Error('Verification nonce is required');
   if (verifyAnswer === undefined) throw new Error('Verification answer is required');
 
   // 立即删除 token，防止重复使用（无论登录成功与否）
@@ -38,12 +37,13 @@ export async function login(params: Record<string, unknown>, role: 'agent' | 'ad
   if (!tokenRecord) {
     throw new Error('Verification token invalid or expired');
   }
-  const tokenStatus = tokenRecord.value;
-  if (tokenStatus === 1) {
-    throw new Error('Verification token already used');
+  
+  const tokenData = tokenRecord.value;
+  if (!tokenData || typeof tokenData !== 'object' || !tokenData.nonce) {
+    throw new Error('Verification token invalid');
   }
 
-  if (!verifyProof(verifyNonce, verifyAnswer, DIFFICULTY)) {
+  if (!verifyProof(tokenData.nonce, verifyAnswer, tokenData.difficulty || DIFFICULTY)) {
     throw new Error('Verification failed');
   }
 

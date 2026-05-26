@@ -59,8 +59,8 @@ export const rpc = new RpcClient()
 export const commonRpc = new RpcClient('/api/rpc/common')
 
 export const adminApi = {
-  login(username, password, verifyToken, verifyNonce, verifyAnswer) {
-    return rpc.call('login', { username, password, verifyToken, verifyNonce, verifyAnswer })
+  login(username, password, verifyToken, verifyAnswer) {
+    return rpc.call('login', { username, password, verifyToken, verifyAnswer })
   },
   listUsers(params = {}) {
     return rpc.call('user.list', params)
