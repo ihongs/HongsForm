@@ -287,6 +287,7 @@ setTranslator(originalTranslator); // 可选恢复
 
 ### 内置校验器
 
+- `defaults` - 默认赋值
 - `required` - 必填校验
 - `requires` - 对象属性必填校验
 - `isString` - 字符串校验与转换
@@ -296,18 +297,24 @@ setTranslator(originalTranslator); // 可选恢复
 - `isDateTime` - 日期时间校验与转换
 - `isArray` - 数组校验与转换
 - `isObject` - 对象校验与转换
+- `baseValidate` - 基础校验，按 schema 将以上都试试
 
 ### 控制流常量
 
 - `VQUIT` - 中止后续校验
 - `VPASS` - 跳过当前校验函数
 
+### VState
+
+- `getValues()` - 获取原始数据
+- `getValids()` - 获取校验过的数据
+
 ### VError
 
 错误类，包含 `errors` 属性和方法：
 
-- `getErrors(translator?)` - 获取错误对象
-- `getData(translator?)` - 获取完整的错误数据（含 code）
+- `getErrors(translator?)` - 获取错误集合
+- `getData(translator?)` - 获取错误数据 `{code, error, errors}`，用于 JSON RPC 错误响应
 
 ## License
 
