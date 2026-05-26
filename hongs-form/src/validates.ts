@@ -60,7 +60,7 @@ export const requires: Validate = function (value: any, schema: any, config: any
 // 默认值 (default)
 export const defaults: Validate = function (value: any, schema: any, config: any, state?: VState) {
     if (value !== undefined) {
-        if (! schema.defaultOn?.startWith('over-')) {
+        if (! schema.defaultOn?.startsWith('over-')) {
             return value;
         }
     }
@@ -80,6 +80,8 @@ export const defaults: Validate = function (value: any, schema: any, config: any
         }
         def = schema.default;
         break;
+    case 'always':
+    case 'over-always':
     default:
         def = schema.default;
     }
