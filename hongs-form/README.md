@@ -1,14 +1,6 @@
 # hongs-form
 
-基于 JSON Schema 模式的极简表单库。
-
-与 JSON Schema 的最大区别在于：不仅验证、还要转换。故 `type=string` 也可以接受数字，`type=number` 也可以接受字符串，只要能够被转换即可。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，否则 (undefined) 视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段（仅用于前端显式），会被丢弃。这个 shcema 不仅用于校验、转换，还用于前端将其渲染为表单页面。如果的你的字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
-
-`required: true` 表示所在层级的字段值不能为 `undefined`、`null`、空串，但 patch mode 会忽略 `undefined`。同时支持 JSON Schema 中的 `required: []` 下级属性约束。建议用前者，层级分明；前者的错误消息分层放置，后者的错误消息放在上层。
-
-`default` 可在没有值时赋予默认值。为函数则动态生成默认值，如 `default: () => new Date()`。设置 `defaultOn: 'post|patch|always'` 可在对应时机产生默认值，`post` 新增（`patchMode: false`），`patch` 更新（`patchMode: true`），`always` 总是（默认）。
-
-特别增加 `type=date`，这将转为 Date 对象，接受时间戳（毫秒）和 ISO 日期时间格式（YYYY-MM-DDTHH:mm:ss.sssZ）的字符串。也可用 `type=number` 或 `type=string` 加 `inputType=datetime|date|time`，这会转为时间戳或格式化的字符串。
+基于 JSON Schema 模式的极简表单验证与转换库。
 
 ## 特性
 
@@ -18,8 +10,40 @@
 - 支持嵌套对象和数组校验
 - 支持自定义校验函数
 - 错误收集与层级展开
+- MongoDB 和 MariaDB/MySQL 查询清理和 SQL 转换 
 
-后续计划：针对 MongoDB 的查询条件校验，按 schema 的 findable、sortable 等属性判定指定的字段是否可查询、可排序。支持嵌套条件，可供 AI 根据 schema 将自然语言转换成许可的、复合的查询条件。
+### 与标准 JSON Schema 的差异
+
+适配 JSON Schema Draft-07 基础，不支持 `if/then/else/allOf/anyOf/oneOf/not` 及 `$ref/$defs` 等，一切复杂的逻辑都交给 `validate` 自定义校验函数。
+
+与 JSON Schema 的最大区别在于：非静态规则，不仅验证、还要转换。`type=string` 可以接受数字，`type=number` 也可以接受字符串，只要可被转换即可。此库主要用于表单数据的存储、查询，`type` 仅支持一个值，因为一个字段多种类型会对存储、读取造成困扰。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，undefined/缺失视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段，仅用于前端显式，会被后端丢弃。如果字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
+
+`required: true` 表示所在层级的字段值不能为 `undefined`、`null`、空串，但 patch mode 会忽略 `undefined`。同时支持 JSON Schema 中的 `required: []` 下级属性约束。建议用前者，层级分明；前者的错误消息分层放置，后者的错误消息放在上层。
+
+特别增加 `type=date`，这将转为 Date 对象，接受时间戳（毫秒）和 ISO 日期时间格式（YYYY-MM-DDTHH:mm:ss.sssZ）的字符串。也可用 `type=number|string` 加 `inputType=datetime|date|time`，这会转为时间戳或格式化的字符串。
+
+### 增加及不同的配置项：
+
+|---|---|
+| `validate`    | 校验函数，一个或多个，参数 `(value, schema, config, state)`，抛错则当前字段校验中止。如需自定义校验前执行默认、必填、类型校验，可用 `validate: [baseValidate, yourValidate]`。 |
+| `default`     | 默认取值，可以是具体的一个值、多个值，也可以是函数，参数同 `validate`。 |
+| `defaultOn`   | 默认时机，可选 post 新增时、patch 更新时，以及 over-post、over-patch、over-always 覆盖。 |
+| `inputType`   | 控件类型，可选 text、textarea、number、range、select、switch、radio、check（没 box）等。 |
+| `options`     | 选项字典，对 `enum` 的补充，提供选项值对应的标签，以供前端构建选择控件及显示对应的标签。 |
+| `title`       | 字段标题 |
+| `description` | 字段帮助信息。 |
+| `label`       | 表单页面字段标签。 |
+| `placeholder` | 输入占位提示。 |
+| `findable`    | 许可用于查询。 |
+| `sortable`    | 许可用于排序。 |
+
+### 校验函数 config 选项：
+
+|---|---|
+| `patchMode: true\|false` | 是否局部更新模式，为 true 忽略不存在的值和 undefined。 |
+| `pickyMode: true\|false` | 是否错误敏感模式，为 true 遇首个错误立即中止全部校验。 |
+| `ignoreErrors: true\|false` | 忽略错误，仅限 validateData、validateFind、validateSqls，用 validate 无效。比如查询，希望命中了哪些参数就用哪些参数查。 |
+| `verifies:` | 一组 Verify 函数，即 `[(scheam) => ((value, schema, config, state) => {})]`，用于替代默认校验规则表。 |
 
 ## 安装
 

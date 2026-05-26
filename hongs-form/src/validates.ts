@@ -60,17 +60,21 @@ export const requires: Validate = function (value: any, schema: any, config: any
 // 默认值 (default)
 export const defaults: Validate = function (value: any, schema: any, config: any, state?: VState) {
     if (value !== undefined) {
-        return value;
+        if (! schema.defaultOn?.startWith('over-')) {
+            return value;
+        }
     }
     let def;
     switch (schema.defaultOn) {
     case 'post':
+    case 'over-post':
         if (config.patchMode) {
             return VPASS;
         }
         def = schema.default;
         break;
     case 'patch':
+    case 'over-patch':
         if (! config.patchMode) {
             return VPASS
         }

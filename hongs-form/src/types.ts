@@ -31,17 +31,17 @@ export interface FormSchema {
     minProperties?: number;
     maxProperties?: number;
 
-    // 附加
+    // 附加、不同
     validate?: Validate | Validate[]; // 校验方法
-    options?: Record<string, string>; // 选项标签, 缺失则与 enum 的值同名
-    ignores?: unknown[]; // 忽略选项，用于表单占位，如补充（更新）模式下需要知道某个 check 字段是不变还是没选，丢掉后是空数组，表示用户要清空选项而非不变。适用于古典的 html form，现在的 mvvm 不需要
-    default?: unknown; // 默认值或默认值生成函数，通过 defaultOn 控制默认值产生时机
-    defaultOn?: 'post' | 'patch' | 'always'; // 默认值产生时机，patch 更新时（`patchMode: true`），always 总产生默认值（默认）
+    default?: unknown; // 默认取值，一个值或多个值或生成函数
+    defaultOn?: 'post' | 'patch' | 'over-post' | 'over-patch' | 'over-always'; // over 不管有没有值都赋值
     title?: string; // 字段标题
-    label?: string;  // 字段标签(用于表单, 默认同 title)
+    label?: string; // 表单标签
     description?: string; // 字段介绍
-    placeholder?: string; // 占位提示(用于表单)
-    inputType?: string; // HTML 输入类型及扩展类型，如 text,textarea,number,range,select,check,radio,switch,datetime,date,time,file 及扩展的 tags,image,video 等
+    placeholder?: string; // 占位提示
+    inputType?: string; // 控件类型
+    findable?: boolean; // 许可查找
+    sortable?: boolean; // 许可排序
 }
 
 // 校验参数
