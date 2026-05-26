@@ -59,7 +59,7 @@
                     <label class="form-check-label" for="oncePerPhoneSwitch">手机号限填一次</label>
                   </div>
                 </div>
-                <p class="text-secondary text-sm mt-1">需有名为 phone、类型为 phone 的字段</p>
+                <p class="text-secondary text-sm mt-1">需有名为 phone、类型为 phone 的字段，该字段将强制设为必填</p>
               </div>
               <div class="col-md-6">
                 <div class="d-flex flex-wrap items-center gap-3">
@@ -68,13 +68,9 @@
                     <label class="form-check-label" for="oncePerEmailSwitch">邮箱限填一次</label>
                   </div>
                 </div>
-                <p class="text-secondary text-sm mt-1">需有名为 email、类型为 email 的字段</p>
+                <p class="text-secondary text-sm mt-1">需有名为 email、类型为 email 的字段，该字段将强制设为必填</p>
               </div>
-              <div v-if="form.oncePerPhone && form.oncePerEmail" class="col-12">
-                <div class="alert alert-warning" role="alert">
-                  <small>手机号和邮箱限填一次不能同时开启</small>
-                </div>
-              </div>
+
             </div>
 
             <div class="d-grid gap-3 mb-4">
@@ -359,19 +355,18 @@ function validateForm() {
   
   // 检查手机限填配置
   if (form.oncePerPhone) {
-    const hasPhoneField = fields.value.some(f => f.name === 'phone' && f.inputType === 'phone')
-    if (!hasPhoneField) return '开启手机号限填一次，需要添加名为 phone、类型为 phone 的字段'
+    const phoneField = fields.value.find(f => f.name === 'phone' && f.inputType === 'phone')
+    if (!phoneField) return '开启手机号限填一次，需要添加名为 phone、类型为 phone 的字段'
+    // 强制 phone 字段为必填
+    phoneField.required = true
   }
   
   // 检查邮箱限填配置
   if (form.oncePerEmail) {
-    const hasEmailField = fields.value.some(f => f.name === 'email' && f.inputType === 'email')
-    if (!hasEmailField) return '开启邮箱限填一次，需要添加名为 email、类型为 email 的字段'
-  }
-  
-  // 检查手机和邮箱不能同时开启
-  if (form.oncePerPhone && form.oncePerEmail) {
-    return '手机号和邮箱限填一次不能同时开启'
+    const emailField = fields.value.find(f => f.name === 'email' && f.inputType === 'email')
+    if (!emailField) return '开启邮箱限填一次，需要添加名为 email、类型为 email 的字段'
+    // 强制 email 字段为必填
+    emailField.required = true
   }
   
   for (const field of fields.value) {
