@@ -433,67 +433,6 @@ export const isObject: Validate = function (value: any, schema: any, config: any
     return result;
 };
 
-// form schema 的 input 校准
-export const isInput: Validate = function(value: any, schema: any, config: any) {
-    if (!value.type) {
-        switch (value.inputType) {
-            case 'legend':
-            case 'figure':
-                value.type = 'null';
-                break;
-        }
-    }
-    return value;
-};
-
-// form schema 的 schema
-export const formStruct: FormSchema = {
-    type: 'object',
-    properties: {
-        title: { type: 'string' },
-        description: { type: 'string' },
-        required: { type: 'array', items: { type: 'string' } },
-        properties: {
-            type: 'object',
-            required: true,
-            properties: {},
-            additionalProperties: {
-                type: 'object',
-                properties: {
-                    title: { type: 'string', required: true },
-                    description: { type: 'string' },
-                    label: { type: 'string' },
-                    placeholder: { type: 'string' },
-                    type: { type: 'string', enum: ['string', 'number', 'integer', 'boolean', 'array', 'date', 'null'] },
-                    required: { type: 'boolean' },
-                    format: { type: 'string' },
-                    pattern: { type: 'string' },
-                    minimum: { type: 'number' },
-                    maximum: { type: 'number' },
-                    minItems: { type: 'number' },
-                    maxItems: { type: 'number' },
-                    enum: {
-                        type: 'array'
-                    },
-                    items: {
-                        type: 'object'
-                    },
-                    options: {
-                        type: 'object',
-                        properties: {},
-                        additionalProperties: { type: 'string' }
-                    },
-                    inputType: {
-                        type: 'string',
-                        enum: ['text', 'email', 'phone', 'textarea', 'number', 'range', 'select', 'check', 'radio', 'switch', 'datetime', 'date', 'time', 'file', 'legend', 'figure'],
-                    }
-                },
-                validate: [ isObject, isInput ]
-            }
-        }
-    }
-};
-
 // 校验规则集合。注意：不要将 validate/baseValidate 包装成 verify 并加入 verifies 中，这会导致循环引用。
 export const verifies: Verify[] = [
     (schema) => {
@@ -579,7 +518,8 @@ const validates = function (validateFns: Validate[], value: any, schema: any, co
     return result;
 };
 
-// 校验方法, 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
+// 校验方法
+// 未指定 validate 时应用 validates. 注意: 此方法不可放入自定义 validate
 export const validate: Validate = function (value: any, schema: any, config: any, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
@@ -600,7 +540,8 @@ export const validate: Validate = function (value: any, schema: any, config: any
     return validates(validateFns, value, schema, config, state);
 };
 
-// 基础校验方法, 未指定 validate 时应用 validates. 此方法可以放入自定义 validate
+// 基础校验方法
+// 未指定 validate 时应用 validates. 此方法可以放入自定义 validate
 export const baseValidate: Validate = function (value: any, schema: any, config: any, state?: VState) {
     // 默认 type 为 object
     const sch = { type: 'object', ...schema };
@@ -617,7 +558,16 @@ export const baseValidate: Validate = function (value: any, schema: any, config:
     return validates(validateFns, value, schema, config, state);
 };
 
-// form schema 校验
-export const formValidate = function (schema: any) {
-    return validate(schema, formStruct, {});
+// 校验存储数据
+// config.ignoreErrors: 是否忽略校验错误，默认 false
+export const validateData = function (values: any, schema: any, config: any, state?: VState) {
+    if (config?.ignoreErrors) {
+        const saveState = state || new VState();
+        try {
+            return validate(values, schema, config, saveState);
+        } catch (ex) {
+            return saveState.getValids() || {};
+        }
+    }
+    return validate(values, schema, config, state);
 }

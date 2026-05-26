@@ -26,6 +26,13 @@ export const defaultMessages: Record<string, string> = {
   minProperties: 'At least {value} properties',
   maxProperties: 'At most {value} properties',
   additionalProperties: 'Additional property not allowed',
+  invalid: 'Invalid',
+  invalidForm: 'Invalid form',
+  invalidFind: 'Invalid find',
+  invalidSqls: 'Invalid find',
+  findable: 'Nonsupport find',
+  sortable: 'Nonsupport find',
+  unsupportedSymbol: 'Unsupported symbol: {value}'
 };
 
 // 翻译函数类型

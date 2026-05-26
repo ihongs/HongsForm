@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   validate,
   baseValidate,
-  formValidate,
+  validateForm,
+  validateFind,
+  validateSqls,
   optional,
   required,
   requires,
@@ -1094,7 +1096,7 @@ describe('第 11 阶段：VError 错误处理', () => {
       expect(err).toBeInstanceOf(VError);
       const verr = err as VError;
       const data = verr.getData(zhTranslator);
-      expect(data.code).toBe('form.invalid');
+      expect(data.code).toBe('invalid');
       expect(data.errors).toBeTruthy();
     }
   });
@@ -1153,11 +1155,11 @@ describe('第 12 阶段：config.verifies 自定义校验规则', () => {
 });
 
 // ==============================================
-// 第 13 阶段：formValidate 表单 schema 校验
+// 第 13 阶段：validateForm 表单 schema 校验
 // ==============================================
 
-describe('第 13 阶段：formValidate 表单 schema 校验', () => {
-  it('formValidate 校验有效表单 schema', () => {
+describe('第 13 阶段：validateForm 表单 schema 校验', () => {
+  it('validateForm 校验有效表单 schema', () => {
     const schema = {
       title: '联系表单',
       description: '收集联系方式',
@@ -1188,14 +1190,14 @@ describe('第 13 阶段：formValidate 表单 schema 校验', () => {
       }
     };
 
-    expect(formValidate(schema)).toEqual(schema);
+    expect(validateForm(schema)).toEqual(schema);
   });
 
-  it('formValidate 要求根 properties 必填', () => {
-    expect(() => formValidate({ title: '空表单' })).toThrow();
+  it('validateForm 要求根 properties 必填', () => {
+    expect(() => validateForm({ title: '空表单' })).toThrow();
   });
 
-  it('formValidate 要求每个字段有 title', () => {
+  it('validateForm 要求每个字段有 title', () => {
     const schema = {
       title: '错误表单',
       properties: {
@@ -1203,7 +1205,7 @@ describe('第 13 阶段：formValidate 表单 schema 校验', () => {
       }
     };
 
-    expect(() => formValidate(schema)).toThrow();
+    expect(() => validateForm(schema)).toThrow();
   });
 
   it('isInput 为 legend 和 figure 补 type: null', () => {
@@ -1558,5 +1560,546 @@ describe('第 15 阶段：default 默认值', () => {
     };
     const result = validate({}, schema, {});
     expect(result.title).toBe('默认标题');
+  });
+});
+
+describe('第 16 阶段：validateFind MongoDB 查询校验', () => {
+  it('validateFind findKey 有定义时使用 findKey 作为查询键', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true },
+        age: { type: 'number', title: '年龄', findable: true },
+        email: { type: 'string', title: '邮箱' }, // 不可查询
+      }
+    };
+    
+    const params = {
+      myQuery: { name: '张三', age: 25, email: 'test@example.com' },
+    };
+    
+    try {
+      validateFind(params, formSchema, { findKey: 'myQuery' });
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      expect(verr.errors!['email']).toBeInstanceOf(VError);
+      expect(verr.errors!['email'].key).toBe('findable');
+    }
+  });
+  
+  it('validateFind findKey 未定义时 params.find 被当作普通字段', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true },
+        age: { type: 'number', title: '年龄', findable: true },
+        find: { type: 'object', title: '查询字段' }, // find 本身有定义，但不是 findable
+        email: { type: 'string', title: '邮箱', findable: true }, // 可查询
+      }
+    };
+    
+    const params = {
+      name: '张三',
+      age: 25,
+      find: { email: 'test@example.com' },
+      sort: ['name'],
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      expect(verr.errors!['find']).toBeInstanceOf(VError);
+      expect(verr.errors!['find'].key).toBe('findable');
+    }
+  });
+  
+  it('validateFind findKey 未定义且 params.find 不存在时正常处理', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true, sortable: true },
+        age: { type: 'number', title: '年龄', findable: true },
+      }
+    };
+    
+    const params = {
+      name: '张三',
+      age: 25,
+      sort: ['name'],
+    };
+    
+    // findKey 未定义，findData 是 params 排除 sort 后的剩余部分
+    const result = validateFind(params, formSchema, { ignoreErrors: true });
+    expect(result.find).toEqual({ name: '张三', age: 25 });
+    expect(result.sort).toEqual(['name']);
+  });
+  
+  it('validateFind 在遇到不可排序字段时抛出错误', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', sortable: true },
+        age: { type: 'number', title: '年龄', sortable: true },
+        email: { type: 'string', title: '邮箱' }, // 不可排序
+      }
+    };
+    
+    const params = {
+      sort: ['name', { age: -1 }, 'email'],
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      expect(verr.errors!['email']).toBeInstanceOf(VError);
+      expect(verr.errors!['email'].key).toBe('sortable');
+    }
+  });
+  
+  it('validateFind 使用 ignoreErrors 时不抛出排序错误', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', sortable: true },
+        age: { type: 'number', title: '年龄', sortable: true },
+        email: { type: 'string', title: '邮箱' }, // 不可排序
+      }
+    };
+    
+    const params = {
+      sort: ['name', { age: -1 }, 'email'],
+    };
+    
+    const result = validateFind(params, formSchema, { ignoreErrors: true });
+    expect(result.sort).toEqual(['name', { age: -1 }]);
+  });
+  
+  it('validateFind 同时处理 find 和 sort 过滤', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true, sortable: true },
+        age: { type: 'number', title: '年龄', findable: true },
+        email: { type: 'string', title: '邮箱', sortable: true },
+        phone: { type: 'string', title: '电话' }, // 都不允许
+      }
+    };
+    
+    const params = {
+      name: '张三',
+      age: 25,
+      phone: '1234567890',
+      sort: ['name', { email: 1 }, { phone: -1 }],
+      limit: 10,
+      skip: 20,
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors!['phone']).toBeInstanceOf(VError);
+    }
+  });
+
+  it('validateFind 支持 MongoDB 查询操作符', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        age: { type: 'number', title: '年龄', findable: true },
+        name: { type: 'string', title: '姓名' }, // 不可查询
+      }
+    };
+    
+    const params = {
+      age: { $gt: 18, $lt: 30 },
+      name: '张三',
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors!['name']).toBeInstanceOf(VError);
+      expect(verr.errors!['name'].key).toBe('findable');
+    }
+  });
+
+  it('validateFind 支持 $or 和 $and 操作符', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        age: { type: 'number', title: '年龄', findable: true },
+        name: { type: 'string', title: '姓名', findable: true },
+        phone: { type: 'string', title: '电话' }, // 不可查询
+      }
+    };
+    
+    const params = {
+      $or: [
+        { age: 25, phone: '123' },
+        { name: '张三' }
+      ]
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.errors!['phone']).toBeInstanceOf(VError);
+    }
+  });
+  
+  it('validateFind findKey 未定义但 params 包含 sort 时不会混淆', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', sortable: true },
+        age: { type: 'number', title: '年龄', sortable: true },
+      }
+    };
+    
+    const params = {
+      sort: ['name', { age: -1 }],
+    };
+    
+    // findKey 未定义，sort 字段不应该被当作 findable 检查
+    const result = validateFind(params, formSchema, { ignoreErrors: true });
+    expect(result.sort).toEqual(['name', { age: -1 }]);
+    expect(result.find || {}).toEqual({});
+    expect('sort' in (result.find || {})).toBe(false);
+  });
+  
+  it('validateFind pickyMode 时遇到第一个错误就抛出', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true },
+        age: { type: 'number', title: '年龄', findable: true },
+        phone: { type: 'string', title: '电话' }, // 不可查询
+        email: { type: 'string', title: '邮箱' }, // 也不可查询
+      }
+    };
+    
+    const params = {
+      name: '张三',
+      age: 25,
+      phone: '123', // 第一个错误
+      email: 'test@example.com', // 第二个错误
+    };
+    
+    try {
+      validateFind(params, formSchema, { pickyMode: true });
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      // 只应该有一个错误（phone）
+      expect(Object.keys(verr.errors!).length).toBe(1);
+      expect(verr.errors!['phone']).toBeInstanceOf(VError);
+      expect(verr.errors!['phone'].key).toBe('findable');
+      // 不应该有 email 错误
+      expect(verr.errors!['email']).toBeUndefined();
+    }
+  });
+  
+  it('validateFind pickyMode 时排序字段第一个错误就抛出', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', sortable: true },
+        age: { type: 'number', title: '年龄' }, // 不可排序
+        email: { type: 'string', title: '邮箱' }, // 也不可排序
+      }
+    };
+    
+    const params = {
+      sort: ['name', 'age', 'email'],
+    };
+    
+    try {
+      validateFind(params, formSchema, { pickyMode: true });
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      // 只应该有一个错误（age）
+      expect(Object.keys(verr.errors!).length).toBe(1);
+      expect(verr.errors!['age']).toBeInstanceOf(VError);
+      expect(verr.errors!['age'].key).toBe('sortable');
+      // 不应该有 email 错误
+      expect(verr.errors!['email']).toBeUndefined();
+    }
+  });
+  
+  describe('第 17 阶段：validateSqls SQL 片段生成', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: '姓名', findable: true, sortable: true },
+        age: { type: 'number', title: '年龄', findable: true, sortable: true },
+        phone: { type: 'string', title: '电话' },
+        join_table: {
+          type: 'object',
+          properties: {
+            field: { type: 'string', findable: true, sortable: true }
+          }
+        }
+      }
+    };
+    
+    it('validateSqls 生成简单查询', () => {
+      const params = { name: '张三', age: 25 };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.where).toBe('name = ? AND age = ?');
+      expect(result.whereParams).toEqual(['张三', 25]);
+      expect(result.order).toBe('');
+      expect(result.limit).toBe(1);
+      expect(result.skip).toBe(0);
+      expect(result.joins).toEqual([]);
+    });
+    
+    it('validateSqls 生成比较操作符查询', () => {
+      const params = { age: { $gt: 18, $lt: 30 } };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.where).toBe('age > ? AND age < ?');
+      expect(result.whereParams).toEqual([18, 30]);
+    });
+    
+    it('validateSqls 生成 $in 查询', () => {
+      const params = { age: { $in: [18, 20, 25] } };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.where).toBe('age IN (?, ?, ?)');
+      expect(result.whereParams).toEqual([18, 20, 25]);
+    });
+    
+    it('validateSqls 生成排序', () => {
+      const params = { sort: ['name', { age: -1 }] };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.order).toBe('name ASC, age DESC');
+    });
+    
+    it('validateSqls 处理关联表字段', () => {
+      const params = { 'join_table.field': 'test' };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.where).toBe('join_table.field = ?');
+      expect(result.whereParams).toEqual(['test']);
+      expect(result.joins).toEqual(['join_table']);
+    });
+    
+    it('validateSqls 遇到不可查询字段抛出错误', () => {
+      const params = { phone: '123456' };
+      
+      try {
+        validateSqls(params, formSchema, {});
+        expect.unreachable('应该抛出错误');
+      } catch (err) {
+        expect(err).toBeInstanceOf(VError);
+        const verr = err as VError;
+        expect(verr.key).toBe('invalidSqls');
+        expect(verr.errors!['phone']).toBeInstanceOf(VError);
+        expect(verr.errors!['phone'].key).toBe('findable');
+      }
+    });
+    
+    it('validateSqls 生成 skip 和 limit', () => {
+      const params = { skip: 10, limit: 20 };
+      const result = validateSqls(params, formSchema, {});
+      
+      expect(result.skip).toBe(10);
+      expect(result.limit).toBe(20);
+    });
+    
+    it('validateSqls 输出 SQL 片段示例', () => {
+      // 测试各种 SQL 片段生成
+      console.log('\n=== validateSqls SQL 片段生成示例 ===\n');
+      
+      // 示例 1: 简单查询
+      const r1 = validateSqls({ name: '张三', age: 25 }, formSchema, {});
+      console.log('【示例 1】简单查询');
+      console.log('WHERE:', r1.where);
+      console.log('WHERE 参数:', r1.whereParams);
+      console.log('');
+      
+      // 示例 2: 比较操作符
+      const r2 = validateSqls({ age: { $gt: 18, $lte: 30 } }, formSchema, {});
+      console.log('【示例 2】比较操作符');
+      console.log('WHERE:', r2.where);
+      console.log('WHERE 参数:', r2.whereParams);
+      console.log('');
+      
+      // 示例 3: $in 查询
+      const r3 = validateSqls({ name: { $in: ['张三', '李四'] } }, formSchema, {});
+      console.log('【示例 3】$in 查询');
+      console.log('WHERE:', r3.where);
+      console.log('WHERE 参数:', r3.whereParams);
+      console.log('');
+      
+      // 示例 4: 排序
+      const r4 = validateSqls({ sort: ['name', { age: -1 }] }, formSchema, {});
+      console.log('【示例 4】排序');
+      console.log('ORDER:', r4.order);
+      console.log('');
+      
+      // 示例 5: 关联表字段
+      const r5 = validateSqls({ 'join_table.field': 'value' }, formSchema, {});
+      console.log('【示例 5】关联表字段');
+      console.log('WHERE:', r5.where);
+      console.log('JOINS:', r5.joins);
+      console.log('');
+      
+      // 示例 6: 组合查询 + skip/limit + cols + getSql/getParams
+      const r6 = validateSqls({ 
+        name: { $regex: '张' },
+        age: { $gt: 20 },
+        sort: ['age'],
+        skip: 10,
+        limit: 20,
+        cols: { name: 1, age: 1 }
+      }, formSchema, {});
+      console.log('【示例 6】组合查询 + skip/limit + cols + getSql/getParams');
+      console.log('WHERE:', r6.where);
+      console.log('WHERE 参数:', r6.whereParams);
+      console.log('ORDER:', r6.order);
+      console.log('SKIP:', r6.skip);
+      console.log('LIMIT:', r6.limit);
+      console.log('COLS:', r6.cols);
+      console.log('SELECT:', r6.select);
+      console.log('完整 SQL:', r6.getSql('users'));
+      console.log('合并参数:', r6.getParams());
+      console.log('');
+      
+      // 示例 7: $and/$or 逻辑操作符
+      const r7 = validateSqls({ 
+        $and: [
+          { name: '张三' },
+          { age: { $gt: 18 } }
+        ]
+      }, formSchema, {});
+      console.log('【示例 7】$and 逻辑操作符');
+      console.log('WHERE:', r7.where);
+      console.log('WHERE 参数:', r7.whereParams);
+      console.log('');
+      
+      const r8 = validateSqls({ 
+        $or: [
+          { name: '张三' },
+          { age: { $lt: 25 } }
+        ]
+      }, formSchema, {});
+      console.log('【示例 8】$or 逻辑操作符');
+      console.log('WHERE:', r8.where);
+      console.log('WHERE 参数:', r8.whereParams);
+      console.log('');
+      
+      // 示例 9: cols 排除字段
+      const r9 = validateSqls({ cols: { phone: 0 } }, formSchema, {});
+      console.log('【示例 9】cols 排除字段');
+      console.log('COLS:', r9.cols);
+      console.log('');
+      
+      // 示例 10: getSql 带关联表（默认 JOIN）
+      const r10 = validateSqls({ 'join_table.field': 'test', sort: ['join_table.field'] }, formSchema, {});
+      console.log('【示例 10】getSql 带关联表（默认 JOIN）');
+      console.log('完整 SQL:', r10.getSql('main_table'));
+      console.log('合并参数:', r10.getParams());
+      console.log('');
+      
+      // 示例 11: getSql 带自定义 JOIN 配置
+      console.log('【示例 11】getSql 带自定义 JOIN 配置');
+      console.log('完整 SQL:', r10.getSql('users', {
+        join_table: { on: 'users.id = join_table.user_id' }
+      }));
+      console.log('');
+      
+      // 示例 12: getSql 带自定义 JOIN 配置（含 to 参数）
+      console.log('【示例 12】getSql 带自定义 JOIN 配置（含 to 参数）');
+      console.log('完整 SQL:', r10.getSql('users', {
+        join_table: { on: 'users.id = profiles.user_id', to: 'profiles' }
+      }));
+      
+      expect(true).toBe(true);
+    });
+  });
+  
+  it('validateFind 遇到不支持的操作符抛出 unsupported.symbol 错误', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        age: { type: 'number', title: '年龄', findable: true },
+      }
+    };
+    
+    const params = {
+      age: { $gt: 18, $xxxx: 123 }, // $xxxx 是不支持的操作符
+    };
+    
+    try {
+      validateFind(params, formSchema, {});
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      expect(verr.errors!['$xxxx']).toBeInstanceOf(VError);
+      expect(verr.errors!['$xxxx'].key).toBe('unsupportedSymbol');
+    }
+  });
+  
+  it('validateFind pickyMode 遇到不支持的操作符立即抛出', () => {
+    const formSchema = {
+      type: 'object',
+      properties: {
+        age: { type: 'number', title: '年龄', findable: true },
+      }
+    };
+    
+    const params = {
+      age: { $xxxx: 123, $yyyy: 456 }, // 多个不支持的操作符
+    };
+    
+    try {
+      validateFind(params, formSchema, { pickyMode: true });
+      expect.unreachable('应该抛出错误');
+    } catch (err) {
+      expect(err).toBeInstanceOf(VError);
+      const verr = err as VError;
+      expect(verr.key).toBe('invalidFind');
+      expect(verr.errors).toBeDefined();
+      // pickyMode 模式下只收集第一个错误
+      expect(Object.keys(verr.errors!).length).toBe(1);
+      expect(verr.errors!['$xxxx']).toBeInstanceOf(VError);
+      expect(verr.errors!['$xxxx'].key).toBe('unsupportedSymbol');
+    }
   });
 });

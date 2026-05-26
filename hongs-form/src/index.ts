@@ -35,9 +35,18 @@ export {
   isDateTime,
   isArray,
   isObject,
-  isInput,
   verifies,
   validate,
   baseValidate,
-  formValidate,
 } from './validates.js';
+export {
+  isInput,
+  validateForm,
+  formValidate,
+} from './validate-form.js';
+export {
+  validateFind,
+} from './validate-mongo.js';
+export {
+  validateSqls,
+} from './validate-maria.js';
