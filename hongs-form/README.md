@@ -24,7 +24,8 @@
 
 ### 增加及不同的配置项：
 
-|---|---|
+| 配置项 | 说明 |
+|--------|------|
 | `validate`    | 校验函数，一个或多个，参数 `(value, schema, config, state)`，抛错则当前字段校验中止。如需自定义校验前执行默认、必填、类型校验，可用 `validate: [baseValidate, yourValidate]`。 |
 | `default`     | 默认取值，可以是具体的一个值、多个值，也可以是函数，参数同 `validate`。 |
 | `defaultOn`   | 默认时机，可选 post 新增时、patch 更新时，以及 over-post、over-patch、over-always 覆盖。 |
@@ -39,7 +40,8 @@
 
 ### 校验函数 config 选项：
 
-|---|---|
+| 选项 | 说明 |
+|------|------|
 | `patchMode: true\|false` | 是否局部更新模式，为 true 忽略不存在的值和 undefined。 |
 | `pickyMode: true\|false` | 是否错误敏感模式，为 true 遇首个错误立即中止全部校验。 |
 | `ignoreErrors: true\|false` | 忽略错误，仅限 validateData、validateFind、validateSqls，用 validate 无效。比如查询，希望命中了哪些参数就用哪些参数查。 |
