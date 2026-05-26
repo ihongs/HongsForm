@@ -1,3 +1,23 @@
+// 访客标识
+const GUEST_TOKEN_KEY = 'hongs_form_guest_token'
+
+// 生成随机访客标识
+function generateGuestToken() {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 获取或生成访客标识
+export function getGuestToken() {
+  let token = localStorage.getItem(GUEST_TOKEN_KEY)
+  if (!token) {
+    token = generateGuestToken()
+    localStorage.setItem(GUEST_TOKEN_KEY, token)
+  }
+  return token
+}
+
 // JSON-RPC 2.0 客户端
 class RpcClient {
   constructor(baseUrl = '/api/rpc/form') {
@@ -41,13 +61,42 @@ export const formApi = {
     return rpc.call('form.schema', { id })
   },
 
+  // 检查访客是否已提交过此表单
+  checkSubmitted(formId) {
+    return rpc.call('formData.checkSubmitted', {
+      formId,
+      userToken: getGuestToken()
+    })
+  },
+
+  // 发送手机验证码
+  sendSmsCode(formId, phone, verifyToken) {
+    return rpc.call('form.verify.sendSmsCode', {
+      formId,
+      phone,
+      verifyToken
+    })
+  },
+
+  // 发送邮箱验证码
+  sendEmailCode(formId, email, verifyToken) {
+    return rpc.call('form.verify.sendEmailCode', {
+      formId,
+      email,
+      verifyToken
+    })
+  },
+
   // 提交表单数据
-  submitData(formId, data, userId = null) {
+  submitData(formId, data, userId = null, phoneCode = null, emailCode = null) {
     return rpc.call('formData.create', {
       formId,
       userId,
       data,
-      channel: 'web'
+      channel: 'web',
+      userToken: getGuestToken(),
+      phoneCode,
+      emailCode
     })
   }
 }

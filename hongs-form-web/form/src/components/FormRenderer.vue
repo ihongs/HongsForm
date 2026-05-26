@@ -12,13 +12,44 @@
             <span v-if="isRequired(key, field)" class="text-danger ms-1">*</span>
           </label>
 
+          <div v-if="(key === 'phone' && oncePerPhone) || (key === 'email' && oncePerEmail)" class="input-group">
+            <component
+              :is="getFieldComponent(field)"
+              v-model="formData[key]"
+              :field="field"
+              :name="key"
+              :error="errors[key]"
+            />
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              :disabled="captchaSending || !formData[key] || (countdown[key] && countdown[key] > 0)"
+              @click="handleSendCaptcha(key)"
+            >
+              <span v-if="captchaSending" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              {{ captchaSending ? '发送中...' : (countdown[key] && countdown[key] > 0 ? `${countdown[key]}秒后重发` : '获取验证码') }}
+            </button>
+          </div>
           <component
+            v-else
             :is="getFieldComponent(field)"
             v-model="formData[key]"
             :field="field"
             :name="key"
             :error="errors[key]"
           />
+
+          <!-- 验证码输入框 -->
+          <div v-if="(key === 'phone' && oncePerPhone) || (key === 'email' && oncePerEmail)" class="mt-2">
+            <input
+              type="text"
+              :class="['form-control', { 'is-invalid': errors[`${key}Code`] }]"
+              :placeholder="`请输入${key === 'phone' ? '手机' : '邮箱'}验证码`"
+              v-model="captchaCodes[key]"
+              autocomplete="off"
+            />
+            <div v-if="errors[`${key}Code`]" class="invalid-feedback d-block">{{ errors[`${key}Code`] }}</div>
+          </div>
 
           <div v-if="field.description" class="form-text">{{ field.description }}</div>
           <div v-if="errors[key]" class="invalid-feedback d-block">{{ errors[key] }}</div>
@@ -34,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
 import FormInput from './fields/FormInput.vue'
 import FormTextarea from './fields/FormTextarea.vue'
@@ -46,14 +77,30 @@ const props = defineProps({
   schema: {
     type: Object,
     required: true
+  },
+  oncePerPhone: {
+    type: Boolean,
+    default: false
+  },
+  oncePerEmail: {
+    type: Boolean,
+    default: false
+  },
+  formId: {
+    type: String,
+    default: ''
   }
 })
 
-const emit = defineEmits(['submit'])
+const emit = defineEmits(['submit', 'sendSmsCode', 'sendEmailCode'])
 
 const formData = reactive({})
+const captchaCodes = reactive({})
 const errors = reactive({})
 const submitting = ref(false)
+const captchaSending = ref(false)
+const countdown = reactive({ phone: 0, email: 0 })
+const timers = reactive({ phone: null, email: null })
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
 function isRequired(key, field) {
@@ -104,12 +151,60 @@ function setErrors(errorMap) {
   Object.assign(errors, errorMap)
 }
 
+function startCountdown(fieldKey) {
+  if (timers[fieldKey]) {
+    clearInterval(timers[fieldKey])
+  }
+  
+  countdown[fieldKey] = 60
+  timers[fieldKey] = setInterval(() => {
+    countdown[fieldKey]--
+    if (countdown[fieldKey] <= 0) {
+      clearInterval(timers[fieldKey])
+      timers[fieldKey] = null
+    }
+  }, 1000)
+}
+
+async function handleSendCaptcha(fieldKey) {
+  captchaSending.value = true
+  try {
+    const value = formData[fieldKey]
+    const verifyToken = await window.verifySlideCaptcha()
+    
+    if (fieldKey === 'phone') {
+      await emit('sendSmsCode', props.formId, value, verifyToken)
+    } else if (fieldKey === 'email') {
+      await emit('sendEmailCode', props.formId, value, verifyToken)
+    }
+    
+    // 发送成功后开始倒计时
+    startCountdown(fieldKey)
+  } catch (err) {
+    errors[`${fieldKey}Code`] = err.message || '发送验证码失败'
+  } finally {
+    captchaSending.value = false
+  }
+}
+
+onUnmounted(() => {
+  // 组件卸载时清理所有定时器
+  if (timers.phone) clearInterval(timers.phone)
+  if (timers.email) clearInterval(timers.email)
+})
+
 async function handleSubmit() {
   clearErrors()
   submitting.value = true
 
   try {
-    await emit('submit', { ...formData })
+    // 日期组件已直接返回时间戳，无需额外转换
+    const submitData = {
+      ...formData,
+      phoneCode: captchaCodes.phone || null,
+      emailCode: captchaCodes.email || null
+    }
+    await emit('submit', submitData)
   } finally {
     submitting.value = false
   }
@@ -117,7 +212,9 @@ async function handleSubmit() {
 
 defineExpose({
   setErrors,
-  clearErrors
+  clearErrors,
+  formData,
+  captchaCodes
 })
 
 initDefaults()

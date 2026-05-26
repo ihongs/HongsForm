@@ -10,6 +10,24 @@
     />
     <label class="form-check-label" :for="name">{{ modelValue ? '是' : '否' }}</label>
   </div>
+  <DateTimePicker
+    v-else-if="field.inputType === 'datetime'"
+    :model-value="modelValue"
+    :class="{ 'is-invalid': error }"
+    @update:modelValue="$emit('update:modelValue', $event)"
+  />
+  <DatePicker
+    v-else-if="field.inputType === 'date'"
+    :model-value="modelValue"
+    :class="{ 'is-invalid': error }"
+    @update:modelValue="$emit('update:modelValue', $event)"
+  />
+  <TimePicker
+    v-else-if="field.inputType === 'time'"
+    :model-value="modelValue"
+    :class="{ 'is-invalid': error }"
+    @update:modelValue="$emit('update:modelValue', $event)"
+  />
   <input
     v-else
     :type="getInputType()"
@@ -25,8 +43,13 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import DateTimePicker from './DateTimePicker.vue'
+import DatePicker from './DatePicker.vue'
+import TimePicker from './TimePicker.vue'
+
 const props = defineProps({
-  modelValue: [String, Number, Boolean],
+  modelValue: [String, Number, Boolean, Date],
   field: Object,
   name: String,
   error: [String, Object]
@@ -62,12 +85,6 @@ function getInputType() {
       return 'tel'
     case 'range':
       return 'range'
-    case 'datetime':
-      return 'datetime-local'
-    case 'date':
-      return 'date'
-    case 'time':
-      return 'time'
     case 'file':
       return 'file'
     default:

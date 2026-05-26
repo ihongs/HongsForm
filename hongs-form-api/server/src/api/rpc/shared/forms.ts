@@ -29,6 +29,9 @@ export function publicFormSchema(form: any): Record<string, unknown> {
     color: form.color,
     schema: form.schema,
     config: {
+      oncePerPhone: form.config?.oncePerPhone,
+      oncePerEmail: form.config?.oncePerEmail,
+      oncePerGuest: form.config?.oncePerGuest,
       startAt: form.config?.startAt,
       endAt: form.config?.endAt
     },
@@ -65,6 +68,7 @@ const formEntitySchema = {
       properties: {
         oncePerPhone: { type: 'boolean' },
         oncePerEmail: { type: 'boolean' },
+        oncePerGuest: { type: 'boolean' },
         showAfterSubmit: { type: 'boolean' },
         maxSubmissions: { type: 'number' },
         startAt: { type: 'date' },

@@ -156,8 +156,9 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `description` | String | 否 | null | 表单描述 | - |
 | `schema` | Object | 是 | - | 表单 Schema（JSON Schema） | - |
 | `config` | Object | 否 | `{}` | 表单配置 | - |
-| `config.oncePerPhone | Boolean | 否 | `false` | 每个手机限填一次 | - |
-| `config.oncePerEmail | Boolean | 否 | `false` | 每个邮箱限填一次 | - |
+| `config.oncePerPhone` | Boolean | 否 | `false` | 每个手机限填一次 | - |
+| `config.oncePerEmail` | Boolean | 否 | `false` | 每个邮箱限填一次 | - |
+| `config.oncePerGuest` | Boolean | 否 | `false` | 每个访客限填一次，通过 cookie/localStorage 等标识访客 | - |
 | `config.showAfterSubmit` | Boolean | 否 | `false` | 提交后显示结果，仅对投票表单有效 | - |
 | `config.maxSubmissions` | Number | 否 | null | 最大提交数限制 | - |
 | `config.startAt` | Date | 否 | null | 提交开始时间 | - |
@@ -298,8 +299,11 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 | `userId` | ObjectId | 否 | null | 提交者用户 ID（匿名提交为 null） | 普通索引 |
 | `data` | Object | 是 | - | 提交的表单数据 | - |
 | `dataHash` | String | 是 | - | 数据内容哈希，用于去重校验 | 唯一索引 |
+| `phone` | String | 否 | null | 提交者手机 | - |
+| `email` | String | 否 | null | 提交者邮箱 | - |
 | `userIp` | String | 否 | null | 提交者 IP 地址 | - |
 | `userAgent` | String | 否 | null | 提交者 UserAgent | - |
+| `userToken` | String | 否 | null | 提交者的 cookie/localStorage 等访客标识 | - |
 | `channel` | String | 否 | `web` | 提交渠道：`web`/`ai`/`import` | - |
 | `status` | Number | 是 | `1` | 状态：`1` 正常，`0` 作废 | 普通索引 |
 | `createdAt` | Date | 是 | `new Date()` | 提交时间 | - |
@@ -314,6 +318,9 @@ db.formData.createIndex({ formId: 1 });
 
 // 表单 + 用户索引（用于每用户限填一次校验）
 db.formData.createIndex({ formId: 1, userId: 1 }, { sparse: true });
+
+// 表单 + 访客Token索引（用于每访客限填一次校验）
+db.formData.createIndex({ formId: 1, userToken: 1 }, { sparse: true });
 
 // 数据哈希唯一索引（防重复提交）
 db.formData.createIndex({ dataHash: 1 }, { unique: true });

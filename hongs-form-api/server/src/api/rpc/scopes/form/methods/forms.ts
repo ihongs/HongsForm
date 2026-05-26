@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { registerFormMethod } from '../registry.js';
 import { publicFormSchema } from '../../../shared/forms.js';
+import { md5, verifySlideToken, checkSendRate, saveCode, generateCode } from '../../../../../utils/verify.js';
 
 registerFormMethod('form.schema', async (params, ctx) => {
   const { id } = params as any;
@@ -14,4 +15,106 @@ registerFormMethod('form.schema', async (params, ctx) => {
 
   if (!form) throw new Error('Form not found');
   return publicFormSchema(form);
+});
+
+// 发送表单手机验证码
+registerFormMethod('form.verify.sendSmsCode', async (params, ctx) => {
+  const { formId, phone, verifyToken } = params as any;
+
+  if (!formId || !phone || !verifyToken) {
+    throw new Error('参数不完整');
+  }
+
+  // 验证滑块验证码令牌
+  await verifySlideToken(verifyToken);
+
+  // 查找表单
+  const form = await ctx.db.collection('form').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null,
+    status: 2
+  });
+
+  if (!form) throw new Error('表单不存在');
+
+  // 检查表单是否开启了手机号限填
+  if (!form.config?.oncePerPhone) {
+    throw new Error('表单未开启手机号验证');
+  }
+
+  // 检查该手机号是否已提交过此表单
+  const phoneMd5Val = md5(phone);
+  const existingRecord = await ctx.db.collection('formData').findOne({
+    formId: new ObjectId(formId),
+    data: { phone },
+    deletedAt: null
+  });
+
+  if (existingRecord) {
+    throw new Error('该手机号已填写过此表单');
+  }
+
+  // 发送频率限制
+  await checkSendRate(phoneMd5Val, 'sms');
+
+  const code = generateCode();
+  await saveCode(phoneMd5Val, code, 'sms');
+
+  console.log(`[Form SMS] 表单 ${formId} 向 ${phone} 发送验证码: ${code}`);
+
+  return {
+    success: true,
+    message: '验证码发送成功'
+  };
+});
+
+// 发送表单邮箱验证码
+registerFormMethod('form.verify.sendEmailCode', async (params, ctx) => {
+  const { formId, email, verifyToken } = params as any;
+
+  if (!formId || !email || !verifyToken) {
+    throw new Error('参数不完整');
+  }
+
+  // 验证滑块验证码令牌
+  await verifySlideToken(verifyToken);
+
+  // 查找表单
+  const form = await ctx.db.collection('form').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null,
+    status: 2
+  });
+
+  if (!form) throw new Error('表单不存在');
+
+  // 检查表单是否开启了邮箱限填
+  if (!form.config?.oncePerEmail) {
+    throw new Error('表单未开启邮箱验证');
+  }
+
+  // 检查该邮箱是否已提交过此表单
+  const emailMd5Val = md5(email);
+  const existingRecord = await ctx.db.collection('formData').findOne({
+    formId: new ObjectId(formId),
+    data: { email },
+    deletedAt: null
+  });
+
+  if (existingRecord) {
+    throw new Error('该邮箱已填写过此表单');
+  }
+
+  // 发送频率限制
+  await checkSendRate(emailMd5Val, 'email');
+
+  const code = generateCode();
+  await saveCode(emailMd5Val, code, 'email');
+
+  console.log(`[Form Email] 表单 ${formId} 向 ${email} 发送验证码: ${code}`);
+
+  return {
+    success: true,
+    message: '验证码发送成功'
+  };
 });

@@ -19,7 +19,7 @@
             <div class="d-grid gap-2">
               <button v-for="fieldType in fieldTypes" :key="fieldType.type" class="btn btn-outline-primary text-start d-flex align-items-center gap-2" type="button" @click="addField(fieldType.type)">
                 <i :class="['bi', fieldType.icon]" aria-hidden="true"></i>
-                <span>{{ fieldType.type }}</span>
+                <span>{{ fieldType.label }}</span>
               </button>
             </div>
           </div>
@@ -42,6 +42,38 @@
               <div class="col-12">
                 <label class="form-label">描述</label>
                 <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="表单说明"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="d-flex flex-wrap items-center gap-3">
+                  <div class="form-check form-switch">
+                    <input v-model="form.oncePerGuest" type="checkbox" class="form-check-input" id="oncePerGuestSwitch" />
+                    <label class="form-check-label" for="oncePerGuestSwitch">每个访客限填一次</label>
+                  </div>
+                  <span class="text-secondary text-sm">通过浏览器内访客标识进行限制</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex flex-wrap items-center gap-3">
+                  <div class="form-check form-switch">
+                    <input v-model="form.oncePerPhone" type="checkbox" class="form-check-input" id="oncePerPhoneSwitch" />
+                    <label class="form-check-label" for="oncePerPhoneSwitch">手机号限填一次</label>
+                  </div>
+                </div>
+                <p class="text-secondary text-sm mt-1">需有名为 phone、类型为 phone 的字段</p>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex flex-wrap items-center gap-3">
+                  <div class="form-check form-switch">
+                    <input v-model="form.oncePerEmail" type="checkbox" class="form-check-input" id="oncePerEmailSwitch" />
+                    <label class="form-check-label" for="oncePerEmailSwitch">邮箱限填一次</label>
+                  </div>
+                </div>
+                <p class="text-secondary text-sm mt-1">需有名为 email、类型为 email 的字段</p>
+              </div>
+              <div v-if="form.oncePerPhone && form.oncePerEmail" class="col-12">
+                <div class="alert alert-warning" role="alert">
+                  <small>手机号和邮箱限填一次不能同时开启</small>
+                </div>
               </div>
             </div>
 
@@ -130,21 +162,21 @@ import { useRoute, useRouter } from 'vue-router'
 import { agentApi } from '../api'
 
 const fieldTypes = [
-  { type: 'text', icon: 'bi-input-cursor-text' },
-  { type: 'email', icon: 'bi-envelope' },
-  { type: 'phone', icon: 'bi-phone' },
-  { type: 'textarea', icon: 'bi-textarea-t' },
-  { type: 'select', icon: 'bi-menu-button-wide' },
-  { type: 'check', icon: 'bi-check2-square' },
-  { type: 'radio', icon: 'bi-record-circle' },
-  { type: 'range', icon: 'bi-sliders' },
-  { type: 'switch', icon: 'bi-toggle-on' },
-  { type: 'datetime', icon: 'bi-calendar2-week' },
-  { type: 'date', icon: 'bi-calendar-date' },
-  { type: 'time', icon: 'bi-clock' },
-  { type: 'file', icon: 'bi-paperclip' },
-  { type: 'legend', icon: 'bi-type-h2' },
-  { type: 'figure', icon: 'bi-markdown' }
+  { type: 'text', label: '单行文本', icon: 'bi-input-cursor-text' },
+  { type: 'email', label: '邮箱', icon: 'bi-envelope' },
+  { type: 'phone', label: '手机号', icon: 'bi-phone' },
+  { type: 'textarea', label: '多行文本', icon: 'bi-textarea-t' },
+  { type: 'select', label: '下拉选择', icon: 'bi-menu-button-wide' },
+  { type: 'check', label: '多选', icon: 'bi-check2-square' },
+  { type: 'radio', label: '单选', icon: 'bi-record-circle' },
+  { type: 'range', label: '范围滑块', icon: 'bi-sliders' },
+  { type: 'switch', label: '开关', icon: 'bi-toggle-on' },
+  { type: 'datetime', label: '日期时间', icon: 'bi-calendar2-week' },
+  { type: 'date', label: '日期', icon: 'bi-calendar-date' },
+  { type: 'time', label: '时间', icon: 'bi-clock' },
+  { type: 'file', label: '文件上传', icon: 'bi-paperclip' },
+  { type: 'legend', label: '分隔标题', icon: 'bi-type-h2' },
+  { type: 'figure', label: '内容说明', icon: 'bi-markdown' }
 ]
 const route = useRoute()
 const router = useRouter()
@@ -157,7 +189,10 @@ const fields = ref([])
 const form = reactive({
   name: '',
   title: '',
-  description: ''
+  description: '',
+  oncePerGuest: false,
+  oncePerPhone: false,
+  oncePerEmail: false
 })
 
 function addField(inputType) {
@@ -294,14 +329,14 @@ function fieldToSchema(field) {
   } else if (field.inputType === 'switch') {
     schema.type = 'boolean'
   } else if (field.inputType === 'datetime') {
-    schema.type = 'string'
-    schema.format = 'date-time'
+    schema.type = 'number'
+    schema.inputType = 'datetime'
   } else if (field.inputType === 'date') {
-    schema.type = 'string'
-    schema.format = 'date'
+    schema.type = 'number'
+    schema.inputType = 'date'
   } else if (field.inputType === 'time') {
-    schema.type = 'string'
-    schema.pattern = '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$'
+    schema.type = 'number'
+    schema.inputType = 'time'
   } else if (field.inputType === 'legend' || field.inputType === 'figure') {
     schema.type = 'null'
   }
@@ -321,6 +356,24 @@ function validateForm() {
   if (!form.title) return '请输入表单标题'
   if (fields.value.length === 0) return '请至少添加一个字段'
   if (!fields.value.some((field) => !isDisplayField(field) && field.required)) return '请至少设置一个必填/必选字段'
+  
+  // 检查手机限填配置
+  if (form.oncePerPhone) {
+    const hasPhoneField = fields.value.some(f => f.name === 'phone' && f.inputType === 'phone')
+    if (!hasPhoneField) return '开启手机号限填一次，需要添加名为 phone、类型为 phone 的字段'
+  }
+  
+  // 检查邮箱限填配置
+  if (form.oncePerEmail) {
+    const hasEmailField = fields.value.some(f => f.name === 'email' && f.inputType === 'email')
+    if (!hasEmailField) return '开启邮箱限填一次，需要添加名为 email、类型为 email 的字段'
+  }
+  
+  // 检查手机和邮箱不能同时开启
+  if (form.oncePerPhone && form.oncePerEmail) {
+    return '手机号和邮箱限填一次不能同时开启'
+  }
+  
   for (const field of fields.value) {
     if (field.inputType !== 'figure' && !field.title) return `请填写 ${field.name} 的字段标题`
     if (usesOptions(field) && parseOptions(field.optionText).values.length === 0) return `请填写 ${field.name} 的选项`
@@ -339,7 +392,12 @@ async function save() {
       title: form.title,
       description: form.description,
       schema: buildSchema(),
-      config: { anonymous: true }
+      config: { 
+        anonymous: true,
+        oncePerGuest: form.oncePerGuest,
+        oncePerPhone: form.oncePerPhone,
+        oncePerEmail: form.oncePerEmail
+      }
     }
     if (isEdit.value) {
       await agentApi.updateForm(route.params.id, payload)
@@ -402,6 +460,9 @@ async function loadForm() {
     form.name = data.name || ''
     form.title = data.title || ''
     form.description = data.description || ''
+    form.oncePerGuest = data.config?.oncePerGuest || false
+    form.oncePerPhone = data.config?.oncePerPhone || false
+    form.oncePerEmail = data.config?.oncePerEmail || false
     loadFieldsFromSchema(data.schema)
   } catch (err) {
     error.value = err.message || '加载失败'
