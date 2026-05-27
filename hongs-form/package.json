@@ -1,6 +1,6 @@
 {
   "name": "hongs-form",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Minimalist form validation library based on JSON Schema patterns",
   "type": "module",
   "main": "dist/index.js",
