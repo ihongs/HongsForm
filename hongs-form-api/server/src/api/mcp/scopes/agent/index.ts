@@ -32,10 +32,10 @@ export async function handleAgentMcp(req: IncomingMessage, res: ServerResponse):
 
       if (error instanceof Error) {
         errorData.message = error.message;
-        if (typeof (error as any).getData === 'function') {
-          errorData.data = (error as any).getData();
-        } else if ((error as any).data) {
-          errorData.data = (error as any).data;
+        if (typeof (error as any).getErrors === 'function') {
+          errorData.data = { errors: (error as any).getErrors() };
+        } else if ((error as any).errors) {
+          errorData.data = { errors: (error as any).errors };
         }
       }
       

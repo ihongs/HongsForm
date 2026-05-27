@@ -15,10 +15,10 @@ function getFormUrl(formId: string): string {
 
 function toMcpError(e:any):any {
   let text:string = e.message;
-  if (typeof e.getData === 'function') {
-    text = JSON.stringify({message: e.message, extra: e.getData()});
-  } else if (e.data) {
-    text = JSON.stringify({message: e.message, extra: e.data });
+  if (typeof e.getErrors === 'function') {
+    text = JSON.stringify({message: e.message, extra: { errors: e.getErrors() }});
+  } else if (e.erros) {
+    text = JSON.stringify({message: e.message, extra: { errors: e.errors } });
   }
   return {
     content: [{ type: 'text', text: text }],

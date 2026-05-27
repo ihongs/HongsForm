@@ -74,10 +74,10 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
 function buildErrorData(err: unknown): unknown {
   let errorData: any;
 
-  if (typeof (err as any).getData === 'function') {
-    errorData = (err as any).getData();
-  } else if ((err as any).data) {
-    errorData = (err as any).data;
+  if (typeof (err as any).getErrors === 'function') {
+    errorData = { errors: (err as any).getErrors() };
+  } else if ((err as any).errors) {
+    errorData = { errors: (err as any).errors };
   }
 
   if (isDev && err instanceof Error && err.stack) {
