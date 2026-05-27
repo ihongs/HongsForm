@@ -42,8 +42,8 @@ export {
 } from './validates.js';
 export {
   isInput,
-  validateForm,
-  formValidate,
+  validateFields,
+  fieldsToSchema,
 } from './validate-form.js';
 export {
   validateFind,

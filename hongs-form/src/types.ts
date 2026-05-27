@@ -2,7 +2,7 @@ import { Tr, tr } from './i18n.js';
 
 // 表单结构
 export interface FormSchema {
-    type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'date' | 'null';
+    type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'date' | 'null' | 'any';
     enum?: unknown[];
     default?: unknown;
     required?: boolean;
