@@ -268,10 +268,11 @@ export async function checkSendRate(md5Value: string, type: 'sms' | 'email'): Pr
 
 /**
  * 保存验证码
+ * 表单填报验证码有效期1小时，其他验证码有效期10分钟
  */
 export async function saveCode(md5Value: string, code: string, type: 'sms' | 'email', formId?: string): Promise<void> {
   const key = formId ? `verify.${type}.code.${formId}.${md5Value}` : `verify.${type}.code.${md5Value}`;
-  await roster.set(key, code, EXPIRE_10M);
+  await roster.set(key, code, formId ? EXPIRE_1H : EXPIRE_10M);
 }
 
 /**

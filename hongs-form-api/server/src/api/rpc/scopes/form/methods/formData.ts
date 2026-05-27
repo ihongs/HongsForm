@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { validate } from 'hongs-form';
+import { validate, VError } from 'hongs-form';
 import { registerFormMethod } from '../registry.js';
 import { generateDataHash } from '../../../shared/formData.js';
 import { md5, verifyCode } from '../../../../../utils/verify.js';
@@ -47,40 +47,6 @@ registerFormMethod('formData.create', async (params, ctx) => {
 
   const validatedData = validate(data, form.schema, {});
 
-  // 验证手机验证码
-  if (form.config?.oncePerPhone) {
-    const phone = validatedData.phone;
-    if (!phone) throw new Error('请填写手机号');
-    
-    // 验证并删除验证码
-    await verifyCode(formId, md5(phone), phoneCode, 'sms');
-    
-    // 检查该手机号是否已提交过
-    const existingPhone = await ctx.db.collection('formData').findOne({
-      formId: new ObjectId(formId),
-      data: { phone },
-      deletedAt: null
-    });
-    if (existingPhone) throw new Error('该手机号已填写过此表单');
-  }
-
-  // 验证邮箱验证码
-  if (form.config?.oncePerEmail) {
-    const email = validatedData.email;
-    if (!email) throw new Error('请填写邮箱');
-    
-    // 验证并删除验证码
-    await verifyCode(formId, md5(email), emailCode, 'email');
-    
-    // 检查该邮箱是否已提交过
-    const existingEmail = await ctx.db.collection('formData').findOne({
-      formId: new ObjectId(formId),
-      data: { email },
-      deletedAt: null
-    });
-    if (existingEmail) throw new Error('该邮箱已填写过此表单');
-  }
-
   if (form.config?.oncePerUser && submitterId) {
     const existing = await ctx.db.collection('formData').findOne({
       formId: new ObjectId(formId),
@@ -97,6 +63,54 @@ registerFormMethod('formData.create', async (params, ctx) => {
       deletedAt: null
     });
     if (existing) throw new Error('You have already submitted this form');
+  }
+
+  // 验证手机验证码
+  if (form.config?.oncePerPhone) {
+    const phone = validatedData.phone;
+    if (!phone) throw new Error('请填写手机号');
+    
+    // 验证并删除验证码
+    try {
+      await verifyCode(formId, md5(phone), phoneCode, 'sms');
+    } catch (er) {
+      if (er instanceof Error) {
+        throw new VError(er.message, {}, {phone: er.message});
+      }
+      throw er;
+    }
+    
+    // 检查该手机号是否已提交过
+    const existingPhone = await ctx.db.collection('formData').findOne({
+      formId: new ObjectId(formId),
+      data: { phone },
+      deletedAt: null
+    });
+    if (existingPhone) throw new VError('该手机号已填写过此表单', {}, {phone: '该手机号已填写过此表单'});
+  }
+
+  // 验证邮箱验证码
+  if (form.config?.oncePerEmail) {
+    const email = validatedData.email;
+    if (!email) throw new Error('请填写邮箱');
+    
+    // 验证并删除验证码
+    try {
+      await verifyCode(formId, md5(email), emailCode, 'email');
+    } catch (er) {
+      if (er instanceof Error) {
+        throw new VError(er.message, {}, {email: er.message});
+      }
+      throw er;
+    }
+    
+    // 检查该邮箱是否已提交过
+    const existingEmail = await ctx.db.collection('formData').findOne({
+      formId: new ObjectId(formId),
+      data: { email },
+      deletedAt: null
+    });
+    if (existingEmail) throw new VError('该邮箱已填写过此表单', {}, {email: '该邮箱已填写过此表单'});
   }
 
   const dataHash = generateDataHash(formId, submitterId?.toString() ?? null, validatedData);
