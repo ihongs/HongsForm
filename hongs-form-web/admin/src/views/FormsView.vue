@@ -43,7 +43,7 @@
                 </div>
               </div>
               <div class="d-flex flex-wrap gap-2 align-items-start">
-                <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/data`">数据</router-link>
+                <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/record`">数据</router-link>
                 <a v-if="form.status === 2" class="btn btn-outline-secondary btn-sm" :href="`/form/${form._id}/`" target="_blank">打开</a>
               </div>
             </div>

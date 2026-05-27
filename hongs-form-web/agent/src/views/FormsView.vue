@@ -33,7 +33,7 @@
               </div>
               <div class="d-flex flex-wrap gap-2 align-items-start">
                 <router-link class="btn btn-outline-primary btn-sm" :to="`/forms/${form._id}/design`">编辑</router-link>
-                <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/data`">数据</router-link>
+                <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/record`">数据</router-link>
                 <a v-if="form.status === 2" class="btn btn-outline-secondary btn-sm" :href="`/form/${form._id}/`" target="_blank">打开</a>
                 <button class="btn btn-outline-success btn-sm" type="button" @click="togglePublish(form)">
                   {{ form.status === 2 ? '取消发布' : '发布' }}
