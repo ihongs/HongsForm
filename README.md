@@ -1,6 +1,6 @@
 # HongsForm
 
-基于 JSON Schema 的 AI 表单构建系统，支持 JSON-RPC 2.0 和 MCP 协议。核心组件为 **[hongs-form](https://github.com/HongsForm/hongs-form)**。
+基于 JSON Schema 的 AI 表单构建系统，支持 JSON-RPC 2.0 和 MCP 协议。核心组件为 **[hongs-form](https://github.com/ihongs/HongsForm/tree/main/hongs-form)**。
 
 ## 项目结构
 
@@ -29,7 +29,7 @@ HongsForm/
 
 ## hongs-form 核心库
 
-[基于 JSON Schema 模式的极简表单验证库。](https://github.com/HongsForm/hongs-form)
+[基于 JSON Schema 模式的极简表单验证库。](https://github.com/ihongs/HongsForm/tree/main/hongs-form)
 
 ## API 服务 (JSON-RPC 2.0)
 
