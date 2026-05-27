@@ -1,7 +1,7 @@
 <template>
   <main class="min-vh-100 d-flex align-items-center py-5">
     <div class="container">
-      <form class="card border-0 shadow-sm mx-auto" style="max-width: 420px;" @submit.prevent="submit">
+      <form class="card shadow-sm mx-auto" style="max-width: 420px;" @submit.prevent="submit">
         <div class="card-body p-4 p-md-5">
           <h1 class="h3 mb-2">登录 / 注册</h1>
           <p class="text-secondary mb-4">登录后管理自己的表单和提交数据</p>

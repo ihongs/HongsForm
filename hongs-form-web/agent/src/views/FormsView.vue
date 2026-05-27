@@ -8,17 +8,17 @@
       <router-link class="btn btn-primary align-self-start" to="/forms/new">新建表单</router-link>
     </div>
 
-    <div v-if="loading" class="card border-0 shadow-sm">
+    <div v-if="loading" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
     <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
-    <div v-else-if="forms.length === 0" class="card border-0 shadow-sm">
+    <div v-else-if="forms.length === 0" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">暂无表单</div>
     </div>
     <template v-else>
       <div class="row g-3">
         <div v-for="form in forms" :key="form._id" class="col-12">
-          <section class="card border-0 shadow-sm">
+          <section class="card shadow-sm">
             <div class="card-body d-flex flex-column flex-lg-row justify-content-between gap-3">
               <div>
                 <h2 class="h5 mb-2">{{ form.title || form.name }}</h2>
@@ -44,7 +44,7 @@
           </section>
         </div>
       </div>
-      <div class="card border-0 shadow-sm mt-3">
+      <div class="card shadow-sm mt-3">
         <div class="card-footer bg-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
           <div class="text-secondary small">共 {{ total }} 个表单，第 {{ page }} / {{ totalPages }} 页</div>
           <div class="d-flex align-items-center gap-2">

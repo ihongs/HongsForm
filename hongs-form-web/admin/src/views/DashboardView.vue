@@ -11,14 +11,14 @@
       </div>
     </div>
 
-    <div v-if="loading" class="card border-0 shadow-sm">
+    <div v-if="loading" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
     <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
     <template v-else>
       <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm h-100">
+          <div class="card shadow-sm h-100">
             <div class="card-body">
               <div class="text-secondary small mb-2">表单总数</div>
               <div class="display-6 fw-semibold">{{ formTotal }}</div>
@@ -26,7 +26,7 @@
           </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm h-100">
+          <div class="card shadow-sm h-100">
             <div class="card-body">
               <div class="text-secondary small mb-2">已发布表单</div>
               <div class="display-6 fw-semibold text-success">{{ publishedTotal }}</div>
@@ -34,7 +34,7 @@
           </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm h-100">
+          <div class="card shadow-sm h-100">
             <div class="card-body">
               <div class="text-secondary small mb-2">用户总数</div>
               <div class="display-6 fw-semibold text-primary">{{ userTotal }}</div>
@@ -42,7 +42,7 @@
           </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm h-100">
+          <div class="card shadow-sm h-100">
             <div class="card-body">
               <div class="text-secondary small mb-2">已加载表单提交量</div>
               <div class="display-6 fw-semibold text-info">{{ loadedSubmissionTotal }}</div>
@@ -53,7 +53,7 @@
 
       <div class="row g-3 mb-4">
         <div class="col-12 col-xl-4">
-          <section class="card border-0 shadow-sm h-100">
+          <section class="card shadow-sm h-100">
             <div class="card-body">
               <h2 class="h5 mb-3">表单状态</h2>
               <div v-for="item in formStatusItems" :key="item.label" class="mb-3">
@@ -69,7 +69,7 @@
           </section>
         </div>
         <div class="col-12 col-xl-4">
-          <section class="card border-0 shadow-sm h-100">
+          <section class="card shadow-sm h-100">
             <div class="card-body">
               <h2 class="h5 mb-3">提交量排行</h2>
               <div v-if="topForms.length === 0" class="text-secondary text-center py-4">暂无提交数据</div>
@@ -88,7 +88,7 @@
           </section>
         </div>
         <div class="col-12 col-xl-4">
-          <section class="card border-0 shadow-sm h-100">
+          <section class="card shadow-sm h-100">
             <div class="card-body">
               <h2 class="h5 mb-3">已加载用户状态</h2>
               <div class="d-flex justify-content-between small mb-1">
@@ -112,7 +112,7 @@
 
       <div class="row g-3">
         <div class="col-12 col-xl-7">
-          <section class="card border-0 shadow-sm h-100">
+          <section class="card shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="h5 mb-0">最近表单</h2>
@@ -140,7 +140,7 @@
           </section>
         </div>
         <div class="col-12 col-xl-5">
-          <section class="card border-0 shadow-sm h-100">
+          <section class="card shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="h5 mb-0">最近用户</h2>

@@ -8,12 +8,12 @@
       <router-link class="btn btn-outline-secondary align-self-start" to="/forms">返回列表</router-link>
     </div>
 
-    <div v-if="loading" class="card border-0 shadow-sm">
+    <div v-if="loading" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
     <div v-else class="row g-4 align-items-start">
       <aside class="col-12 col-lg-3 designer-sidebar">
-        <div class="card border-0 shadow-sm">
+        <div class="card shadow-sm">
           <div class="card-body">
             <h2 class="h5 mb-3">添加字段</h2>
             <div class="d-grid gap-2">
@@ -27,7 +27,7 @@
       </aside>
 
       <section class="col-12 col-lg-9">
-        <div class="card border-0 shadow-sm">
+        <div class="card shadow-sm">
           <div class="card-body p-4">
             <h2 class="h5 mb-3">表单配置</h2>
             <div class="row g-3 mb-4">

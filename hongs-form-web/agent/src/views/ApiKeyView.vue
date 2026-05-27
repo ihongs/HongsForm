@@ -22,13 +22,13 @@
       <button type="button" class="btn-close position-absolute top-0 end-0" aria-label="关闭" @click="newKey = null"></button>
     </div>
 
-    <div v-if="loading && keys.length === 0" class="card border-0 shadow-sm">
+    <div v-if="loading && keys.length === 0" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
-    <div v-else-if="keys.length === 0" class="card border-0 shadow-sm">
+    <div v-else-if="keys.length === 0" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">暂无 API Key</div>
     </div>
-    <div v-else class="card border-0 shadow-sm">
+    <div v-else class="card shadow-sm">
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead>

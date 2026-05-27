@@ -19,14 +19,14 @@
       </div>
     </div>
 
-    <div v-if="loading" class="card border-0 shadow-sm">
+    <div v-if="loading" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
     <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
-    <div v-else-if="users.length === 0" class="card border-0 shadow-sm">
+    <div v-else-if="users.length === 0" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">暂无用户</div>
     </div>
-    <div v-else class="card border-0 shadow-sm">
+    <div v-else class="card shadow-sm">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">

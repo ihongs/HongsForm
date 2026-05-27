@@ -51,14 +51,14 @@
       </div>
     </div>
 
-    <div v-if="loading" class="card border-0 shadow-sm">
+    <div v-if="loading" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">加载中...</div>
     </div>
     <div v-else-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
-    <div v-else-if="items.length === 0" class="card border-0 shadow-sm">
+    <div v-else-if="items.length === 0" class="card shadow-sm">
       <div class="card-body text-center text-secondary py-5">暂无数据</div>
     </div>
-    <div v-else class="card border-0 shadow-sm">
+    <div v-else class="card shadow-sm">
       <div class="card-body">
         <div ref="tableEl" class="submission-table"></div>
       </div>
