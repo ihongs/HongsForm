@@ -73,6 +73,44 @@ import FormSelect from './fields/FormSelect.vue'
 import FormRadio from './fields/FormRadio.vue'
 import FormCheckbox from './fields/FormCheckbox.vue'
 
+const chineseMessages = {
+  required: '此字段为必填项',
+  requires: '必填项: {value}',
+  array: '必须是数组',
+  object: '必须是对象',
+  number: '必须是数字',
+  integer: '必须是整数',
+  boolean: '必须是布尔值',
+  pattern: '格式无效',
+  format: '未知格式: {value}',
+  date: '日期格式无效',
+  enum: '必须是允许的值之一',
+  items: '部分项无效',
+  properties: '部分属性无效',
+  minimum: '最小值为 {value}',
+  maximum: '最大值为 {value}',
+  exclusiveMinimum: '必须大于 {value}',
+  exclusiveMaximum: '必须小于 {value}',
+  minLength: '最小长度为 {value}',
+  maxLength: '最大长度为 {value}',
+  minItems: '至少需要 {value} 项',
+  maxItems: '最多 {value} 项',
+  uniqueItems: '存在重复项',
+  additionalItems: '不允许额外项',
+  minProperties: '至少需要 {value} 个属性',
+  maxProperties: '最多 {value} 个属性',
+  additionalProperties: '不允许额外属性',
+  invalid: '无效'
+};
+
+function translateError(keyword, params) {
+  const template = chineseMessages[keyword] || keyword;
+  return template.replace(/\{(\w+)\}/g, (_, k) => {
+    const value = params?.[k];
+    return value !== undefined ? String(value) : '';
+  });
+}
+
 const props = defineProps({
   schema: {
     type: Object,
@@ -153,8 +191,9 @@ function setErrors(errorData) {
   if (Array.isArray(errorData)) {
     for (const error of errorData) {
       const fieldName = error.instanceName || error.instancePath?.replace(/^\//, '').replace(/\//g, '.')
-      if (fieldName && error.message) {
-        errors[fieldName] = error.message
+      if (fieldName) {
+        const translatedMessage = error.keyword ? translateError(error.keyword, error.params) : (error.message || '未知错误')
+        errors[fieldName] = translatedMessage
       }
     }
   } else {
