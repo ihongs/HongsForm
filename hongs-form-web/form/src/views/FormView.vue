@@ -34,7 +34,7 @@
 
         <FormRenderer
           ref="formRef"
-          :schema="form.schema"
+          :fields="form.fields"
           :oncePerPhone="form.config?.oncePerPhone"
           :oncePerEmail="form.config?.oncePerEmail"
           :formId="route.params.id"

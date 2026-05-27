@@ -27,7 +27,7 @@ export function publicFormSchema(form: any): Record<string, unknown> {
     description: form.description,
     icon: form.icon,
     color: form.color,
-    schema: form.schema,
+    fields: form.fields,
     config: {
       oncePerPhone: form.config?.oncePerPhone,
       oncePerEmail: form.config?.oncePerEmail,

@@ -92,13 +92,13 @@ const filterFields = computed(() => [
     kind: 'choice',
     options: filterOptions('channel', {})
   },
-  ...Object.entries(formSchema.value.properties || {})
-    .filter(([, field]) => field.type !== 'null')
-    .map(([key, field]) => ({
-      key,
-      title: field.title || key,
+  ...(formSchema.value.fields || [])
+    .filter((field) => field.type !== 'null')
+    .map((field) => ({
+      key: field.name,
+      title: field.title || field.name,
       kind: filterKind(field),
-      options: filterOptions(key, field)
+      options: filterOptions(field.name, field)
     }))
     .filter((filter) => filter.kind !== 'none')
 ])
@@ -158,22 +158,21 @@ function initFilters() {
 }
 
 function buildRows() {
+  const fieldNames = (formFields.value || []).map((field) => field.name)
   return items.value.map((item) => ({
     id: item._id,
     createdAt: formatTime(item.createdAt),
     channel: item.channel || '-',
-    ...Object.fromEntries(
-      Object.keys(formSchema.value.properties || {}).map((key) => [key, item.data?.[key]])
-    )
+    ...Object.fromEntries(fieldNames.map((key) => [key, item.data?.[key]]))
   }))
 }
 
 function buildColumns() {
-  const fieldColumns = Object.entries(formSchema.value.properties || {})
-    .filter(([, field]) => field.type !== 'null')
-    .map(([key, field]) => ({
-      title: field.title || key,
-      field: key,
+  const fieldColumns = (formFields.value || [])
+    .filter((field) => field.type !== 'null')
+    .map((field) => ({
+      title: field.title || field.name,
+      field: field.name,
       minWidth: 140,
       formatter: (cell) => {
         const span = document.createElement('span')
@@ -289,7 +288,7 @@ async function load() {
       adminApi.getFormRecordStats(route.params.id)
     ])
     formTitle.value = form.title || form.name
-    formSchema.value = form.schema || {}
+    formFields.value = form.fields || []
     items.value = dataResult.items || []
     stats.value = statsResult
     loading.value = false

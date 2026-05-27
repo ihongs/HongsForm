@@ -99,7 +99,7 @@ const pageItems = computed(() => {
 })
 
 function fieldCount(form) {
-  return Object.keys(form.schema?.properties || {}).length
+  return (form.fields || []).length
 }
 
 async function changePageSize() {

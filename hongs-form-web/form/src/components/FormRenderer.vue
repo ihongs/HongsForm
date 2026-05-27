@@ -1,58 +1,58 @@
 <template>
   <form @submit.prevent="handleSubmit" class="card shadow-sm border-0">
     <div class="card-body p-4 p-md-5">
-      <div v-for="(field, key) in schema.properties" :key="key" class="mb-4">
-        <legend v-if="field.inputType === 'legend'" class="form-section-legend">{{ field.title || key }}</legend>
+      <div v-for="field in fields" :key="field.name" class="mb-4">
+        <legend v-if="field.inputType === 'legend'" class="form-section-legend">{{ field.title || field.name }}</legend>
 
         <div v-else-if="field.inputType === 'figure'" v-html="renderMarkdown(field.description || '')"></div>
 
         <template v-else>
           <label class="form-label fw-medium">
-            {{ field.label || field.title || key }}
-            <span v-if="isRequired(key, field)" class="text-danger ms-1">*</span>
+            {{ field.label || field.title || field.name }}
+            <span v-if="isRequired(field)" class="text-danger ms-1">*</span>
           </label>
 
-          <div v-if="(key === 'phone' && oncePerPhone) || (key === 'email' && oncePerEmail)" class="input-group">
+          <div v-if="(field.name === 'phone' && oncePerPhone) || (field.name === 'email' && oncePerEmail)" class="input-group">
             <component
               :is="getFieldComponent(field)"
-              v-model="formData[key]"
+              v-model="formData[field.name]"
               :field="field"
-              :name="key"
-              :error="errors[key]"
+              :name="field.name"
+              :error="errors[field.name]"
             />
             <button
               type="button"
               class="btn btn-outline-secondary"
-              :disabled="captchaSending || !formData[key] || (countdown[key] && countdown[key] > 0)"
-              @click="handleSendCaptcha(key)"
+              :disabled="captchaSending || !formData[field.name] || (countdown[field.name] && countdown[field.name] > 0)"
+              @click="handleSendCaptcha(field.name)"
             >
               <span v-if="captchaSending" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-              {{ captchaSending ? '发送中...' : (countdown[key] && countdown[key] > 0 ? `${countdown[key]}秒后重发` : '获取验证码') }}
+              {{ captchaSending ? '发送中...' : (countdown[field.name] && countdown[field.name] > 0 ? `${countdown[field.name]}秒后重发` : '获取验证码') }}
             </button>
           </div>
           <component
             v-else
             :is="getFieldComponent(field)"
-            v-model="formData[key]"
+            v-model="formData[field.name]"
             :field="field"
-            :name="key"
-            :error="errors[key]"
+            :name="field.name"
+            :error="errors[field.name]"
           />
 
           <!-- 验证码输入框 -->
-          <div v-if="(key === 'phone' && oncePerPhone) || (key === 'email' && oncePerEmail)" class="mt-2">
+          <div v-if="(field.name === 'phone' && oncePerPhone) || (field.name === 'email' && oncePerEmail)" class="mt-2">
             <input
               type="text"
-              :class="['form-control', { 'is-invalid': errors[`${key}Code`] }]"
-              :placeholder="`请输入${key === 'phone' ? '手机' : '邮箱'}验证码`"
-              v-model="captchaCodes[key]"
+              :class="['form-control', { 'is-invalid': errors[`${field.name}Code`] }]"
+              :placeholder="`请输入${field.name === 'phone' ? '手机' : '邮箱'}验证码`"
+              v-model="captchaCodes[field.name]"
               autocomplete="off"
             />
-            <div v-if="errors[`${key}Code`]" class="invalid-feedback d-block">{{ errors[`${key}Code`] }}</div>
+            <div v-if="errors[`${field.name}Code`]" class="invalid-feedback d-block">{{ errors[`${field.name}Code`] }}</div>
           </div>
 
           <div v-if="field.description" class="form-text">{{ field.description }}</div>
-          <div v-if="errors[key]" class="invalid-feedback d-block">{{ errors[key] }}</div>
+          <div v-if="errors[field.name]" class="invalid-feedback d-block">{{ errors[field.name] }}</div>
         </template>
       </div>
 
@@ -112,8 +112,8 @@ function translateError(keyword, params) {
 }
 
 const props = defineProps({
-  schema: {
-    type: Object,
+  fields: {
+    type: Array,
     required: true
   },
   oncePerPhone: {
@@ -141,8 +141,8 @@ const countdown = reactive({ phone: 0, email: 0 })
 const timers = reactive({ phone: null, email: null })
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
-function isRequired(key, field) {
-  return field.required === true || props.schema.required?.includes(key)
+function isRequired(field) {
+  return field.required === true
 }
 
 function renderMarkdown(content) {
@@ -168,13 +168,13 @@ function getFieldComponent(field) {
 }
 
 function initDefaults() {
-  for (const [key, field] of Object.entries(props.schema.properties || {})) {
+  for (const field of (props.fields || [])) {
     if (field.default !== undefined) {
-      formData[key] = field.default
+      formData[field.name] = field.default
     } else if (field.type === 'array') {
-      formData[key] = []
+      formData[field.name] = []
     } else if (field.type === 'boolean') {
-      formData[key] = false
+      formData[field.name] = false
     }
   }
 }

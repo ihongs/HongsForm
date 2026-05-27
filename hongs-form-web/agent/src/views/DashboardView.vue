@@ -152,7 +152,7 @@ function percent(value, max) {
 }
 
 function fieldCount(form) {
-  return Object.keys(form.schema?.properties || {}).length
+  return (form.fields || []).length
 }
 
 function statusText(value) {

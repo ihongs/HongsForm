@@ -342,8 +342,12 @@ function fieldToSchema(field) {
 
 function buildSchema() {
   return {
-    type: 'object',
-    properties: Object.fromEntries(fields.value.map((field) => [field.name, fieldToSchema(field)]))
+    title: form.title,
+    description: form.description,
+    fields: fields.value.map((field) => ({
+      ...fieldToSchema(field),
+      name: field.name
+    }))
   }
 }
 
@@ -386,7 +390,7 @@ async function save() {
       name: form.name,
       title: form.title,
       description: form.description,
-      schema: buildSchema(),
+      fields: buildSchema().fields,
       config: { 
         anonymous: true,
         oncePerGuest: form.oncePerGuest,
@@ -416,19 +420,19 @@ async function saveAndPublish() {
   router.push('/forms')
 }
 
-function loadFieldsFromSchema(schema = {}) {
-  const required = new Set(Array.isArray(schema.required) ? schema.required : [])
-  fields.value = Object.entries(schema.properties || {}).map(([name, fieldSchema]) => ({
-    name,
-    inputType: fieldSchema.inputType || inferInputType(fieldSchema),
-    title: fieldSchema.title || name,
-    label: fieldSchema.label || '',
-    description: fieldSchema.description || '',
-    placeholder: supportsPlaceholder({ inputType: fieldSchema.inputType || inferInputType(fieldSchema) }) ? fieldSchema.placeholder || '' : '',
-    required: fieldSchema.required === true || required.has(name),
-    optionText: optionsToText(fieldSchema),
-    minimum: fieldSchema.minimum,
-    maximum: fieldSchema.maximum
+function loadFieldsFromSchema(formDef = {}) {
+  const formFields = formDef.fields || []
+  fields.value = formFields.map((field) => ({
+    name: field.name,
+    inputType: field.inputType || inferInputType(field),
+    title: field.title || field.name,
+    label: field.label || '',
+    description: field.description || '',
+    placeholder: supportsPlaceholder({ inputType: field.inputType || inferInputType(field) }) ? field.placeholder || '' : '',
+    required: field.required === true,
+    optionText: optionsToText(field),
+    minimum: field.minimum,
+    maximum: field.maximum
   }))
 }
 
@@ -458,7 +462,7 @@ async function loadForm() {
     form.oncePerGuest = data.config?.oncePerGuest || false
     form.oncePerPhone = data.config?.oncePerPhone || false
     form.oncePerEmail = data.config?.oncePerEmail || false
-    loadFieldsFromSchema(data.schema)
+    loadFieldsFromSchema(data)
   } catch (err) {
     error.value = err.message || '加载失败'
   } finally {
