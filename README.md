@@ -88,7 +88,7 @@ MIT
 
 当开发者提到相关短语时，去对应的地方处理。
 
-| 短语 | 组件位置 |
+| 短语 | 位置 |
 | --- | --- |
 | api server | hongs-form-api/server |
 | web admin | hongs-form-web/admin |
