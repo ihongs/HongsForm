@@ -147,8 +147,10 @@ describe('Maria：validateSqls SQL 片段生成', () => {
     const result = validateSqls(params, formSchema, {});
     
     const sql = result.getSql('users');
-    expect(sql).toBe('SELECT name, age, phone FROM users WHERE name = ? AND age > ? ORDER BY age ASC LIMIT 10, 20');
+    expect(sql).toBe('SELECT name, age, phone FROM users WHERE name = ? AND age > ? ORDER BY age ASC');
     expect(result.getParams()).toEqual(['张三', 18]);
+    expect(result.skip).toBe(10);
+    expect(result.limit).toBe(20);
   });
 
   it('validateSqls getSql 带关联表', () => {
@@ -156,7 +158,7 @@ describe('Maria：validateSqls SQL 片段生成', () => {
     const result = validateSqls(params, formSchema, {});
     
     const sql = result.getSql('users');
-    expect(sql).toBe('SELECT name, age, phone FROM users JOIN join_table ON 1=1 WHERE join_table.field = ? ORDER BY join_table.field ASC LIMIT 0, 1');
+    expect(sql).toBe('SELECT name, age, phone FROM users JOIN join_table ON 1=1 WHERE join_table.field = ? ORDER BY join_table.field ASC');
   });
 
   it('validateSqls getSql 自定义 JOIN 配置', () => {
@@ -166,7 +168,7 @@ describe('Maria：validateSqls SQL 片段生成', () => {
     const sql = result.getSql('users', {
       join_table: { on: 'users.id = join_table.user_id' }
     });
-    expect(sql).toBe('SELECT name, age, phone FROM users JOIN join_table AS join_table ON users.id = join_table.user_id WHERE join_table.field = ? LIMIT 0, 1');
+    expect(sql).toBe('SELECT name, age, phone FROM users JOIN join_table AS join_table ON users.id = join_table.user_id WHERE join_table.field = ?');
   });
 
   it('validateSqls getSql 自定义表名', () => {
@@ -176,7 +178,7 @@ describe('Maria：validateSqls SQL 片段生成', () => {
     const sql = result.getSql('users', {
       join_table: { on: 'users.id = profiles.user_id', to: 'profiles' }
     });
-    expect(sql).toBe('SELECT name, age, phone FROM users JOIN profiles AS join_table ON users.id = profiles.user_id WHERE join_table.field = ? LIMIT 0, 1');
+    expect(sql).toBe('SELECT name, age, phone FROM users JOIN profiles AS join_table ON users.id = profiles.user_id WHERE join_table.field = ?');
   });
 
   it('validateSqls pickyMode 立即抛出错误', () => {
