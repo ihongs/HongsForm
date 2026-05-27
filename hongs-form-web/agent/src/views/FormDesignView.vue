@@ -282,8 +282,11 @@ function parseOptions(text) {
     if (!trimmed) continue
     const equalIndex = trimmed.indexOf('=')
     const value = equalIndex >= 0 ? trimmed.slice(0, equalIndex).trim() : trimmed
-    const label = equalIndex >= 0 ? trimmed.slice(equalIndex + 1).trim() : trimmed
-    options[value] = label || value
+    const label = equalIndex >= 0 ? trimmed.slice(equalIndex + 1).trim() : value
+    // 只有 label 不等于 value 时才写入 options
+    if (label !== value) {
+      options[value] = label
+    }
     values.push(value)
   }
   return { options, values }
@@ -311,12 +314,16 @@ function fieldToSchema(field) {
     const { options, values } = parseOptions(field.optionText)
     schema.type = 'string'
     schema.enum = values
-    schema.options = options
+    if (Object.keys(options).length > 0) {
+      schema.options = options
+    }
   } else if (field.inputType === 'check') {
     const { options, values } = parseOptions(field.optionText)
     schema.type = 'array'
     schema.items = { type: 'string', enum: values }
-    schema.options = options
+    if (Object.keys(options).length > 0) {
+      schema.options = options
+    }
     if (field.required) schema.minItems = 1
   } else if (field.inputType === 'range') {
     schema.type = 'number'
@@ -447,8 +454,12 @@ function inferInputType(schema) {
 }
 
 function optionsToText(schema) {
-  if (!schema.options) return ''
-  return Object.entries(schema.options).map(([value, label]) => `${value}=${label}`).join('\n')
+  const values = schema.items?.enum || schema.enum || []
+  if (values.length === 0) return ''
+  return values.map(value => {
+    const label = schema.options?.[value] ?? value
+    return value === label ? value : `${value}=${label}`
+  }).join('\n')
 }
 
 async function loadForm() {

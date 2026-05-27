@@ -25,11 +25,11 @@ defineEmits(['update:modelValue'])
 
 const options = computed(() => {
   const field = props.field
-  if (field.options) {
-    return Object.entries(field.options).map(([value, label]) => ({ value, label }))
-  }
   if (field.enum) {
-    return field.enum.map(value => ({ value, label: value }))
+    return field.enum.map(value => ({
+      value,
+      label: field.options?.[value] ?? value
+    }))
   }
   return []
 })
