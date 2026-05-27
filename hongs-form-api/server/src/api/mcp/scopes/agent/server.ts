@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Db, ObjectId } from 'mongodb';
 import { McpAuthContext } from './auth.js';
 import { z } from 'zod';
-import { formValidate } from 'hongs-form';
+import { validateForm } from 'hongs-form';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -168,7 +168,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
 
       let validatedSchema;
       try {
-        validatedSchema = formValidate(schemaData);
+        validatedSchema = validateForm(schemaData);
       } catch (e: any) {
         return toMcpError(e);
       }
@@ -236,7 +236,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
 
       let validatedSchema;
       try {
-        validatedSchema = formValidate(schemaData);
+        validatedSchema = validateForm(schemaData);
       } catch (e: any) {
         return toMcpError(e);
       }

@@ -34,8 +34,8 @@ export interface FormSchema {
 
     // 增加、差异
     validate?: Validate | Validate[]; // 校验方法
-    initial?: unknown; // 预设取值、预设方法
-    initialOn?: 'post' | 'patch' | 'always'; // 预设时机，默认 always
+    defined?: unknown; // 预设取值、预设方法
+    definedOn?: 'post' | 'patch' | 'always'; // 预设时机，默认 always
     inputType?: string; // 控件类型
     title?: string; // 字段标题
     description?: string; // 字段介绍

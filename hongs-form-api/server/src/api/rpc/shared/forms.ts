@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { RpcContext } from '../core/types.js';
-import { validate, baseValidate, formValidate } from 'hongs-form';
+import { validate, baseValidate, validateForm } from 'hongs-form';
 
 export function requireUserId(ctx: RpcContext): ObjectId {
   if (!ctx.userId) throw new Error('Unauthorized');
@@ -61,7 +61,7 @@ const formEntitySchema = {
       required: true,
       properties: {},
       additionalProperties: true,
-      validate: [baseValidate, formValidate]
+      validate: [baseValidate, validateForm]
     },
     config: {
       type: 'object',
