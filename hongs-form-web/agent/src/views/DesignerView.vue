@@ -59,7 +59,7 @@
                     <label class="form-check-label" for="oncePerPhoneSwitch">手机号限填一次</label>
                   </div>
                 </div>
-                <p class="text-secondary text-sm mt-1">需有名为 phone、类型为 phone 的字段，该字段将强制设为必填</p>
+                <p class="text-secondary text-sm mt-1">需有名为 phone、类型为 phone 的字段，将强制必填</p>
               </div>
               <div class="col-md-6">
                 <div class="d-flex flex-wrap items-center gap-3">
@@ -68,7 +68,7 @@
                     <label class="form-check-label" for="oncePerEmailSwitch">邮箱限填一次</label>
                   </div>
                 </div>
-                <p class="text-secondary text-sm mt-1">需有名为 email、类型为 email 的字段，该字段将强制设为必填</p>
+                <p class="text-secondary text-sm mt-1">需有名为 email、类型为 email 的字段，将强制必填</p>
               </div>
 
             </div>
