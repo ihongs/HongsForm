@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { validate, VError } from 'hongs-form';
+import { validate, fieldsToSchema, VError } from 'hongs-form';
 import { registerFormMethod } from '../registry.js';
 import { generateDataHash } from '../../../shared/formRecords.js';
 import { md5, verifyCode } from '../../../../../utils/verify.js';
@@ -45,7 +45,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
 
   if (!form) throw new Error('Form not found');
 
-  const validatedData = validate(data, form.schema, {});
+  const validatedData = validate(data, fieldsToSchema(form.fields), {});
 
   if (form.config?.oncePerUser && submitterId) {
     const existing = await ctx.db.collection('formRecords').findOne({

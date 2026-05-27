@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Db, ObjectId } from 'mongodb';
 import { McpAuthContext } from './auth.js';
 import { z } from 'zod';
-import { validateForm } from 'hongs-form';
+import { validateFields } from 'hongs-form';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -155,20 +155,20 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
     },
     async (params: any) => {
       const userId = requireAuth();
-      const { name, title, description, schema, config = {}, icon, color } = params;
+      const { name, title, description, fields, config = {}, icon, color } = params;
       if (!name) throw new Error('Form name is required');
-      if (!schema) throw new Error('Form schema is required');
+      if (!fields) throw new Error('Form fields is required');
 
-      let schemaData;
-      if (typeof schema == 'string') {
-        schemaData = JSON.parse(schema);
+      let schemaFields;
+      if (typeof fields == 'string') {
+        schemaFields = JSON.parse(fields);
       } else {
-        schemaData = schema;
+        schemaFields = fields;
       }
 
-      let validatedSchema;
+      let validatedFields;
       try {
-        validatedSchema = validateForm(schemaData);
+        validatedFields = validateFields(schemaFields);
       } catch (e: any) {
         return toMcpError(e);
       }
@@ -182,15 +182,8 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
         description: description || null,
         icon: icon || null,
         color: color || '#1890ff',
-        schema: validatedSchema,
-        config: {
-          anonymous: false,
-          oncePerUser: false,
-          maxSubmissions: null,
-          startAt: null,
-          endAt: null,
-          ...config
-        },
+        fields: validatedFields,
+        config: config,
         status: 1,
         publishedAt: null,
         createdAt: now,
@@ -224,27 +217,27 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
     },
     async (params: any) => {
       const userId = requireAuth();
-      const { id, name, title, description, schema, config = {}, icon, color } = params;
+      const { id, name, title, description, fields, config = {}, icon, color } = params;
       if (!id) throw new Error('Form ID is required');
 
-      let schemaData;
-      if (typeof schema == 'string') {
-        schemaData = JSON.parse(schema);
+      let schemaFields;
+      if (typeof fields == 'string') {
+        schemaFields = JSON.parse(fields);
       } else {
-        schemaData = schema;
+        schemaFields = fields;
       }
 
-      let validatedSchema;
+      let validatedFields;
       try {
-        validatedSchema = validateForm(schemaData);
+        validatedFields = validateFields(schemaFields);
       } catch (e: any) {
         return toMcpError(e);
       }
-      validatedSchema.updatedAt = new Date();
+      validatedFields.updatedAt = new Date();
 
       await db.collection('forms').updateOne(
         { _id: new ObjectId(id), userId: userId, deletedAt: null },
-        { $set: validatedSchema }
+        { $set: { fields: validatedFields } }
       );
 
       return {

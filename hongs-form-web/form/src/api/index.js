@@ -57,12 +57,12 @@ const rpc = new RpcClient()
 
 export const formApi = {
   // 获取表单 schema
-  getFormSchema(id) {
+  getSchema(id) {
     return rpc.call('form.schema', { id })
   },
 
   // 检查访客是否已提交过此表单
-  checkFormRecordSubmitted(formId) {
+  checkSubmitted(formId) {
     return rpc.call('formRecord.checkSubmitted', {
       formId,
       userToken: getGuestToken()
@@ -88,7 +88,7 @@ export const formApi = {
   },
 
   // 提交表单数据
-  createFormRecord(formId, data, userId = null, phoneCode = null, emailCode = null) {
+  submitData(formId, data, userId = null, phoneCode = null, emailCode = null) {
     return rpc.call('formRecord.create', {
       formId,
       userId,
