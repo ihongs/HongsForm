@@ -3,6 +3,17 @@ import { validate, isObject } from './validates.js';
 
 // 表单 input 校准
 export const isInput: Validate = function(value: any, schema: any, config: any) {
+    if (!value.type) {
+        switch (value.inputType) {
+            case 'tags':
+                value.type = 'array';
+                break;
+            case 'legend':
+            case 'figure':
+                value.type = 'null';
+                break;
+        }
+    }
     if (value.default) {
         if (value.type === 'array') {
             if (!Array.isArray(value.default)) {
@@ -12,16 +23,6 @@ export const isInput: Validate = function(value: any, schema: any, config: any) 
             if ( Array.isArray(value.default)) {
                 throw new VError('default cannot be array if type is not array');
             }
-        }
-    } else if (!value.type) {
-        switch (value.inputType) {
-            case 'tags':
-                value.type = 'array';
-                break;
-            case 'legend':
-            case 'figure':
-                value.type = 'null';
-                break;
         }
     }
     return value;
@@ -37,12 +38,12 @@ export const formFields: FormSchema = {
             name: {
                 type: 'string',
                 required: true,
-                pattern: '/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/',
+                pattern: '^[a-zA-Z][a-zA-Z0-9_]{1,10}$',
             },
             inputType: {
                 type: 'string',
                 required: true,
-                pattern: '/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/',
+                pattern: '^[a-zA-Z][a-zA-Z0-9_]{1,10}$',
             },
             title: { type: 'string', required: true },
             description: { type: 'string' },
