@@ -1,12 +1,19 @@
 import { ObjectId } from 'mongodb';
-import { registerAdminMethod } from '../registry.js';
+import { registerAgentMethod } from '../registry.js';
+import { requireUserId } from '../../../shared/forms.js';
+import { generateDataHash, requireOwnedForm, requireOwnedFormData } from '../../../shared/formRecords.js';
 
-registerAdminMethod('formData.list', async (params, ctx) => {
+registerAgentMethod('formRecord.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, formId, userId, channel, startDate, endDate } = params as any;
   const skip = (page - 1) * pageSize;
+  const ownerId = requireUserId(ctx);
 
-  const query: any = { deletedAt: null };
-  if (formId) query.formId = new ObjectId(formId);
+  const formQuery: any = { userId: ownerId, deletedAt: null };
+  if (formId) formQuery._id = new ObjectId(formId);
+  const forms = await ctx.db.collection('forms').find(formQuery).project({ _id: 1 }).toArray();
+  const formIds = forms.map((form) => form._id);
+
+  const query: any = { deletedAt: null, formId: { $in: formIds } };
   if (userId) query.userId = new ObjectId(userId);
   if (channel) query.channel = channel;
   if (startDate || endDate) {
@@ -16,40 +23,34 @@ registerAdminMethod('formData.list', async (params, ctx) => {
   }
 
   const [items, total] = await Promise.all([
-    ctx.db.collection('formData')
+    ctx.db.collection('formRecords')
       .find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .toArray(),
-    ctx.db.collection('formData').countDocuments(query)
+    ctx.db.collection('formRecords').countDocuments(query)
   ]);
 
   return { items, total, page, pageSize };
 });
 
-registerAdminMethod('formData.get', async (params, ctx) => {
+registerAgentMethod('formRecord.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Data ID is required');
-
-  const data = await ctx.db.collection('formData').findOne({
-    _id: new ObjectId(id),
-    deletedAt: null
-  });
-
-  if (!data) throw new Error('Data not found');
-  return data;
+  return requireOwnedFormData(ctx, id);
 });
 
-registerAdminMethod('formData.update', async (params, ctx) => {
+registerAgentMethod('formRecord.update', async (params, ctx) => {
   const { id, data, status } = params as any;
   if (!id) throw new Error('Data ID is required');
+  await requireOwnedFormData(ctx, id);
 
   const updateData: any = { updatedAt: new Date() };
   if (data !== undefined) updateData.data = data;
   if (status !== undefined) updateData.status = status;
 
-  const result = await ctx.db.collection('formData').updateOne(
+  const result = await ctx.db.collection('formRecords').updateOne(
     { _id: new ObjectId(id), deletedAt: null },
     { $set: updateData }
   );
@@ -58,23 +59,18 @@ registerAdminMethod('formData.update', async (params, ctx) => {
   return { success: true };
 });
 
-registerAdminMethod('formData.delete', async (params, ctx) => {
+registerAgentMethod('formRecord.delete', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Data ID is required');
 
-  const formData = await ctx.db.collection('formData').findOne({
-    _id: new ObjectId(id),
-    deletedAt: null
-  });
+  const formData = await requireOwnedFormData(ctx, id);
 
-  if (!formData) throw new Error('Data not found');
-
-  await ctx.db.collection('formData').updateOne(
+  await ctx.db.collection('formRecords').updateOne(
     { _id: new ObjectId(id) },
     { $set: { deletedAt: new Date(), updatedAt: new Date() } }
   );
 
-  await ctx.db.collection('form').updateOne(
+  await ctx.db.collection('forms').updateOne(
     { _id: formData.formId },
     { $inc: { dataCount: -1 } }
   );
@@ -82,9 +78,10 @@ registerAdminMethod('formData.delete', async (params, ctx) => {
   return { success: true };
 });
 
-registerAdminMethod('formData.export', async (params, ctx) => {
+registerAgentMethod('formRecord.export', async (params, ctx) => {
   const { formId, startDate, endDate } = params as any;
   if (!formId) throw new Error('Form ID is required');
+  await requireOwnedForm(ctx, formId);
 
   const query: any = { formId: new ObjectId(formId), deletedAt: null };
   if (startDate || endDate) {
@@ -93,29 +90,30 @@ registerAdminMethod('formData.export', async (params, ctx) => {
     if (endDate) query.createdAt.$lte = new Date(endDate);
   }
 
-  return ctx.db.collection('formData')
+  return ctx.db.collection('formRecords')
     .find(query)
     .sort({ createdAt: -1 })
     .toArray();
 });
 
-registerAdminMethod('formData.stats', async (params, ctx) => {
+registerAgentMethod('formRecord.stats', async (params, ctx) => {
   const { formId } = params as any;
   if (!formId) throw new Error('Form ID is required');
+  await requireOwnedForm(ctx, formId);
 
   const [total, todayCount, channelStats] = await Promise.all([
-    ctx.db.collection('formData').countDocuments({
+    ctx.db.collection('formRecords').countDocuments({
       formId: new ObjectId(formId),
       deletedAt: null
     }),
-    ctx.db.collection('formData').countDocuments({
+    ctx.db.collection('formRecords').countDocuments({
       formId: new ObjectId(formId),
       deletedAt: null,
       createdAt: {
         $gte: new Date(new Date().setHours(0, 0, 0, 0))
       }
     }),
-    ctx.db.collection('formData').aggregate([
+    ctx.db.collection('formRecords').aggregate([
       { $match: { formId: new ObjectId(formId), deletedAt: null } },
       { $group: { _id: '$channel', count: { $sum: 1 } } }
     ]).toArray()

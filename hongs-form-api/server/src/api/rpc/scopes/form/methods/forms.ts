@@ -7,7 +7,7 @@ registerFormMethod('form.schema', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Form ID is required');
 
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(id),
     deletedAt: null,
     status: 2
@@ -29,7 +29,7 @@ registerFormMethod('form.verify.sendSmsCode', async (params, ctx) => {
   await verifySlideToken(verifyToken);
 
   // 查找表单
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(formId),
     deletedAt: null,
     status: 2
@@ -44,7 +44,7 @@ registerFormMethod('form.verify.sendSmsCode', async (params, ctx) => {
 
   // 检查该手机号是否已提交过此表单
   const phoneMd5Val = md5(phone);
-  const existingRecord = await ctx.db.collection('formData').findOne({
+  const existingRecord = await ctx.db.collection('formRecords').findOne({
     formId: new ObjectId(formId),
     data: { phone },
     deletedAt: null
@@ -80,7 +80,7 @@ registerFormMethod('form.verify.sendEmailCode', async (params, ctx) => {
   await verifySlideToken(verifyToken);
 
   // 查找表单
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(formId),
     deletedAt: null,
     status: 2
@@ -95,7 +95,7 @@ registerFormMethod('form.verify.sendEmailCode', async (params, ctx) => {
 
   // 检查该邮箱是否已提交过此表单
   const emailMd5Val = md5(email);
-  const existingRecord = await ctx.db.collection('formData').findOne({
+  const existingRecord = await ctx.db.collection('formRecords').findOne({
     formId: new ObjectId(formId),
     data: { email },
     deletedAt: null

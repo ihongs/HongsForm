@@ -71,7 +71,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { useRoute } from 'vue-router'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
-import { adminApi } from '../api'
+import { agentApi } from '../api'
 
 const route = useRoute()
 const loading = ref(true)
@@ -284,9 +284,9 @@ async function load() {
   error.value = ''
   try {
     const [form, dataResult, statsResult] = await Promise.all([
-      adminApi.getForm(route.params.id),
-      adminApi.listData({ formId: route.params.id, pageSize: 1000 }),
-      adminApi.getStats(route.params.id)
+      agentApi.getForm(route.params.id),
+      agentApi.listFormRecords({ formId: route.params.id, pageSize: 1000 }),
+      agentApi.getFormRecordStats(route.params.id)
     ])
     formTitle.value = form.title || form.name
     formSchema.value = form.schema || {}
@@ -304,7 +304,7 @@ async function load() {
 async function removeById(id) {
   const item = items.value.find((entry) => entry._id === id)
   if (!item || !confirm('确定删除这条数据吗？')) return
-  await adminApi.deleteData(item._id)
+  await agentApi.deleteFormRecord(item._id)
   await load()
 }
 

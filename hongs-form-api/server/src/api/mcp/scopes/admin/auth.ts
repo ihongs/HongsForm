@@ -1,0 +1,56 @@
+import { IncomingMessage } from 'node:http';
+import { ObjectId } from 'mongodb';
+import { getDb } from '../../../../utils/db.js';
+
+export interface McpAdminAuthContext {
+  userId: ObjectId | null;
+  role: string | null;
+  authenticated: boolean;
+}
+
+export async function verifyAdminSkAuth(req: IncomingMessage): Promise<McpAdminAuthContext> {
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith('Bearer ')) {
+    return { userId: null, role: null, authenticated: false };
+  }
+
+  const sk = authorization.slice(7);
+
+  const userAuth = await getDb().collection('userAuth').findOne({
+    sk,
+    deletedAt: null,
+    $or: [
+      { expiresAt: null },
+      { expiresAt: { $gt: new Date() } }
+    ]
+  });
+
+  if (!userAuth) {
+    return { userId: null, role: null, authenticated: false };
+  }
+
+  const user = await getDb().collection('user').findOne({
+    _id: userAuth.userId,
+    deletedAt: null
+  });
+
+  if (!user || user.role !== 'admin') {
+    return { userId: null, role: null, authenticated: false };
+  }
+
+  return {
+    userId: userAuth.userId,
+    role: user.role,
+    authenticated: true
+  };
+}
+
+export function requireAdminAuth(auth: McpAdminAuthContext): ObjectId {
+  if (!auth.authenticated || !auth.userId) {
+    throw new Error('Unauthorized: valid Bearer token required');
+  }
+  if (auth.role !== 'admin') {
+    throw new Error('Forbidden: admin role required');
+  }
+  return auth.userId;
+}

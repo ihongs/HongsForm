@@ -25,7 +25,7 @@ export async function login(params: Record<string, unknown>, role: 'agent' | 'ad
   // 验证 verify 对象
   await verifyProofObject(verify);
 
-  const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
+  const user = await ctx.db.collection('users').findOne({ username, deletedAt: null });
   if (!user) throw new Error('User not found');
   if (role && user.role !== role) throw new Error('Forbidden');
   if (user.status !== 1) throw new Error('User is disabled');
@@ -36,7 +36,7 @@ export async function login(params: Record<string, unknown>, role: 'agent' | 'ad
   const now = new Date();
   const token = createToken({ sub: user._id.toString(), role: user.role });
 
-  await ctx.db.collection('user').updateOne(
+  await ctx.db.collection('users').updateOne(
     { _id: user._id },
     { $set: { lastLoginAt: now, updatedAt: now } }
   );
@@ -63,7 +63,7 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
   if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
 
   // 检查用户
-  const users = await ctx.db.collection('user').find({ email, deletedAt: null }).toArray();
+  const users = await ctx.db.collection('users').find({ email, deletedAt: null }).toArray();
   if (users.length > 1) throw new Error('Multiple users found with this email, please contact admin');
 
   let user = users[0];
@@ -77,7 +77,7 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
     const salt = generateSalt();
     const randomPassword = randomBytes(16).toString('hex');
     const now = new Date();
-    const result = await ctx.db.collection('user').insertOne({
+    const result = await ctx.db.collection('users').insertOne({
       username: email,
       email,
       password: hashPassword(randomPassword, salt),
@@ -89,7 +89,7 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
       updatedAt: now,
       deletedAt: null
     });
-    const newUser = await ctx.db.collection('user').findOne({ _id: result.insertedId });
+    const newUser = await ctx.db.collection('users').findOne({ _id: result.insertedId });
     if (!newUser) throw new Error('Failed to create user');
     user = newUser;
     isNew = true;
@@ -98,7 +98,7 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
   const now = new Date();
   const token = createToken({ sub: user._id.toString(), role: user.role });
 
-  await ctx.db.collection('user').updateOne(
+  await ctx.db.collection('users').updateOne(
     { _id: user._id },
     { $set: { lastLoginAt: now, updatedAt: now } }
   );
@@ -121,7 +121,7 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
   if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
 
   // 检查用户
-  const users = await ctx.db.collection('user').find({ phone, deletedAt: null }).toArray();
+  const users = await ctx.db.collection('users').find({ phone, deletedAt: null }).toArray();
   if (users.length > 1) throw new Error('Multiple users found with this phone, please contact admin');
 
   let user = users[0];
@@ -135,7 +135,7 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
     const salt = generateSalt();
     const randomPassword = randomBytes(16).toString('hex');
     const now = new Date();
-    const result = await ctx.db.collection('user').insertOne({
+    const result = await ctx.db.collection('users').insertOne({
       username: phone,
       phone,
       password: hashPassword(randomPassword, salt),
@@ -147,7 +147,7 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
       updatedAt: now,
       deletedAt: null
     });
-    const newUser = await ctx.db.collection('user').findOne({ _id: result.insertedId });
+    const newUser = await ctx.db.collection('users').findOne({ _id: result.insertedId });
     if (!newUser) throw new Error('Failed to create user');
     user = newUser;
     isNew = true;
@@ -156,7 +156,7 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
   const now = new Date();
   const token = createToken({ sub: user._id.toString(), role: user.role });
 
-  await ctx.db.collection('user').updateOne(
+  await ctx.db.collection('users').updateOne(
     { _id: user._id },
     { $set: { lastLoginAt: now, updatedAt: now } }
   );

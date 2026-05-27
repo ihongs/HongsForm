@@ -1,16 +1,16 @@
 import { ObjectId } from 'mongodb';
 import { validate, VError } from 'hongs-form';
 import { registerFormMethod } from '../registry.js';
-import { generateDataHash } from '../../../shared/formData.js';
+import { generateDataHash } from '../../../shared/formRecords.js';
 import { md5, verifyCode } from '../../../../../utils/verify.js';
 
 // 检查访客是否已提交过此表单
-registerFormMethod('formData.checkSubmitted', async (params, ctx) => {
+registerFormMethod('formRecord.checkSubmitted', async (params, ctx) => {
   const { formId, userToken } = params as any;
   if (!formId) throw new Error('Form ID is required');
   if (!userToken) throw new Error('User token is required');
 
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(formId),
     deletedAt: null,
     status: 2
@@ -22,7 +22,7 @@ registerFormMethod('formData.checkSubmitted', async (params, ctx) => {
     return { submitted: false };
   }
 
-  const existing = await ctx.db.collection('formData').findOne({
+  const existing = await ctx.db.collection('formRecords').findOne({
     formId: new ObjectId(formId),
     userToken,
     deletedAt: null
@@ -31,13 +31,13 @@ registerFormMethod('formData.checkSubmitted', async (params, ctx) => {
   return { submitted: !!existing };
 });
 
-registerFormMethod('formData.create', async (params, ctx) => {
+registerFormMethod('formRecord.create', async (params, ctx) => {
   const { formId, data, channel = 'web', userIp, userAgent, userToken, phoneCode, emailCode } = params as any;
   const submitterId = ctx.userId ?? null;
   if (!formId) throw new Error('Form ID is required');
   if (!data) throw new Error('Form data is required');
 
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(formId),
     deletedAt: null,
     status: 2
@@ -48,7 +48,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
   const validatedData = validate(data, form.schema, {});
 
   if (form.config?.oncePerUser && submitterId) {
-    const existing = await ctx.db.collection('formData').findOne({
+    const existing = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
       userId: submitterId,
       deletedAt: null
@@ -57,7 +57,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
   }
 
   if (form.config?.oncePerGuest && userToken) {
-    const existing = await ctx.db.collection('formData').findOne({
+    const existing = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
       userToken,
       deletedAt: null
@@ -81,7 +81,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
     }
     
     // 检查该手机号是否已提交过
-    const existingPhone = await ctx.db.collection('formData').findOne({
+    const existingPhone = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
       data: { phone },
       deletedAt: null
@@ -105,7 +105,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
     }
     
     // 检查该邮箱是否已提交过
-    const existingEmail = await ctx.db.collection('formData').findOne({
+    const existingEmail = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
       data: { email },
       deletedAt: null
@@ -116,7 +116,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
   const dataHash = generateDataHash(formId, submitterId?.toString() ?? null, validatedData);
 
   const now = new Date();
-  const result = await ctx.db.collection('formData').insertOne({
+  const result = await ctx.db.collection('formRecords').insertOne({
     formId: new ObjectId(formId),
     userId: submitterId,
     data: validatedData,
@@ -131,7 +131,7 @@ registerFormMethod('formData.create', async (params, ctx) => {
     deletedAt: null
   });
 
-  await ctx.db.collection('form').updateOne(
+  await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(formId) },
     { $inc: { dataCount: 1 } }
   );

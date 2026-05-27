@@ -83,7 +83,7 @@ async function loadForm() {
   loadError.value = null
 
   try {
-    const data = await formApi.getSchema(route.params.id)
+    const data = await formApi.getFormSchema(route.params.id)
     form.value = data
     
     // 如果启用了访客限填一次
@@ -95,7 +95,7 @@ async function loadForm() {
         alreadySubmitted.value = true
       } else {
         // 再调用后端检查（确保准确性）
-        const result = await formApi.checkSubmitted(route.params.id)
+        const result = await formApi.checkFormRecordSubmitted(route.params.id)
         if (result.submitted) {
           alreadySubmitted.value = true
           // 同步到本地存储
@@ -137,7 +137,7 @@ async function handleSubmit(data) {
 
   try {
     const { phoneCode, emailCode, ...formData } = data
-    await formApi.submitData(route.params.id, formData, null, phoneCode, emailCode)
+    await formApi.createFormRecord(route.params.id, formData, null, phoneCode, emailCode)
     // 标记为已提交
     markSubmitted(route.params.id)
     router.push({ name: 'success', params: { id: route.params.id } })

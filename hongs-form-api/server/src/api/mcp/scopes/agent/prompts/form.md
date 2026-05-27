@@ -10,8 +10,8 @@
 | `form.get` | 获取指定 ID 的表单详情 | `id` |
 | `form.create` | 创建新表单 | `name`, `title`, `description`, `schema`, `config`, `icon`, `color` |
 | `form.update` | 修改表单 | `id`, `name`, `title`, `description`, `schema`, `config`, `icon`, `color`, `status` |
-| `formData.list` | 列出表单提交数据 | `formId`, `page`, `pageSize`, `startDate`, `endDate` |
-| `formData.get` | 获取表单数据详情 | `id` |
+| `formRecord.list` | 列出表单提交记录 | `formId`, `page`, `pageSize`, `startDate`, `endDate` |
+| `formRecord.get` | 获取表单记录详情 | `id` |
 | `form.prompt` | 获取表单构建提示词 | 无 |
 
 ## 响应结构

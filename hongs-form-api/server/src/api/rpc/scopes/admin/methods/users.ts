@@ -18,14 +18,14 @@ registerAdminMethod('user.list', async (params, ctx) => {
   }
 
   const [items, total] = await Promise.all([
-    ctx.db.collection('user')
+    ctx.db.collection('users')
       .find(query)
       .project({ password: 0, passsalt: 0 })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .toArray(),
-    ctx.db.collection('user').countDocuments(query)
+    ctx.db.collection('users').countDocuments(query)
   ]);
 
   return { items, total, page, pageSize };
@@ -35,7 +35,7 @@ registerAdminMethod('user.get', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 
-  const user = await ctx.db.collection('user').findOne(
+  const user = await ctx.db.collection('users').findOne(
     { _id: new ObjectId(id), deletedAt: null },
     { projection: { password: 0, passsalt: 0 } }
   );
@@ -49,14 +49,14 @@ registerAdminMethod('user.create', async (params, ctx) => {
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
 
-  const exists = await ctx.db.collection('user').findOne({ username, deletedAt: null });
+  const exists = await ctx.db.collection('users').findOne({ username, deletedAt: null });
   if (exists) throw new Error('Username already exists');
 
   const passsalt = generateSalt();
   const passwordHash = hashPassword(password, passsalt);
 
   const now = new Date();
-  const result = await ctx.db.collection('user').insertOne({
+  const result = await ctx.db.collection('users').insertOne({
     username,
     password: passwordHash,
     passsalt,
@@ -91,7 +91,7 @@ registerAdminMethod('user.update', async (params, ctx) => {
     updateData.passsalt = passsalt;
   }
 
-  const result = await ctx.db.collection('user').updateOne(
+  const result = await ctx.db.collection('users').updateOne(
     { _id: new ObjectId(id), deletedAt: null },
     { $set: updateData }
   );
@@ -106,7 +106,7 @@ registerAdminMethod('user.changePassword', async (params, ctx) => {
   if (!oldPassword) throw new Error('Old password is required');
   if (!newPassword) throw new Error('New password is required');
 
-  const user = await ctx.db.collection('user').findOne({ _id: new ObjectId(id), deletedAt: null });
+  const user = await ctx.db.collection('users').findOne({ _id: new ObjectId(id), deletedAt: null });
   if (!user) throw new Error('User not found');
 
   const oldHash = hashPassword(oldPassword, user.passsalt);
@@ -115,7 +115,7 @@ registerAdminMethod('user.changePassword', async (params, ctx) => {
   const passsalt = generateSalt();
   const passwordHash = hashPassword(newPassword, passsalt);
 
-  await ctx.db.collection('user').updateOne(
+  await ctx.db.collection('users').updateOne(
     { _id: user._id },
     { $set: { password: passwordHash, passsalt, updatedAt: new Date() } }
   );
@@ -127,7 +127,7 @@ registerAdminMethod('user.delete', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('User ID is required');
 
-  const result = await ctx.db.collection('user').updateOne(
+  const result = await ctx.db.collection('users').updateOne(
     { _id: new ObjectId(id), deletedAt: null },
     { $set: { deletedAt: new Date(), updatedAt: new Date() } }
   );

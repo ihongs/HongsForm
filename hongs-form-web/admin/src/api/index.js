@@ -89,14 +89,24 @@ export const adminApi = {
   getForm(id) {
     return rpc.call('form.get', { id })
   },
-  listData(params = {}) {
-    return rpc.call('formData.list', params)
+  listFormRecords(params = {}) {
+    return rpc.call('formRecord.list', params)
   },
-  deleteData(id) {
-    return rpc.call('formData.delete', { id })
+  deleteFormRecord(id) {
+    return rpc.call('formRecord.delete', { id })
   },
-  getStats(formId) {
-    return rpc.call('formData.stats', { formId })
+  getFormRecordStats(formId) {
+    return rpc.call('formRecord.stats', { formId })
+  },
+  // API Key 管理
+  listApiKeys() {
+    return rpc.call('mineApiKey.list')
+  },
+  createApiKey(name) {
+    return rpc.call('mineApiKey.create', { name })
+  },
+  deleteApiKey(id) {
+    return rpc.call('mineApiKey.delete', { id })
   }
 }
 

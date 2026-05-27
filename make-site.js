@@ -59,7 +59,7 @@ async function copyFile(src, dest) {
 
   // 公共资源
   await copy(
-    path.join(root, 'hongs-form-web/public'),
+    path.join(serv, 'public'),
     path.join(site, 'public'),
   );
 

@@ -89,24 +89,24 @@ export const agentApi = {
   deleteForm(id) {
     return rpc.call('form.delete', { id })
   },
-  listData(params = {}) {
-    return rpc.call('formData.list', params)
+  listFormRecords(params = {}) {
+    return rpc.call('formRecord.list', params)
   },
-  deleteData(id) {
-    return rpc.call('formData.delete', { id })
+  deleteFormRecord(id) {
+    return rpc.call('formRecord.delete', { id })
   },
-  getStats(formId) {
-    return rpc.call('formData.stats', { formId })
+  getFormRecordStats(formId) {
+    return rpc.call('formRecord.stats', { formId })
   },
   // API Key 管理
   listApiKeys() {
-    return rpc.call('userAuth.list')
+    return rpc.call('mineApiKey.list')
   },
   createApiKey(name) {
-    return rpc.call('userAuth.create', { name })
+    return rpc.call('mineApiKey.create', { name })
   },
   deleteApiKey(id) {
-    return rpc.call('userAuth.delete', { id })
+    return rpc.call('mineApiKey.delete', { id })
   }
 }
 

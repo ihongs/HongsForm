@@ -9,7 +9,7 @@ export function requireUserId(ctx: RpcContext): ObjectId {
 
 export async function findOwnedForm(ctx: RpcContext, id: string): Promise<any> {
   const userId = requireUserId(ctx);
-  const form = await ctx.db.collection('form').findOne({
+  const form = await ctx.db.collection('forms').findOne({
     _id: new ObjectId(id),
     userId,
     deletedAt: null

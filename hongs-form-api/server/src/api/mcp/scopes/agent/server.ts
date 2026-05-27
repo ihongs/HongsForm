@@ -47,7 +47,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
   };
 
   async function requireOwnedForm(userId:ObjectId, formId: string): Promise<any> {
-    const form = await db.collection('form').findOne({
+    const form = await db.collection('forms').findOne({
       _id: new ObjectId(formId),
       userId,
       deletedAt: null
@@ -84,13 +84,13 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
 
       const [items, total] = await Promise.all([
-        db.collection('form')
+        db.collection('forms')
           .find(query)
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(pageSize)
           .toArray(),
-        db.collection('form').countDocuments(query)
+        db.collection('forms').countDocuments(query)
       ]);
 
       return {
@@ -113,7 +113,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       const { id } = params;
       if (!id) throw new Error('Form ID is required');
 
-      const form = await db.collection('form').findOne({
+      const form = await db.collection('forms').findOne({
         _id: new ObjectId(id),
         userId,
         deletedAt: null
@@ -174,7 +174,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
 
       const now = new Date();
-      const result = await db.collection('form').insertOne({
+      const result = await db.collection('forms').insertOne({
         userId,
         type: 'form',
         name,
@@ -242,7 +242,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       }
       validatedSchema.updatedAt = new Date();
 
-      await db.collection('form').updateOne(
+      await db.collection('forms').updateOne(
         { _id: new ObjectId(id), userId: userId, deletedAt: null },
         { $set: validatedSchema }
       );
@@ -254,7 +254,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
   );
 
   server.registerTool(
-    'formData.export',
+    'formRecord.export',
     {
       title: 'Export Form Data',
       description: '导出指定表单的数据',
@@ -274,13 +274,13 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       const query: any = { formId: new ObjectId(formId), deletedAt: null };
 
       const [items, total] = await Promise.all([
-        db.collection('formData')
+        db.collection('formRecords')
           .find(query)
           .sort({ createdAt: 1 })
           .skip(skip || 0)
           .limit(limit)
           .toArray(),
-        db.collection('formData').countDocuments(query)
+        db.collection('formRecords').countDocuments(query)
       ]);
 
       return {

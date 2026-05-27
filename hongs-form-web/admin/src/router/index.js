@@ -3,8 +3,9 @@ import { getToken } from '../api'
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import FormsView from '../views/FormsView.vue'
-import DataView from '../views/DataView.vue'
+import FormRecordView from '../views/FormRecordView.vue'
 import UsersView from '../views/UsersView.vue'
+import ApiKeyView from '../views/ApiKeyView.vue'
 
 const router = createRouter({
   history: createWebHistory('/admin/'),
@@ -13,8 +14,9 @@ const router = createRouter({
     { path: '/login', component: LoginView },
     { path: '/dashboard', component: DashboardView, meta: { auth: true } },
     { path: '/forms', component: FormsView, meta: { auth: true } },
-    { path: '/forms/:id/data', component: DataView, meta: { auth: true } },
-    { path: '/users', component: UsersView, meta: { auth: true } }
+    { path: '/forms/:id/record', component: FormRecordView, meta: { auth: true } },
+    { path: '/users', component: UsersView, meta: { auth: true } },
+    { path: '/api-keys', component: ApiKeyView, meta: { auth: true } }
   ]
 })
 

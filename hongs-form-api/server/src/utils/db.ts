@@ -32,8 +32,8 @@ export function getDb(): Db {
 }
 
 async function initIndexes(db: Db) {
-  // User 集合索引
-  const userCol = db.collection('user');
+  // Users 集合索引
+  const userCol = db.collection('users');
   await userCol.createIndex({ username: 1 }, { unique: true });
   await userCol.createIndex({ email: 1 });
   await userCol.createIndex({ phone: 1 });
@@ -42,15 +42,15 @@ async function initIndexes(db: Db) {
   await userCol.createIndex({ createdAt: -1 });
   await userCol.createIndex({ deletedAt: 1 });
 
-  // UserAuth 集合索引
-  const userAuthCol = db.collection('userAuth');
+  // UserApiKeys 集合索引
+  const userAuthCol = db.collection('userApiKeys');
   await userAuthCol.createIndex({ sk: 1 }, { unique: true });
   await userAuthCol.createIndex({ userId: 1 });
   await userAuthCol.createIndex({ expiresAt: 1 });
   await userAuthCol.createIndex({ deletedAt: 1 });
 
-  // Form 集合索引
-  const formCol = db.collection('form');
+  // Forms 集合索引
+  const formCol = db.collection('forms');
   await formCol.createIndex({ userId: 1 });
   await formCol.createIndex({ status: 1 });
   await formCol.createIndex({ publishedAt: -1 });
@@ -58,8 +58,8 @@ async function initIndexes(db: Db) {
   await formCol.createIndex({ deletedAt: 1 });
   await formCol.createIndex({ name: 'text', title: 'text', description: 'text' });
 
-  // FormData 集合索引
-  const formDataCol = db.collection('formData');
+  // FormRecords 集合索引
+  const formDataCol = db.collection('formRecords');
   await formDataCol.createIndex({ formId: 1 });
   await formDataCol.createIndex({ formId: 1, userId: 1 }, { sparse: true });
   await formDataCol.createIndex({ dataHash: 1 }, { unique: true });
@@ -69,8 +69,8 @@ async function initIndexes(db: Db) {
   await formDataCol.createIndex({ formId: 1, createdAt: -1 });
   await formDataCol.createIndex({ channel: 1 });
 
-  // Roster 集合索引
-  const rosterCol = db.collection('roster');
+  // Records 集合索引
+  const rosterCol = db.collection('records');
   await rosterCol.createIndex({ key: 1 }, { unique: true });
   await rosterCol.createIndex({ expiresAt: 1 });
 

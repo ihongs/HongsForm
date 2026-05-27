@@ -7,12 +7,12 @@ function generateSk(): string {
   return randomBytes(16).toString('hex');
 }
 
-registerAgentMethod('userAuth.list', async (params, ctx) => {
+registerAgentMethod('mineApiKey.list', async (params, ctx) => {
   const db = getDb();
   const userId = ctx.userId;
   const { page = 1, pageSize = 20 } = params as any;
 
-  const items = await db.collection('userAuth')
+  const items = await db.collection('userApiKeys')
     .find({
       userId,
       deletedAt: null,
@@ -29,12 +29,12 @@ registerAgentMethod('userAuth.list', async (params, ctx) => {
   }));
 });
 
-registerAgentMethod('userAuth.create', async (params, ctx) => {
+registerAgentMethod('mineApiKey.create', async (params, ctx) => {
   const db = getDb();
   const userId = ctx.userId;
   const { name } = params as any;
 
-  const count = await db.collection('userAuth').countDocuments({
+  const count = await db.collection('userApiKeys').countDocuments({
     userId,
     deletedAt: null,
     type: 'apiKey'
@@ -47,7 +47,7 @@ registerAgentMethod('userAuth.create', async (params, ctx) => {
   const sk = generateSk();
   const now = new Date();
 
-  const result = await db.collection('userAuth').insertOne({
+  const result = await db.collection('userApiKeys').insertOne({
     userId,
     type: 'apiKey',
     name: name || null,
@@ -66,7 +66,7 @@ registerAgentMethod('userAuth.create', async (params, ctx) => {
   };
 });
 
-registerAgentMethod('userAuth.delete', async (params, ctx) => {
+registerAgentMethod('mineApiKey.delete', async (params, ctx) => {
   const db = getDb();
   const userId = ctx.userId;
   const { id } = params as any;
@@ -75,7 +75,7 @@ registerAgentMethod('userAuth.delete', async (params, ctx) => {
     throw new Error('API Key ID is required');
   }
 
-  const result = await db.collection('userAuth').updateOne(
+  const result = await db.collection('userApiKeys').updateOne(
     {
       _id: new ObjectId(id),
       userId,

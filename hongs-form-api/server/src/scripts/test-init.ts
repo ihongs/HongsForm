@@ -222,14 +222,14 @@ const testForms = [
 ];
 
 async function ensureUser(db: any, user: typeof users[number]) {
-  const existing = await db.collection('user').findOne({ username: user.username, deletedAt: null });
+  const existing = await db.collection('users').findOne({ username: user.username, deletedAt: null });
   if (existing) {
     return { status: 'skipped', id: existing._id };
   }
 
   const passsalt = generateSalt();
   const now = new Date();
-  const result = await db.collection('user').insertOne({
+  const result = await db.collection('users').insertOne({
     username: user.username,
     password: hashPassword(user.password, passsalt),
     passsalt,
@@ -251,13 +251,13 @@ async function ensureUser(db: any, user: typeof users[number]) {
 }
 
 async function ensureForm(db: any, userId: ObjectId, form: typeof testForms[number]) {
-  const existing = await db.collection('form').findOne({ name: form.name, userId, deletedAt: null });
+  const existing = await db.collection('forms').findOne({ name: form.name, userId, deletedAt: null });
   if (existing) {
     return { status: 'skipped', id: existing._id };
   }
 
   const now = new Date();
-  const result = await db.collection('form').insertOne({
+  const result = await db.collection('forms').insertOne({
     userId,
     type: 'form',
     ...form,

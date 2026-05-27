@@ -18,13 +18,13 @@ registerAgentMethod('form.list', async (params, ctx) => {
   }
 
   const [items, total] = await Promise.all([
-    ctx.db.collection('form')
+    ctx.db.collection('forms')
       .find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .toArray(),
-    ctx.db.collection('form').countDocuments(query)
+    ctx.db.collection('forms').countDocuments(query)
   ]);
 
   return { items, total, page, pageSize };
@@ -43,7 +43,7 @@ registerAgentMethod('form.create', async (params, ctx) => {
   const createData = validateFormCreate(params);
 
   const now = new Date();
-  const result = await ctx.db.collection('form').insertOne({
+  const result = await ctx.db.collection('forms').insertOne({
     ...createData,
     userId,
     type: 'form',
@@ -66,7 +66,7 @@ registerAgentMethod('form.update', async (params, ctx) => {
   const updateData = validateFormCreate(params);
   updateData.updatedAt = new Date();
 
-  const result = await ctx.db.collection('form').updateOne(
+  const result = await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
     { $set: updateData }
   );
@@ -81,7 +81,7 @@ registerAgentMethod('form.publish', async (params, ctx) => {
   await findOwnedForm(ctx, id);
 
   const now = new Date();
-  const result = await ctx.db.collection('form').updateOne(
+  const result = await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
     { $set: { status: 2, publishedAt: now, updatedAt: now } }
   );
@@ -95,7 +95,7 @@ registerAgentMethod('form.unpublish', async (params, ctx) => {
   if (!id) throw new Error('Form ID is required');
   await findOwnedForm(ctx, id);
 
-  const result = await ctx.db.collection('form').updateOne(
+  const result = await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
     { $set: { status: 1, updatedAt: new Date() } }
   );
@@ -109,7 +109,7 @@ registerAgentMethod('form.delete', async (params, ctx) => {
   if (!id) throw new Error('Form ID is required');
   await findOwnedForm(ctx, id);
 
-  const result = await ctx.db.collection('form').updateOne(
+  const result = await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
     { $set: { deletedAt: new Date(), updatedAt: new Date() } }
   );

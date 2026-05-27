@@ -197,7 +197,7 @@ registerAdminMethod('test.importForms', async (params, ctx) => {
   const result = []
 
   for (const form of testForms) {
-    const existing = await ctx.db.collection('form').findOne({
+    const existing = await ctx.db.collection('forms').findOne({
       name: form.name,
       userId: new ObjectId(userId),
       deletedAt: null
@@ -208,7 +208,7 @@ registerAdminMethod('test.importForms', async (params, ctx) => {
       continue
     }
 
-    const insertResult = await ctx.db.collection('form').insertOne({
+    const insertResult = await ctx.db.collection('forms').insertOne({
       userId: new ObjectId(userId),
       type: 'form',
       ...form,

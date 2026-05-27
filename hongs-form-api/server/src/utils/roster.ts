@@ -18,7 +18,7 @@ class Roster {
   async getRecord(key: string): Promise<RosterRecord | null> {
     const db = getDb();
     const now = new Date();
-    const record = await db.collection<RosterRecord>('roster').findOne({ key, expiresAt: { $gt: now } });
+    const record = await db.collection<RosterRecord>('records').findOne({ key, expiresAt: { $gt: now } });
     return record ? record : null;
   }
 
@@ -49,7 +49,7 @@ class Roster {
     const db = getDb();
     const now = new Date();
     const expiresAt = this.toExpiresAt(expires);
-    await db.collection<RosterRecord>('roster').updateOne(
+    await db.collection<RosterRecord>('records').updateOne(
       { key },
       { $set: { value, expiresAt, updatedAt: now }, $setOnInsert: { createdAt: now } },
       { upsert: true }
@@ -59,14 +59,14 @@ class Roster {
   // 删除记录
   async remove(key: string): Promise<void> {
     const db = getDb();
-    await db.collection<RosterRecord>('roster').deleteOne({ key });
+    await db.collection<RosterRecord>('records').deleteOne({ key });
   }
 
   // 清理过期记录，默认清理 7 天前记录
   async cleanup(beforeDate?: Date): Promise<number> {
     const db = getDb();
     const cutoff = beforeDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const result = await db.collection<RosterRecord>('roster').deleteMany({ expiresAt: { $lt: cutoff } });
+    const result = await db.collection<RosterRecord>('records').deleteMany({ expiresAt: { $lt: cutoff } });
     return result.deletedCount || 0;
   }
 }
