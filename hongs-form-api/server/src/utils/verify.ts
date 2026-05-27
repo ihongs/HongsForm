@@ -4,15 +4,14 @@ import { createHash, randomBytes } from 'node:crypto';
 // ============= 通用配置 =============
 const MAX_PER_HOUR = 5;
 const EXPIRE_1H = 3600;
-const EXPIRE_5M = 300;
 const EXPIRE_10M = 600;
 const MIN_INTERVAL_SECONDS = 55;
 
 // 滑块验证码配置
-const CAPTCHA_WIDTH = 300;
-const CAPTCHA_HEIGHT = 150;
 const SLIDER_WIDTH = 50;
 const SLIDER_HEIGHT = 50;
+const CAPTCHA_WIDTH = 300;
+const CAPTCHA_HEIGHT = 150;
 const ALLOWED_DEVIATION = 10;
 
 // 算力验证配置
@@ -166,7 +165,7 @@ export async function verifySlidePosition(captchaId: string, userX: number): Pro
  */
 export async function generateSlideVerifyToken(): Promise<string> {
   const verifyToken = randomBytes(20).toString('hex');
-  await roster.set(`verify.slide.token.${verifyToken}`, 1, EXPIRE_5M);
+  await roster.set(`verify.slide.token.${verifyToken}`, 1, EXPIRE_10M);
   return verifyToken;
 }
 
@@ -208,6 +207,40 @@ export function verifyProof(nonce: string, answer: number, difficulty: number): 
   return hash.startsWith('0'.repeat(difficulty));
 }
 
+/**
+ * 验证 verify 对象（包含 token, nonce, answer）
+ */
+export async function verifyProofObject(verify: { token: string; nonce: string; answer: number }): Promise<void> {
+  if (!verify || typeof verify !== 'object') {
+    throw new Error('Verification is required');
+  }
+  const { token, nonce, answer } = verify;
+  if (!token) {
+    throw new Error('Verification token is required');
+  }
+  if (!nonce) {
+    throw new Error('Verification nonce is required');
+  }
+  if (answer === undefined) {
+    throw new Error('Verification answer is required');
+  }
+
+  // 立即删除 token，防止重复使用
+  const tokenRecord = await roster.getRecordAndRemove(`verify.token.${token}`);
+  if (!tokenRecord) {
+    throw new Error('Verification token invalid or expired');
+  }
+  
+  const tokenData = tokenRecord.value;
+  if (!tokenData || typeof tokenData !== 'object' || !tokenData.nonce) {
+    throw new Error('Verification token invalid');
+  }
+
+  if (!verifyProof(nonce, answer, tokenData.difficulty || DIFFICULTY)) {
+    throw new Error('Verification failed');
+  }
+}
+
 // ============= 短信/邮箱验证码相关 =============
 
 /**
@@ -236,15 +269,17 @@ export async function checkSendRate(md5Value: string, type: 'sms' | 'email'): Pr
 /**
  * 保存验证码
  */
-export async function saveCode(md5Value: string, code: string, type: 'sms' | 'email'): Promise<void> {
-  await roster.set(`verify.${type}.code.${md5Value}`, code, EXPIRE_5M);
+export async function saveCode(md5Value: string, code: string, type: 'sms' | 'email', formId?: string): Promise<void> {
+  const key = formId ? `verify.${type}.code.${formId}.${md5Value}` : `verify.${type}.code.${md5Value}`;
+  await roster.set(key, code, EXPIRE_10M);
 }
 
 /**
  * 获取并验证验证码
  */
-export async function verifyCode(md5Value: string, userCode: string, type: 'sms' | 'email'): Promise<void> {
-  const storedCode = await roster.get(`verify.${type}.code.${md5Value}`);
+export async function verifyCode(md5Value: string, userCode: string, type: 'sms' | 'email', formId?: string): Promise<void> {
+  const key = formId ? `verify.${type}.code.${formId}.${md5Value}` : `verify.${type}.code.${md5Value}`;
+  const storedCode = await roster.get(key);
   
   if (!storedCode) {
     throw new Error('验证码已过期，请重新获取');
@@ -255,7 +290,7 @@ export async function verifyCode(md5Value: string, userCode: string, type: 'sms'
   }
   
   // 删除已使用的验证码
-  await roster.remove(`verify.${type}.code.${md5Value}`);
+  await roster.remove(key);
 }
 
 /**

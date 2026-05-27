@@ -2,9 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createToken } from '../../../utils/auth.js';
 import { RpcContext } from '../core/types.js';
 import { roster } from '../../../utils/roster.js';
-
-const DIFFICULTY = 4;
-const EXPIRE_1H = 3600;
+import { verifyProofObject } from '../../../utils/verify.js';
 
 export function generateSalt(): string {
   return randomBytes(16).toString('hex');
@@ -19,33 +17,13 @@ export function toSafeUser(user: any): Record<string, unknown> {
   return userInfo;
 }
 
-// 验证算力答案
-function verifyProof(nonce: string, answer: number, difficulty: number): boolean {
-  const hash = createHash('sha256').update(`${nonce}${answer}`).digest('hex');
-  return hash.startsWith('0'.repeat(difficulty));
-}
-
 export async function login(params: Record<string, unknown>, role: 'agent' | 'admin' | null, ctx: RpcContext): Promise<Record<string, unknown>> {
-  const { username, password, verifyToken, verifyAnswer } = params as any;
+  const { username, password, verify } = params as any;
   if (!username) throw new Error('Username is required');
   if (!password) throw new Error('Password is required');
-  if (!verifyToken) throw new Error('Verification token is required');
-  if (verifyAnswer === undefined) throw new Error('Verification answer is required');
 
-  // 立即删除 token，防止重复使用（无论登录成功与否）
-  const tokenRecord = await roster.getRecordAndRemove(`verify.token.${verifyToken}`);
-  if (!tokenRecord) {
-    throw new Error('Verification token invalid or expired');
-  }
-  
-  const tokenData = tokenRecord.value;
-  if (!tokenData || typeof tokenData !== 'object' || !tokenData.nonce) {
-    throw new Error('Verification token invalid');
-  }
-
-  if (!verifyProof(tokenData.nonce, verifyAnswer, tokenData.difficulty || DIFFICULTY)) {
-    throw new Error('Verification failed');
-  }
+  // 验证 verify 对象
+  await verifyProofObject(verify);
 
   const user = await ctx.db.collection('user').findOne({ username, deletedAt: null });
   if (!user) throw new Error('User not found');

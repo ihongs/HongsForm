@@ -1,7 +1,6 @@
 import { registerCommonMethod } from '../registry.js';
 import {
   generateProofToken,
-  verifyProof,
   generateSlideCaptcha,
   verifySlidePosition,
   generateSlideVerifyToken,

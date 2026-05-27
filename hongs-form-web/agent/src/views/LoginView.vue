@@ -338,7 +338,7 @@ async function submit() {
         try {
           const { token, nonce, difficulty } = await verifyApi.generateToken()
           const answer = await computeAnswer(nonce, difficulty)
-          session = await agentApi.login(username.value, password.value, token, answer)
+          session = await agentApi.login(username.value, password.value, { token, nonce, answer })
         } finally {
           computing.value = false
         }

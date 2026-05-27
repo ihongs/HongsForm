@@ -58,7 +58,7 @@ registerFormMethod('form.verify.sendSmsCode', async (params, ctx) => {
   await checkSendRate(phoneMd5Val, 'sms');
 
   const code = generateCode();
-  await saveCode(phoneMd5Val, code, 'sms');
+  await saveCode(phoneMd5Val, code, 'sms', formId);
 
   console.log(`[Form SMS] 表单 ${formId} 向 ${phone} 发送验证码: ${code}`);
 
@@ -109,7 +109,7 @@ registerFormMethod('form.verify.sendEmailCode', async (params, ctx) => {
   await checkSendRate(emailMd5Val, 'email');
 
   const code = generateCode();
-  await saveCode(emailMd5Val, code, 'email');
+  await saveCode(emailMd5Val, code, 'email', formId);
 
   console.log(`[Form Email] 表单 ${formId} 向 ${email} 发送验证码: ${code}`);
 

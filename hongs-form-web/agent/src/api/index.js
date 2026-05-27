@@ -59,8 +59,8 @@ export const rpc = new RpcClient()
 export const commonRpc = new RpcClient('/api/rpc/common')
 
 export const agentApi = {
-  login(username, password, verifyToken, verifyAnswer) {
-    return rpc.call('login', { username, password, verifyToken, verifyAnswer })
+  login(username, password, verify) {
+    return rpc.call('login', { username, password, verify })
   },
   loginOrRegisterByEmail(email, code) {
     return rpc.call('loginOrRegisterByEmail', { email, code })
