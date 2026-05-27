@@ -436,8 +436,8 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
             sqlParts.push(`ORDER BY ${this.order}`);
         }
         
-        // LIMIT 子句
-        sqlParts.push(`LIMIT ${this.skip}, ${this.limit}`);
+        // LIMIT 子句，不同数据库分页方式不同
+        //sqlParts.push(`LIMIT ${this.skip}, ${this.limit}`);
         
         return sqlParts.join(' ');
     };
