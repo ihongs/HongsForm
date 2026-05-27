@@ -4,6 +4,8 @@
 
 为何不用 **AJV** 等？没为什么，只是单纯想做个极简的，能做基本校验转换即可。
 
+校验通过返回转换后的数据；否则抛出异常/错误，而非返回 `true/false`。这样编程身心负担小，有错抛出异常就中止，接口统一包装识别处理错误数据。异常有 `getErrors()`，可返回类似 AJV 的错误列表 `[{ message, keyword, params, instancePath, instanceName}]`。
+
 ## 特性
 
 - 无第三方依赖
@@ -11,7 +13,7 @@
 - 支持部分校验（补充、更新模式）
 - 支持嵌套对象和数组校验
 - 支持自定义校验函数
-- 错误收集与层级展开
+- 错误收集与层级拉平
 - MongoDB 和 MariaDB/MySQL 查询清理和 SQL 转换 
 
 ### 与标准 JSON Schema 的差异
@@ -262,7 +264,7 @@ try {
 } catch (err) {
   if (err instanceof VError) {
     const errors = err.getErrors(chineseTranslator);
-    console.log(errors); // [ { message: '此字段为必填项', instanceName: 'email', instancePath: '/email' } ]
+    console.log(errors); // [ { message: '此字段为必填项', key: 'required', instanceName: 'email', instancePath: '/email' } ]
   }
 }
 ```
