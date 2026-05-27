@@ -37,7 +37,7 @@
   "homepage": "https://github.com/ihongs/HongsForm",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ihongs/HongsForm.git"
+    "url": "git+https://github.com/ihongs/HongsForm.git"
   },
   "bugs": {
     "url": "https://github.com/ihongs/HongsForm/issues"
