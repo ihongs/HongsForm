@@ -505,6 +505,45 @@ describe('基础：VError 错误处理', () => {
     const outer = new VError('outer', { error: inner });
     expect(outer.params?.error).toBe(inner);
   });
+
+  it('VError.getErrors 返回拉平的错误数组', () => {
+    const nestedError = new VError('required', { field: 'age' });
+    const errors = {
+      name: new VError('required', { field: 'name' }),
+      user: new VError('invalid', undefined, {
+        name: new VError('string', { value: 123 }),
+        age: nestedError
+      })
+    };
+    const error = new VError('invalid', undefined, errors);
+    
+    const result = error.getErrors();
+    
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(4);
+    
+    expect(result[0]).toHaveProperty('message');
+    expect(result[0]).toHaveProperty('keyword');
+    expect(result[0]).toHaveProperty('params');
+    expect(result[0]).toHaveProperty('instanceName');
+    expect(result[0]).toHaveProperty('instancePath');
+    
+    expect(result[0].keyword).toBe('required');
+    expect(result[0].instanceName).toBe('name');
+    expect(result[0].instancePath).toBe('/name');
+    
+    expect(result[1].keyword).toBe('invalid');
+    expect(result[1].instanceName).toBe('user');
+    expect(result[1].instancePath).toBe('/user');
+    
+    expect(result[2].keyword).toBe('string');
+    expect(result[2].instanceName).toBe('user.name');
+    expect(result[2].instancePath).toBe('/user/name');
+    
+    expect(result[3].keyword).toBe('required');
+    expect(result[3].instanceName).toBe('user.age');
+    expect(result[3].instancePath).toBe('/user/age');
+  });
 });
 
 // ==============================================

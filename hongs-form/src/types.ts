@@ -100,6 +100,7 @@ export class VError extends Error {
     key: string;
     params?: Record<string, unknown>;
     errors?: Record<string, unknown>;
+    translator?: (key: string, params?: Record<string, unknown>) => string;
 
     constructor(key: string, params?: Record<string, unknown>, errors?: Record<string, unknown>) {
         super(key);
@@ -108,45 +109,67 @@ export class VError extends Error {
         this.errors = errors;
     }
 
-    toString (): string {
-        return this.getError();
+    setTranslator(translator: ((key: string, params?: Record<string, unknown>) => string) | undefined) {
+        this.translator = translator ;
+    }
+
+    getTranslator(): ((key: string, params?: Record<string, unknown>) => string) | undefined {
+        return this.translator ;
     }
 
     // 获取顶层错误消息
-    getError (translator?: (key: string, params?: Record<string, unknown>) => string): string {
-        return translator ? translator(this.key, this.params) : tr(this.key, this.params);
+    get message(): string {
+        return this.translator ? this.translator(this.key, this.params) : tr(this.key, this.params);
     }
 
     // 获取字段错误信息
-    getErrors(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
-        const result: Record<string, unknown> = {};
-        if (this.errors) {
-            for (const [key, value] of Object.entries(this.errors)) {
+    getErrors(translator?: (key: string, params?: Record<string, unknown>) => string): {message: string, keyword: string, params?: Record<string, unknown>, instanceName: string, instancePath: string}[] {
+        if (! translator) translator = this.translator;
+
+        const result: {message: string, keyword: string, params?: Record<string, unknown>, instanceName: string, instancePath: string}[] = [];
+        
+        const collectErrors = (errors: Record<string, unknown>, path: string[]) => {
+            for (const [key, value] of Object.entries(errors)) {
+                const currPath = [...path, key];
+                const instName = currPath.join('.');
+                const instPath = '/'+currPath.join('/');
+                
                 if (value instanceof VError) {
+                    result.push({
+                        message: translator ? translator(value.key, value.params) : tr(value.key, value.params),
+                        keyword: value.key,
+                        params: value.params,
+                        instanceName: instName,
+                        instancePath: instPath,
+                    });
                     if (value.errors) {
-                        result[key] = value.getErrors(translator);
-                    } else {
-                        result[key] = value.getError (translator);
+                        collectErrors(value.errors, currPath);
                     }
+                } else if (value instanceof Tr) {
+                    result.push({
+                        message: translator ? translator(value.key, value.params) : tr(value.key, value.params),
+                        keyword: value.key,
+                        params: value.params,
+                        instanceName: instName,
+                        instancePath: instPath,
+                    });
                 } else {
-                    if (value instanceof Tr) {
-                        result[key] = translator ? translator(value.key, value.params) : value.toString();
-                    } else {
-                        result[key] = String(value);
-                    }
+                    result.push({
+                        message: String(value),
+                        keyword: '',
+                        params: undefined,
+                        instanceName: instName,
+                        instancePath: instPath,
+                    });
                 }
             }
-        }
-        return result;
-    }
-
-    // 获取错误数据以便 JSON PRC 附加 data
-    getData(translator?: (key: string, params?: Record<string, unknown>) => string): Record<string, unknown> {
-        return {
-            code: "invalid",
-            error: this.getError(translator),
-            errors: this.getErrors(translator)
         };
+        
+        if (this.errors) {
+            collectErrors(this.errors, []);
+        }
+        
+        return result;
     }
 }
 

@@ -262,7 +262,7 @@ try {
 } catch (err) {
   if (err instanceof VError) {
     const errors = err.getErrors(chineseTranslator);
-    console.log(errors); // { email: '此字段为必填项' }
+    console.log(errors); // [ { message: '此字段为必填项', instanceName: 'email', instancePath: '/email' } ]
   }
 }
 ```
