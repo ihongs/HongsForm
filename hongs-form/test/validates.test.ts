@@ -559,37 +559,37 @@ describe('基础：config.verifies 自定义校验规则', () => {
 });
 
 // ==============================================
-// 基础：default 默认值
+// 基础：defined 预设值
 // ==============================================
 
-describe('基础：default 默认值', () => {
-  it('简单默认值', () => {
+describe('基础：defined 预设值', () => {
+  it('简单预设值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名' },
+        name: { type: 'string', defined: '匿名' },
       },
     };
     const result = validate({}, schema, {});
     expect(result.name).toBe('匿名');
   });
 
-  it('default 为函数', () => {
+  it('defined 为函数', () => {
     const schema = {
       type: 'object',
       properties: {
-        timestamp: { type: 'number', default: () => Date.now() },
+        timestamp: { type: 'number', defined: () => Date.now() },
       },
     };
     const result = validate({}, schema, {});
     expect(typeof result.timestamp).toBe('number');
   });
 
-  it('defaultOn post 模式', () => {
+  it('definedOn post 模式', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'post' },
+        name: { type: 'string', defined: '匿名', definedOn: 'post' },
       },
     };
     const result = validate({}, schema, {});
@@ -600,40 +600,40 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名' },
+        name: { type: 'string', defined: '匿名' },
       },
     };
     const result = validate({}, schema, { patchMode: true });
     expect(result).toEqual({ name: '匿名' });
   });
 
-  it('defaultOn post 时 patchMode 不应用默认值', () => {
+  it('definedOn post 时 patchMode 不应用默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'post' },
+        name: { type: 'string', defined: '匿名', definedOn: 'post' },
       },
     };
     const result = validate({}, schema, { patchMode: true });
     expect(result).toEqual({});
   });
 
-  it('defaultOn patch 模式', () => {
+  it('definedOn patch 模式', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'patch' },
+        name: { type: 'string', defined: '匿名', definedOn: 'patch' },
       },
     };
     const result = validate({}, schema, { patchMode: true });
     expect(result.name).toBe('匿名');
   });
 
-  it('defaultOn patch 时非 patchMode 不应用默认值', () => {
+  it('definedOn patch 时非 patchMode 不应用默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'patch' },
+        name: { type: 'string', defined: '匿名', definedOn: 'patch' },
       },
     };
     const result = validate({}, schema, {});
@@ -644,7 +644,7 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-post' },
+        name: { type: 'string', defined: '匿名', definedOn: 'post' },
       },
     };
     const result = validate({ name: '已有值' }, schema, {});
@@ -655,7 +655,7 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-post' },
+        name: { type: 'string', defined: '匿名', definedOn: 'post' },
       },
     };
     const result = validate({ name: '已有值' }, schema, { patchMode: true });
@@ -666,7 +666,7 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-patch' },
+        name: { type: 'string', defined: '匿名', definedOn: 'patch' },
       },
     };
     const result = validate({ name: '已有值' }, schema, { patchMode: true });
@@ -677,7 +677,7 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-patch' },
+        name: { type: 'string', defined: '匿名', definedOn: 'patch' },
       },
     };
     const result = validate({ name: '已有值' }, schema, {});
@@ -688,54 +688,11 @@ describe('基础：default 默认值', () => {
     const schema = {
       type: 'object',
       properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'always' },
+        name: { type: 'string', defined: '匿名', definedOn: 'always' },
       },
     };
     const result = validate({}, schema, {});
     expect(result.name).toBe('匿名');
   });
 
-  it('always 模式值存在时不覆盖', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'always' },
-      },
-    };
-    const result = validate({ name: '已有值' }, schema, {});
-    expect(result.name).toBe('已有值');
-  });
-
-  it('over-always 覆盖已有值', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-always' },
-      },
-    };
-    const result = validate({ name: '已有值' }, schema, {});
-    expect(result.name).toBe('匿名');
-  });
-
-  it('over-always 在 patchMode 下也覆盖', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: 'string', default: '匿名', defaultOn: 'over-always' },
-      },
-    };
-    const result = validate({ name: '已有值' }, schema, { patchMode: true });
-    expect(result.name).toBe('匿名');
-  });
-
-  it('值存在时默认行为不覆盖', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: 'string', default: '匿名' },
-      },
-    };
-    const result = validate({ name: '已有值' }, schema, {});
-    expect(result.name).toBe('已有值');
-  });
 });

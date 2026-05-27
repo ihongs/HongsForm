@@ -2,6 +2,8 @@
 
 基于 JSON Schema 模式的极简表单验证与转换库。
 
+为何不用 **AJV** 等？没为什么，只是单纯想做个极简的，能做基本校验转换即可。
+
 ## 特性
 
 - 无第三方依赖
@@ -16,36 +18,39 @@
 
 适配 JSON Schema Draft-07 基础，不支持 `if/then/else/allOf/anyOf/oneOf/not` 及 `$ref/$defs` 等，一切复杂的逻辑都交给 `validate` 自定义校验函数。
 
-与 JSON Schema 的最大区别在于：非静态规则，不仅验证、还要转换。`type=string` 可以接受数字，`type=number` 也可以接受字符串，只要可被转换即可。此库主要用于表单数据的存储、查询，`type` 仅支持一个值，因为一个字段多种类型会对存储、读取造成困扰。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，undefined/缺失视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段，仅用于前端显式，会被后端丢弃。如果字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
+`type=string` 可以接受数字，`type=number` 也可以接受字符串，只要可被转换即可。此库主要用于表单数据的存储、查询，`type` 仅支持一个值，因为一个字段多种类型会对存储、读取造成困扰。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，undefined/缺失视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段，仅用于前端显式，会被后端丢弃。如果字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
 
 `required: true` 表示所在层级的字段值不能为 `undefined`、`null`、空串，但 patch mode 会忽略 `undefined`。同时支持 JSON Schema 中的 `required: []` 下级属性约束。建议用前者，层级分明；前者的错误消息分层放置，后者的错误消息放在上层。
 
 特别增加 `type=date`，这将转为 Date 对象，接受时间戳（毫秒）和 ISO 日期时间格式（YYYY-MM-DDTHH:mm:ss.sssZ）的字符串。也可用 `type=number|string` 加 `inputType=datetime|date|time`，这会转为时间戳或格式化的字符串。
 
-### 增加及不同的配置项：
+### 增加的配置项：
 
 | 配置项 | 说明 |
 |--------|------|
 | `validate`    | 校验函数，一个或多个，参数 `(value, schema, config, state)`，抛错则当前字段校验中止。如需自定义校验前执行默认、必填、类型校验，可用 `validate: [baseValidate, yourValidate]`。 |
-| `default`     | 默认取值，可以是具体的一个值、多个值，也可以是函数，参数同 `validate`。 |
-| `defaultOn`   | 默认时机，可选 post 新增时、patch 更新时，以及 over-post、over-patch、over-always 覆盖。 |
+| `defined`     | 预设取值，可为一个值、多个值，也可为函数，参数同 `validate`。 |
+| `definedOn`   | 默认时机，可选 post 新增时、patch 更新时、always 总是(默认)。 |
 | `inputType`   | 控件类型，可选 text、textarea、number、range、select、switch、radio、check（没 box）等。 |
 | `options`     | 选项字典，对 `enum` 的补充，提供选项值对应的标签，以供前端构建选择控件及显示对应的标签。 |
-| `title`       | 字段标题 |
+| `ignores`     | 忽略取值, 用于 `array` 类型，默认 `[undefined, null, '']` |
+| `title`       | 字段标题。 |
 | `description` | 字段帮助信息。 |
-| `label`       | 表单页面字段标签。 |
-| `placeholder` | 输入占位提示。 |
+| `label`       | 表单标签。 |
+| `placeholder` | 表单占位提示。 |
 | `findable`    | 许可用于查询。 |
 | `sortable`    | 许可用于排序。 |
 
-### 校验函数 config 选项：
+`title`、`description` 没变，放这儿与 `label`、`placeholder` 对比。`label` 缺失时用 `title` 替代。`label` 的意义是有用户喜欢在表单用长名称，恨不得把介绍也写在标签里。
+
+### 校验器配置项：
 
 | 选项 | 说明 |
 |------|------|
 | `patchMode: true\|false` | 是否局部更新模式，为 true 忽略不存在的值和 undefined。 |
 | `pickyMode: true\|false` | 是否错误敏感模式，为 true 遇首个错误立即中止全部校验。 |
-| `ignoreErrors: true\|false` | 忽略错误，仅限 validateData、validateFind、validateSqls，用 validate 无效。比如查询，希望命中了哪些参数就用哪些参数查。 |
-| `verifies:` | 一组 Verify 函数，即 `[(scheam) => ((value, schema, config, state) => {})]`，用于替代默认校验规则表。 |
+| `ignoreErrors: true\|false` | 忽略错误，仅限 validateData、validateFind、validateSqls，用 validate 无效。比如用于查询，希望命中了哪些就用哪些查。 |
+| `verifies:` | 一组 Verify 函数，即 `[(schema) => ((value, schema, config, state) => {})]`，判断什么 schema 用什么校验，可用于替代默认校验规则表。 |
 
 ## 安装
 
@@ -123,19 +128,19 @@ const result = validate({
 // 结果: { age: 25, active: true, tags: ['a', 'b', 'c'] }
 ```
 
-### 默认值
+### 预设值
 
 ```typescript
-// 使用 default 设置默认值
+// 使用 defined 设置预设值
 const result = validate({}, {
   properties: {
-    title: { type: 'string', default: '无题' },
-    updateAt: { type: 'string', default: () => new Date().toISOString() },
-    createAt: { type: 'string', default: () => new Date().toISOString(), defaultOn: 'post' },
+    title: { type: 'string', defined: '无题' },
+    updateAt: { type: 'string', defined: () => new Date().toISOString() },
+    createAt: { type: 'string', defined: () => new Date().toISOString(), definedOn: 'post' },
   },
 }, { patchMode: false });
 // 结果: { title: '无题', updateAt: '2026-05-26...', createAt: '2026-05-26...' }
-// defaultOn: 'post' 新增时赋值(patchMode: false), 'patch' 更新时赋值(patchMode: true), 默认总赋值
+// definedOn: 'post' 新增时赋值(patchMode: false), 'patch' 更新时赋值(patchMode: true), 默认总赋值
 ```
 
 ### 自定义校验
@@ -289,7 +294,9 @@ setTranslator(originalTranslator); // 可选恢复
 
 ### 内置校验器
 
+- `defineds` - 预设赋值
 - `defaults` - 默认赋值
+- `optional` - 选填校验
 - `required` - 必填校验
 - `requires` - 对象属性必填校验
 - `isString` - 字符串校验与转换
@@ -299,7 +306,7 @@ setTranslator(originalTranslator); // 可选恢复
 - `isDateTime` - 日期时间校验与转换
 - `isArray` - 数组校验与转换
 - `isObject` - 对象校验与转换
-- `baseValidate` - 基础校验，按 schema 将以上都试试
+- `baseValidate` - 基础校验，按 schema 将以上都试一遍
 
 ### 控制流常量
 

@@ -4,6 +4,7 @@ import { Tr, tr } from './i18n.js';
 export interface FormSchema {
     type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'date' | 'null';
     enum?: unknown[];
+    default?: unknown;
     required?: boolean;
 
     // 字符串
@@ -31,15 +32,15 @@ export interface FormSchema {
     minProperties?: number;
     maxProperties?: number;
 
-    // 附加、不同
+    // 增加、差异
     validate?: Validate | Validate[]; // 校验方法
-    default?: unknown; // 默认取值，一个值或多个值或生成函数
-    defaultOn?: 'post' | 'patch' | 'over-post' | 'over-patch' | 'over-always'; // over 不管有没有值都赋值
-    title?: string; // 字段标题
-    label?: string; // 表单标签
-    description?: string; // 字段介绍
-    placeholder?: string; // 占位提示
+    initial?: unknown; // 预设取值、预设方法
+    initialOn?: 'post' | 'patch' | 'always'; // 预设时机，默认 always
     inputType?: string; // 控件类型
+    title?: string; // 字段标题
+    description?: string; // 字段介绍
+    label?: string; // 表单标签
+    placeholder?: string; // 占位提示
     findable?: boolean; // 许可查找
     sortable?: boolean; // 许可排序
 }

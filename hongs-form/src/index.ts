@@ -23,10 +23,11 @@ export {
   tr,
 } from './i18n.js';
 export {
+  defineds,
+  defaults,
   optional,
   required,
   requires,
-  defaults,
   patterns,
   isString,
   isNumber,

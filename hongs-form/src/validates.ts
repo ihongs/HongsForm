@@ -1,5 +1,39 @@
 import { FormSchema, Validate, Verify, VState, VError, VPASS, VQUIT } from './types.js';
 
+// 预设值 (defined)
+export const defineds: Validate = function (value: any, schema: any, config: any, state?: VState) {
+    let def;
+    switch (schema.definedOn) {
+    case 'post':
+        if (config.patchMode) {
+            return VPASS;
+        }
+        def = schema.defined;
+        break;
+    case 'patch':
+        if (! config.patchMode) {
+            return VPASS
+        }
+        def = schema.defined;
+        break;
+    case 'always':
+    default:
+        def = schema.defined;
+    }
+    if (typeof def === 'function') {
+        return def(value, schema, config, state);
+    }
+    return def;
+};
+
+// 默认值 (default)
+export const defaults: Validate = function (value: any, schema: any, config: any) {
+    if (value === undefined) {
+        return schema.default;
+    }
+    return value;
+};
+
 // 可选/非必填 (optional)
 export const optional: Validate = function (value: any, schema: any, config: any) {
     if (value === undefined) {
@@ -55,40 +89,6 @@ export const requires: Validate = function (value: any, schema: any, config: any
     }
 
     return value;
-};
-
-// 默认值 (default)
-export const defaults: Validate = function (value: any, schema: any, config: any, state?: VState) {
-    if (value !== undefined) {
-        if (! schema.defaultOn?.startsWith('over-')) {
-            return value;
-        }
-    }
-    let def;
-    switch (schema.defaultOn) {
-    case 'post':
-    case 'over-post':
-        if (config.patchMode) {
-            return VPASS;
-        }
-        def = schema.default;
-        break;
-    case 'patch':
-    case 'over-patch':
-        if (! config.patchMode) {
-            return VPASS
-        }
-        def = schema.default;
-        break;
-    case 'always':
-    case 'over-always':
-    default:
-        def = schema.default;
-    }
-    if (typeof def === 'function') {
-        return def(value, schema, config, state);
-    }
-    return def;
 };
 
 export const patterns: Record<string, string> = {
@@ -442,6 +442,9 @@ export const isObject: Validate = function (value: any, schema: any, config: any
 // 校验规则集合。注意：不要将 validate/baseValidate 包装成 verify 并加入 verifies 中，这会导致循环引用。
 export const verifies: Verify[] = [
     (schema) => {
+        if (schema.defined) {
+            return defineds;
+        }
         if (schema.default) {
             return defaults;
         }
