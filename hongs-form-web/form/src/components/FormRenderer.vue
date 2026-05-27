@@ -147,8 +147,19 @@ function clearErrors() {
   })
 }
 
-function setErrors(errorMap) {
-  Object.assign(errors, errorMap)
+function setErrors(errorData) {
+  clearErrors()
+  
+  if (Array.isArray(errorData)) {
+    for (const error of errorData) {
+      const fieldName = error.instanceName || error.instancePath?.replace(/^\//, '').replace(/\//g, '.')
+      if (fieldName && error.message) {
+        errors[fieldName] = error.message
+      }
+    }
+  } else {
+    Object.assign(errors, errorData)
+  }
 }
 
 function startCountdown(fieldKey) {
