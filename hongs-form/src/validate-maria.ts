@@ -1,8 +1,6 @@
 import { VState, VError } from './types.js';
 
-/**
- * 表信息接口
- */
+// 表信息接口
 interface TableInfo {
     tableName: string;
     nameAs: string;
@@ -11,6 +9,7 @@ interface TableInfo {
     fullPath: string;
 }
 
+// 操作符映射表
 const operatorMap: Record<string, string> = {
     '$eq': '=',
     '$ne': '!=',
@@ -20,6 +19,7 @@ const operatorMap: Record<string, string> = {
     '$gte': '>=',
 };
 
+// 字段引用映射
 const getQuoteFn = (type: '``' | '""' | "[]" | 'BTICK' | 'QUOTE' | 'BRACK') => {
     switch (type) {
         case '""':
@@ -634,12 +634,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                 }
                 
                 if (!isSortable(fieldName)) {
-                    setError(findKey, fieldName, 'findable');
+                    setError(_sortKey, fieldName, 'sortable');
                     continue;
                 }
                 const tableAlias = getFieldTableAlias(fieldName);
                 if (!tableAlias) {
-                    setError(findKey, fieldName, 'findable');
+                    setError(_sortKey, fieldName, 'sortable');
                     continue;
                 }
                 usedTables.add(tableAlias);
@@ -648,12 +648,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         } else {
             for (const [key, order] of Object.entries(sort)) {
                 if (!isSortable(key)) {
-                    setError(findKey, key, 'findable');
+                    setError(_sortKey, key, 'sortable');
                     continue;
                 }
                 const tableAlias = getFieldTableAlias(key);
                 if (!tableAlias) {
-                    setError(findKey, key, 'findable');
+                    setError(_sortKey, key, 'sortable');
                     continue;
                 }
                 usedTables.add(tableAlias);
@@ -668,15 +668,10 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     /**
      * 构建 SELECT 子句
      * 
-     * 支持三种格式：
-     * 1. 数组格式：['name', 'age', 'group__name']
-     * 2. MongoDB 投影格式：{ name: 1, age: 1 } 或 { phone: 0 }
-     *    - 1/true: 包含字段
-     *    - 0/false: 排除字段
-     * 3. 未指定：返回所有顶层字段
-     * 
-     * 安全特性：只允许 schema 中配置的字段进入 SELECT 子句
-     * 未配置的字段会被自动过滤，防止 SQL 注入
+     * 支持两种输入格式：
+     * - 对象格式：{ field1: 1, field2: 0 }，1 表示包含，0 表示排除
+     * - 数组格式：['field1', 'field2']，支持 -前缀 和 !后缀 表示排除
+     *   例如：['field1', '-field2', 'field3!'] 表示包含 field1，排除 field2 和 field3
      * 
      * 双下划线格式的字段会自动生成 AS 别名
      * 
@@ -689,32 +684,57 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * - 关联表字段（含层级分隔符）：字段名与别名不同，添加 AS 别名
      */
     const buildSelect = (colsData: any): { sql: string; usedTables: Set<string> } => {
-        let cols: string[];
+        let includeCols: string[] = [];
+        let excludeCols: string[] = [];
+        
+        // 统一转为对象模式处理
         if (Array.isArray(colsData)) {
-            cols = colsData.filter(col => isListable(col));
+            for (const item of colsData) {
+                if (typeof item !== 'string') continue;
+                
+                let key = item;
+                let exclude = false;
+                
+                if (item.startsWith('-')) {
+                    key = item.slice(1);
+                    exclude = true;
+                } else if (item.endsWith('!')) {
+                    key = item.slice(0, -1);
+                    exclude = true;
+                }
+                
+                if (!isListable(key)) {
+                    setError(_colsKey, key, 'listable');
+                    continue;
+                }
+                
+                if (exclude) {
+                    excludeCols.push(key);
+                } else {
+                    includeCols.push(key);
+                }
+            }
         } else if (colsData && typeof colsData === 'object') {
-            const colsArray: string[] = [];
-            const excludeCols: string[] = [];
-            let hasInclude = false;
-            
             for (const [key, val] of Object.entries(colsData)) {
                 if (val === 1 || val === true) {
                     if (isListable(key)) {
-                        colsArray.push(key);
-                        hasInclude = true;
+                        includeCols.push(key);
+                    } else {
+                        setError(_colsKey, key, 'listable');
                     }
                 } else if (val === 0 || val === false) {
                     excludeCols.push(key);
                 }
             }
-            
-            const allFields = getAllFields(schema);
-            cols = hasInclude 
-                ? colsArray 
-                : allFields.filter(f => !excludeCols.includes(f) && !f.includes(_levelSep));
+        }
+        
+        // 根据包含/排除确定最终字段列表
+        let cols: string[];
+        if (includeCols.length > 0) {
+            cols = includeCols;
         } else {
             const allFields = getAllFields(schema);
-            cols = allFields.filter(f => !f.includes(_levelSep));
+            cols = allFields.filter(f => !excludeCols.includes(f) && !f.includes(_levelSep));
         }
 
         const selectParts: string[] = [];

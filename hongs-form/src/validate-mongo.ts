@@ -278,12 +278,43 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     // 如没有值为 1 的字段，返回所有 properties 的字段名（对象格式）
     // 如果有值为 0 的字段，从字段列表中排除（对象格式）
     // 支持的值: 1/true (包含), 0/false (排除)
+    // 
+    // 也支持数组格式：['field1', '-field2', 'field3!']
+    // -前缀 和 !后缀 表示排除，其他表示包含
     const filterCols = (colsData: any) => {
-        if (colsData && typeof colsData === 'object') {
-            const colsObj: any = {};
-            let hasInclude = false;
-            let hasExclude = false;
-            
+        const colsObj: any = {};
+        let hasInclude = false;
+        let hasExclude = false;
+        
+        // 统一转为对象模式处理
+        if (Array.isArray(colsData)) {
+            for (const item of colsData) {
+                if (typeof item !== 'string') continue;
+                
+                let key = item;
+                let exclude = false;
+                
+                if (item.startsWith('-')) {
+                    key = item.slice(1);
+                    exclude = true;
+                } else if (item.endsWith('!')) {
+                    key = item.slice(0, -1);
+                    exclude = true;
+                }
+                
+                if (!isListable(key)) {
+                    setError(colsKey, key, 'listable');
+                    continue;
+                }
+                
+                colsObj[key] = exclude ? 0 : 1;
+                if (exclude) {
+                    hasExclude = true;
+                } else {
+                    hasInclude = true;
+                }
+            }
+        } else if (colsData && typeof colsData === 'object') {
             for (const [key, val] of Object.entries(colsData)) {
                 if (!isListable(key)) {
                     setError(colsKey, key, 'listable');
@@ -298,19 +329,16 @@ export const validateFind = function (params: any, schema: any, config: any, sta
                     hasExclude = true;
                 }
             }
-            
-            if (hasInclude) {
-                // 有明确的 include 字段，只返回 include 列表（MongoDB 标准格式）
-                return colsObj;
-            } else if (hasExclude) {
-                // 只有 exclude 字段，返回排除列表（MongoDB 标准格式）
-                return colsObj;
-            } else {
-                // 没有有效字段，返回空对象（表示返回所有字段）
-                return {};
-            }
+        }
+        
+        if (hasInclude) {
+            // 有明确的 include 字段，只返回 include 列表（MongoDB 标准格式）
+            return colsObj;
+        } else if (hasExclude) {
+            // 只有 exclude 字段，返回排除列表（MongoDB 标准格式）
+            return colsObj;
         } else {
-            // 没有指定 cols，返回空对象（MongoDB 中表示返回所有字段）
+            // 没有有效字段，返回空对象（表示返回所有字段）
             return {};
         }
     }
