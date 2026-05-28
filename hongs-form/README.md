@@ -42,6 +42,7 @@
 | `placeholder` | 表单占位提示。 |
 | `findable`    | 许可用于查询。 |
 | `sortable`    | 许可用于排序。 |
+| `lsitable`    | 许可用于列举，即 SQL 的 SELECT 部分。 |
 
 `title`、`description` 没变，放这儿与 `label`、`placeholder` 对比。`label` 缺失时用 `title` 替代。`label` 的意义是有用户喜欢在表单里用长名称并加序号，导致数据表格的表头很难看。
 
