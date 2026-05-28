@@ -1,31 +1,6 @@
 import { VState, VError } from './types.js';
 
 /**
- * 表信息接口
- * 用于存储从 schema 解析出的表结构信息
- */
-interface TableInfo {
-    tableName: string;
-    nameAs: string;
-    joinOn?: string;
-    joinType?: string;
-    parentPath: string;
-    fullPath: string;
-}
-
-/**
- * 字段信息接口
- * 用于存储从 schema 解析出的字段信息
- */
-interface FieldInfo {
-    tableAlias: string;
-    fieldName: string;
-    fullPath: string;
-    findable: boolean;
-    sortable: boolean;
-}
-
-/**
  * 校验并转为 SQL 片段，参数结构同 MongoDB
  * 
  * 新版本特性：
@@ -50,6 +25,7 @@ interface FieldInfo {
  *     group: {
  *       type: 'object',
  *       tableName: 'groups',
+ *       nameAs: 'group',
  *       joinOn: 'group.id = user.group_id',
  *       properties: {
  *         name: { type: 'string', findable: true }
@@ -140,41 +116,21 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * 字段引用规则由 config.quoteType 配置决定
      * 
      * @returns 完整的 SQL 语句
-     * 
-     * @example
-     * // MariaDB/MySQL 默认格式（反引号）
-     * SELECT `user`.`id`, `user`.`name`, `dept`.`name` AS `dept__name`
-     * FROM `users` AS `user`
-     * INNER JOIN `departments` AS `dept` ON `dept`.`id` = `user`.`dept_id`
-     * WHERE `user`.`name` = ?
-     * ORDER BY `user`.`age` ASC
-     * 
-     * @example
-     * // ANSI_QUOTES 格式（双引号）
-     * SELECT "user"."id", "user"."name"
-     * FROM "users" AS "user"
-     * 
-     * @example
-     * // SQL Server 格式（方括号）
-     * SELECT [user].[id], [user].[name]
-     * FROM [users] AS [user]
      */
     result.getSql = function (): string {
         const sqlParts: string[] = [];
         
         sqlParts.push(`SELECT ${buildSelect()}`);
         
-        const rootTable = getRootTable();
+        const rootTable = getTableInfo(schema);
         if (rootTable) {
             sqlParts.push(`FROM ${quote(rootTable.tableName)} AS ${quote(rootTable.nameAs)}`);
         }
         
-        const joinTables = getJoinTables();
+        const joinTables = getJoinTables(schema);
         for (const joinTable of joinTables) {
             const joinType = joinTable.joinType || 'INNER';
-            // 使用配置的分隔符替换点，与字段路径格式保持一致
             const joinAlias = joinTable.fullPath.replace(/\./g, _levelSep);
-            // joinOn 由使用者在 schema 中手动定义，根据数据库类型自行处理字段引用
             sqlParts.push(`${joinType} JOIN ${quote(joinTable.tableName)} AS ${quote(joinAlias)} ON ${joinTable.joinOn}`);
         }
         
@@ -207,112 +163,202 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         '$gt': '>',
         '$gte': '>=',
     };
-    
+
     /**
-     * 表信息映射表
-     * key: 路径（如 '__root__' 或 'group' 或 'group.company'）
-     * value: TableInfo 对象
+     * 表信息接口
      */
-    const tables: Map<string, TableInfo> = new Map();
-    
+    interface TableInfo {
+        tableName: string;
+        nameAs: string;
+        joinOn?: string;
+        joinType?: string;
+        fullPath: string;
+    }
+
     /**
-     * 字段信息映射表
-     * key: 字段路径（支持两种格式：'name' 或 'group.name' 或 'group__name'）
-     * value: FieldInfo 对象
+     * 字段信息接口
      */
-    const fields: Map<string, FieldInfo> = new Map();
-    
+    interface FieldInfo {
+        tableAlias: string;
+        fieldName: string;
+        fullPath: string;
+        findable: boolean;
+        sortable: boolean;
+    }
+
     /**
-     * 递归解析 schema 结构，提取表信息和字段信息
+     * 根据字段路径查找子 schema 和字段名
+     * 支持配置的分隔符（`.` 或 `__`）
      * 
-     * 核心逻辑：
-     * 1. 解析当前层级的 tableName 和 nameAs，存入 tables 映射
-     * 2. 遍历 properties，对于嵌套对象递归调用，对于普通字段存入 fields 映射
-     * 3. 字段支持两种访问格式：
-     *    - 点分隔格式：'group.name'
-     *    - 双下划线格式：'group__name'（用于 cols 和 sort）
-     * 
-     * @param schemaNode - 当前层级的 schema 节点
-     * @param parentPath - 父级路径，用于构建嵌套路径
-     * @param parentTableAlias - 父级表别名
+     * @param fieldPath - 字段路径，如 'group.name' 或 'group__name'
+     * @returns [子 schema, 字段名]
      */
-    const parseSchema = (schemaNode: any, parentPath: string = '', parentTableAlias: string = '') => {
-        if (!schemaNode || !schemaNode.properties) return;
+    const findChildSchema = (fieldPath: string): [any, string] => {
+        let childSchema = schema;
+        const parts = fieldPath.split(_levelSep);
+        const fieldName = parts[parts.length - 1];
         
-        const tableName = schemaNode.tableName;
-        const nameAs = schemaNode.nameAs || tableName;
-        
-        if (tableName && !tables.has(parentPath || '__root__')) {
-            tables.set(parentPath || '__root__', {
-                tableName,
-                nameAs,
-                joinOn: schemaNode.joinOn,
-                joinType: schemaNode.joinType,
-                parentPath: parentPath.substring(0, parentPath.lastIndexOf('.')) || '',
-                fullPath: parentPath
-            });
-        }
-        
-        // 使用配置的分隔符替换点，与字段路径格式保持一致
-        const currentTableAlias = parentPath ? parentPath.replace(/\./g, _levelSep) : nameAs;
-        
-        for (const [key, prop] of Object.entries(schemaNode.properties) as [string, any][]) {
-            const currentPath = parentPath ? `${parentPath}.${key}` : key;
-            
-            if (prop.type === 'object' && prop.properties) {
-                parseSchema(prop, currentPath, currentTableAlias);
-            } else {
-                const fullPathWithSep = parentPath ? `${parentPath.replace(/\./g, _levelSep)}${_levelSep}${key}` : key;
-                
-                fields.set(fullPathWithSep, {
-                    tableAlias: currentTableAlias,
-                    fieldName: key,
-                    fullPath: currentPath,
-                    findable: prop.findable === true,
-                    sortable: prop.sortable === true
-                });
+        for (let i = 0; i < parts.length - 1; i++) {
+            const key = parts[i];
+            if (childSchema.properties && childSchema.properties[key]) {
+                if (childSchema.properties[key].type === 'object') {
+                    childSchema = childSchema.properties[key];
+                    continue;
+                }
+                if (childSchema.properties[key].type === 'array' && childSchema.properties[key].items?.type === 'object') {
+                    childSchema = childSchema.properties[key];
+                    continue;
+                }
             }
+            childSchema = null;
+            break;
         }
+        return [childSchema, fieldName];
     };
-    
-    parseSchema(schema);
-    
+
     /**
-     * 获取根表信息
-     * 根表是 schema 顶层定义的主表
-     */
-    const getRootTable = (): TableInfo | undefined => {
-        return tables.get('__root__');
-    };
-    
-    /**
-     * 获取所有关联表信息
-     * 排除根表，返回所有需要 JOIN 的表
-     */
-    const getJoinTables = (): TableInfo[] => {
-        const result: TableInfo[] = [];
-        for (const [key, info] of tables) {
-            if (key !== '__root__') {
-                result.push(info);
-            }
-        }
-        return result;
-    };
-    
-    /**
-     * 解析字段路径，返回字段信息
-     * 
-     * 只支持配置的分隔符格式：
-     * - 简单字段名：'name' -> 查找 fields 映射
-     * - 层级字段名：'group__name'（使用 __ 分隔符）或 'group.name'（使用 . 分隔符）
+     * 检查字段路径是否可查询
+     * 支持两种配置方式：
+     * 1. properties: { field: { findable: true } }
+     * 2. findable: ['field1', 'field2']（字段不必在 properties 中定义）
      * 
      * @param fieldPath - 字段路径
-     * @returns FieldInfo 或 null
+     * @returns 字段是否可查询
      */
-    const parseFieldPath = (fieldPath: string): FieldInfo | null => {
-        return fields.get(fieldPath) || null;
+    const isFindable = (fieldPath: string): boolean => {
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (childSchema) {
+            if (childSchema.properties?.[fieldName]?.findable === true) {
+                return true;
+            }
+            if (childSchema.items?.properties?.[fieldName]?.findable === true) {
+                return true;
+            }
+            if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) {
+                return true;
+            }
+        }
+        return false;
     };
-    
+
+    /**
+     * 检查字段路径是否可排序
+     * 支持两种配置方式：
+     * 1. properties: { field: { sortable: true } }
+     * 2. sortable: ['field1', 'field2']（字段不必在 properties 中定义）
+     * 
+     * @param fieldPath - 字段路径
+     * @returns 字段是否可排序
+     */
+    const isSortable = (fieldPath: string): boolean => {
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (childSchema) {
+            if (childSchema.properties?.[fieldName]?.sortable === true) {
+                return true;
+            }
+            if (childSchema.items?.properties?.[fieldName]?.sortable === true) {
+                return true;
+            }
+            if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    /**
+     * 获取字段的表别名
+     * 
+     * @param fieldPath - 字段路径
+     * @returns 表别名，如果找不到返回 null
+     */
+    const getFieldTableAlias = (fieldPath: string): string | null => {
+        const parts = fieldPath.split(_levelSep);
+        let currentSchema = schema;
+        let tableAlias = schema.nameAs || schema.tableName;
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+            const key = parts[i];
+            if (currentSchema.properties && currentSchema.properties[key]) {
+                const prop = currentSchema.properties[key];
+                const currentPath = parts.slice(0, i + 1).join(_levelSep);
+                
+                if (prop.type === 'object') {
+                    currentSchema = prop;
+                    if (prop.nameAs) {
+                        tableAlias = prop.nameAs;
+                    } else {
+                        tableAlias = currentPath;
+                    }
+                    continue;
+                }
+                if (prop.type === 'array' && prop.items?.type === 'object') {
+                    currentSchema = prop.items;
+                    if (prop.items.nameAs) {
+                        tableAlias = prop.items.nameAs;
+                    } else {
+                        tableAlias = currentPath;
+                    }
+                    continue;
+                }
+            }
+            return null;
+        }
+        return tableAlias;
+    };
+
+    /**
+     * 获取根表信息
+     */
+    const getTableInfo = (schemaNode: any): TableInfo | undefined => {
+        if (schemaNode.tableName) {
+            return {
+                tableName: schemaNode.tableName,
+                nameAs: schemaNode.nameAs || schemaNode.tableName,
+                joinOn: schemaNode.joinOn,
+                joinType: schemaNode.joinType,
+                fullPath: ''
+            };
+        }
+        return undefined;
+    };
+
+    /**
+     * 获取所有关联表信息
+     */
+    const getJoinTables = (schemaNode: any, parentPath: string = ''): TableInfo[] => {
+        const result: TableInfo[] = [];
+        if (!schemaNode || !schemaNode.properties) return result;
+        
+        for (const [key, prop] of Object.entries(schemaNode.properties)) {
+            const currentPath = parentPath ? `${parentPath}.${key}` : key;
+            
+            if (prop.type === 'object' && prop.tableName) {
+                result.push({
+                    tableName: prop.tableName,
+                    nameAs: prop.nameAs || prop.tableName,
+                    joinOn: prop.joinOn,
+                    joinType: prop.joinType,
+                    fullPath: currentPath
+                });
+                
+                result.push(...getJoinTables(prop, currentPath));
+            } else if (prop.type === 'array' && prop.items?.type === 'object' && prop.items?.tableName) {
+                result.push({
+                    tableName: prop.items.tableName,
+                    nameAs: prop.items.nameAs || prop.items.tableName,
+                    joinOn: prop.items.joinOn,
+                    joinType: prop.items.joinType,
+                    fullPath: currentPath
+                });
+                
+                result.push(...getJoinTables(prop.items, currentPath));
+            }
+        }
+        
+        return result;
+    };
+
     /**
      * 将 MongoDB 查询条件转换为 SQL WHERE 子句
      * 
@@ -359,74 +405,99 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     }
                     case '$in': {
                         const field = parentPath;
-                        const fieldInfo = parseFieldPath(field);
-                        if (!fieldInfo || !fieldInfo.findable) {
+                        if (!isFindable(field)) {
                             errors[field] = new VError('findable');
                             if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                             continue;
                         }
-                        usedTables.add(fieldInfo.tableAlias);
+                        const tableAlias = getFieldTableAlias(field);
+                        if (!tableAlias) {
+                            errors[field] = new VError('findable');
+                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            continue;
+                        }
+                        usedTables.add(tableAlias);
                         if (Array.isArray(val) && val.length > 0) {
                             params.push(...val);
-                            sqlParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} IN (${val.map(() => '?').join(', ')})`);
+                            sqlParts.push(`${quoteField(tableAlias, field.split(_levelSep).pop()!)} IN (${val.map(() => '?').join(', ')})`);
                         }
                         break;
                     }
                     case '$nin': {
                         const field = parentPath;
-                        const fieldInfo = parseFieldPath(field);
-                        if (!fieldInfo || !fieldInfo.findable) {
+                        if (!isFindable(field)) {
                             errors[field] = new VError('findable');
                             if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                             continue;
                         }
-                        usedTables.add(fieldInfo.tableAlias);
+                        const tableAlias = getFieldTableAlias(field);
+                        if (!tableAlias) {
+                            errors[field] = new VError('findable');
+                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            continue;
+                        }
+                        usedTables.add(tableAlias);
                         if (Array.isArray(val) && val.length > 0) {
                             params.push(...val);
-                            sqlParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} NOT IN (${val.map(() => '?').join(', ')})`);
+                            sqlParts.push(`${quoteField(tableAlias, field.split(_levelSep).pop()!)} NOT IN (${val.map(() => '?').join(', ')})`);
                         }
                         break;
                     }
                     case '$exists': {
                         const field = parentPath;
-                        const fieldInfo = parseFieldPath(field);
-                        if (!fieldInfo || !fieldInfo.findable) {
+                        if (!isFindable(field)) {
                             errors[field] = new VError('findable');
                             if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                             continue;
                         }
-                        usedTables.add(fieldInfo.tableAlias);
+                        const tableAlias = getFieldTableAlias(field);
+                        if (!tableAlias) {
+                            errors[field] = new VError('findable');
+                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            continue;
+                        }
+                        usedTables.add(tableAlias);
                         sqlParts.push(val 
-                            ? `${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} IS NOT NULL`
-                            : `${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} IS NULL`);
+                            ? `${quoteField(tableAlias, field.split(_levelSep).pop()!)} IS NOT NULL`
+                            : `${quoteField(tableAlias, field.split(_levelSep).pop()!)} IS NULL`);
                         break;
                     }
                     case '$regex': {
                         const field = parentPath;
-                        const fieldInfo = parseFieldPath(field);
-                        if (!fieldInfo || !fieldInfo.findable) {
+                        if (!isFindable(field)) {
                             errors[field] = new VError('findable');
                             if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                             continue;
                         }
-                        usedTables.add(fieldInfo.tableAlias);
+                        const tableAlias = getFieldTableAlias(field);
+                        if (!tableAlias) {
+                            errors[field] = new VError('findable');
+                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            continue;
+                        }
+                        usedTables.add(tableAlias);
                         params.push(val);
-                        sqlParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} REGEXP ?`);
+                        sqlParts.push(`${quoteField(tableAlias, field.split(_levelSep).pop()!)} REGEXP ?`);
                         break;
                     }
                     default: {
                         const sqlOp = operatorMap[key];
                         if (sqlOp) {
                             const field = parentPath;
-                            const fieldInfo = parseFieldPath(field);
-                            if (!fieldInfo || !fieldInfo.findable) {
+                            if (!isFindable(field)) {
                                 errors[field] = new VError('findable');
                                 if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                                 continue;
                             }
-                            usedTables.add(fieldInfo.tableAlias);
+                            const tableAlias = getFieldTableAlias(field);
+                            if (!tableAlias) {
+                                errors[field] = new VError('findable');
+                                if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                                continue;
+                            }
+                            usedTables.add(tableAlias);
                             params.push(val);
-                            sqlParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} ${sqlOp} ?`);
+                            sqlParts.push(`${quoteField(tableAlias, field.split(_levelSep).pop()!)} ${sqlOp} ?`);
                         } else {
                             errors[key] = new VError('unsupportedSymbol', { value: key });
                             if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
@@ -442,15 +513,20 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                         nested.usedTables.forEach(t => usedTables.add(t));
                     }
                 } else {
-                    const fieldInfo = parseFieldPath(currentPath);
-                    if (!fieldInfo || !fieldInfo.findable) {
+                    if (!isFindable(currentPath)) {
                         errors[currentPath] = new VError('findable');
                         if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                         continue;
                     }
-                    usedTables.add(fieldInfo.tableAlias);
+                    const tableAlias = getFieldTableAlias(currentPath);
+                    if (!tableAlias) {
+                        errors[currentPath] = new VError('findable');
+                        if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                        continue;
+                    }
+                    usedTables.add(tableAlias);
                     params.push(val);
-                    sqlParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} = ?`);
+                    sqlParts.push(`${quoteField(tableAlias, currentPath.split(_levelSep).pop()!)} = ?`);
                 }
             }
         }
@@ -498,30 +574,93 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     direction = 'DESC';
                 }
                 
-                const fieldInfo = parseFieldPath(fieldName);
-                if (!fieldInfo || !fieldInfo.sortable) {
+                if (!isSortable(fieldName)) {
                     errors[fieldName] = new VError('sortable');
                     if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                     continue;
                 }
-                usedTables.add(fieldInfo.tableAlias);
-                orderParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} ${direction}`);
+                const tableAlias = getFieldTableAlias(fieldName);
+                if (!tableAlias) {
+                    errors[fieldName] = new VError('sortable');
+                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    continue;
+                }
+                usedTables.add(tableAlias);
+                orderParts.push(`${quoteField(tableAlias, fieldName.split(_levelSep).pop()!)} ${direction}`);
             }
         } else {
             for (const [key, order] of Object.entries(sort)) {
-                const fieldInfo = parseFieldPath(key);
-                if (!fieldInfo || !fieldInfo.sortable) {
+                if (!isSortable(key)) {
                     errors[key] = new VError('sortable');
                     if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
                     continue;
                 }
-                usedTables.add(fieldInfo.tableAlias);
+                const tableAlias = getFieldTableAlias(key);
+                if (!tableAlias) {
+                    errors[key] = new VError('sortable');
+                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    continue;
+                }
+                usedTables.add(tableAlias);
                 const direction = order === -1 ? 'DESC' : 'ASC';
-                orderParts.push(`${quoteField(fieldInfo.tableAlias, fieldInfo.fieldName)} ${direction}`);
+                orderParts.push(`${quoteField(tableAlias, key.split(_levelSep).pop()!)} ${direction}`);
             }
         }
         
         return { sql: orderParts.join(', '), usedTables };
+    };
+    
+    /**
+     * 获取 schema 中所有可查询或可排序的字段
+     */
+    const getAllFields = (schemaNode: any, parentPath: string = ''): string[] => {
+        const fields: string[] = [];
+        if (!schemaNode || !schemaNode.properties) return fields;
+        
+        for (const [key, prop] of Object.entries(schemaNode.properties)) {
+            const currentPath = parentPath ? `${parentPath}${_levelSep}${key}` : key;
+            
+            if (prop.type === 'object') {
+                fields.push(...getAllFields(prop, currentPath));
+                
+                if (prop.findable === true || prop.sortable === true) {
+                    fields.push(currentPath);
+                }
+                if (Array.isArray(prop.findable) || Array.isArray(prop.sortable)) {
+                    fields.push(currentPath);
+                }
+            } else if (prop.type === 'array' && prop.items?.type === 'object') {
+                fields.push(...getAllFields(prop.items, currentPath));
+            } else {
+                if (prop.findable === true || prop.sortable === true) {
+                    fields.push(currentPath);
+                }
+            }
+            
+            if (Array.isArray(schemaNode.findable) && schemaNode.findable.includes(key)) {
+                fields.push(currentPath);
+            }
+            if (Array.isArray(schemaNode.sortable) && schemaNode.sortable.includes(key)) {
+                fields.push(currentPath);
+            }
+        }
+        
+        return fields;
+    };
+
+    /**
+     * 检查字段是否存在于 schema 中
+     */
+    const hasField = (fieldPath: string): boolean => {
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (!childSchema) return false;
+        
+        if (childSchema.properties?.[fieldName]) return true;
+        if (childSchema.items?.properties?.[fieldName]) return true;
+        if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) return true;
+        if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) return true;
+        
+        return false;
     };
     
     /**
@@ -564,7 +703,7 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * 双下划线格式的字段会自动生成 AS 别名
      */
     if (Array.isArray(colsData)) {
-        result.cols = colsData.filter(col => parseFieldPath(col));
+        result.cols = colsData.filter(col => hasField(col));
     } else if (colsData && typeof colsData === 'object') {
         const colsArray: string[] = [];
         const excludeCols: string[] = [];
@@ -572,16 +711,22 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         
         for (const [key, val] of Object.entries(colsData)) {
             if (val === 1 || val === true) {
-                colsArray.push(key);
-                hasInclude = true;
+                if (hasField(key)) {
+                    colsArray.push(key);
+                    hasInclude = true;
+                }
             } else if (val === 0 || val === false) {
                 excludeCols.push(key);
             }
         }
         
-        result.cols = hasInclude ? colsArray : Array.from(fields.keys()).filter(f => !excludeCols.includes(f) && !f.includes('.'));
+        const allFields = getAllFields(schema);
+        result.cols = hasInclude 
+            ? colsArray 
+            : allFields.filter(f => !excludeCols.includes(f) && !f.includes(_levelSep));
     } else {
-        result.cols = Array.from(fields.keys()).filter(f => !f.includes('.'));
+        const allFields = getAllFields(schema);
+        result.cols = allFields.filter(f => !f.includes(_levelSep));
     }
     
     /**
@@ -599,15 +744,18 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         const selectParts: string[] = [];
         
         for (const col of result.cols) {
-            const fieldInfo = parseFieldPath(col);
-            if (fieldInfo) {
-                const selectField = quoteField(fieldInfo.tableAlias, fieldInfo.fieldName);
-                // 当字段名与别名相同时不添加 AS 子句
-                if (col.includes(_levelSep)) {
-                    selectParts.push(`${selectField} AS ${quote(col)}`);
-                } else {
-                    selectParts.push(selectField);
-                }
+            if (!hasField(col)) continue;
+            
+            const tableAlias = getFieldTableAlias(col);
+            if (!tableAlias) continue;
+            
+            const fieldName = col.split(_levelSep).pop()!;
+            const selectField = quoteField(tableAlias, fieldName);
+            
+            if (col.includes(_levelSep)) {
+                selectParts.push(`${selectField} AS ${quote(col)}`);
+            } else {
+                selectParts.push(selectField);
             }
         }
         

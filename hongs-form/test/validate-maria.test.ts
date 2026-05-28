@@ -730,6 +730,35 @@ describe('Maria：validateSqls 新 schema 结构测试', () => {
     });
 
 
+    it('简化配置 - findable 和 sortable 数组格式', () => {
+        const schema = {
+            type: 'object',
+            tableName: 'users',
+            nameAs: 'user',
+            findable: ['id', 'name', 'age', 'status'],  // status 不在 properties 中
+            sortable: ['name', 'age', 'score'],  // score 不在 properties 中
+            properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                age: { type: 'integer' },
+                email: { type: 'string', findable: true }
+            }
+        };
+
+        const params = {
+            name: '张三',
+            age: { $gte: 18 },
+            status: 'active',  // 使用 findable 数组中的 status 字段
+            sort: ['name', '-age', 'score']  // 对 score 排序
+        };
+
+        const result = validateSqls(params, schema, {});
+
+        expect(result.where).toBe('`user`.`name` = ? AND `user`.`age` >= ? AND `user`.`status` = ?');
+        expect(result.whereParams).toEqual(['张三', 18, 'active']);
+        expect(result.order).toBe('`user`.`name` ASC, `user`.`age` DESC, `user`.`score` ASC');
+    });
+
     it('注入防御 - 未配置字段不进入 SELECT 子句', () => {
         const simpleSchema = {
             type: 'object',
