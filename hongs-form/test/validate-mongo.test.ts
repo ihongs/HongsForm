@@ -52,18 +52,39 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     expect(result.find).toEqual({ name: { $in: ['张三', '李四'] } });
   });
 
-  it('validateFind 排序', () => {
-    const params = { sort: ['name', { age: -1 }] };
+  it('validateFind 排序 - MongoDB 对象格式', () => {
+    const params = { sort: { name: 1, age: -1 } };
     const result = validateFind(params, formSchema, {});
     
-    expect(result.sort).toEqual(['name', { age: -1 }]);
+    expect(result.sort).toEqual({ name: 1, age: -1 });
   });
 
-  it('validateFind 排序字段', () => {
-    const params = { sort: ['phone'] };
+  it('validateFind 排序 - 数组字符串格式', () => {
+    const params = { sort: ['phone', 'name'] };
     const result = validateFind(params, formSchema, {});
     
-    expect(result.sort).toEqual(['phone']);
+    expect(result.sort).toEqual({ phone: 1, name: 1 });
+  });
+
+  it('validateFind 排序 - 感叹号后缀格式', () => {
+    const params = { sort: ['name', 'age!'] };
+    const result = validateFind(params, formSchema, {});
+    
+    expect(result.sort).toEqual({ name: 1, age: -1 });
+  });
+
+  it('validateFind 排序 - 减号前缀格式（兼容 Django）', () => {
+    const params = { sort: ['name', '-age'] };
+    const result = validateFind(params, formSchema, {});
+    
+    expect(result.sort).toEqual({ name: 1, age: -1 });
+  });
+
+  it('validateFind 排序 - 感叹号和减号混用', () => {
+    const params = { sort: ['name!', '-age'] };
+    const result = validateFind(params, formSchema, {});
+    
+    expect(result.sort).toEqual({ name: -1, age: -1 });
   });
 
   it('validateFind skip 和 limit', () => {
@@ -153,7 +174,7 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     const result = validateFind(params, formSchema, { findKey: 'query' });
     
     expect(result.find).toEqual({ name: '张三' });
-    expect(result.sort).toEqual(['name']);
+    expect(result.sort).toEqual({ name: 1 });
   });
 
   it('validateFind 自定义 sortKey', () => {
@@ -161,7 +182,7 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     const result = validateFind(params, formSchema, { sortKey: 'order' });
     
     expect(result.find).toEqual({ name: '张三' });
-    expect(result.sort).toEqual(['name']);
+    expect(result.sort).toEqual({ name: 1 });
   });
 
   it('validateFind state 参数', () => {
@@ -177,21 +198,21 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     const params = { cols: { name: 1, age: 1 } };
     const result = validateFind(params, formSchema, {});
     
-    expect(result.cols).toEqual(['name', 'age']);
+    expect(result.cols).toEqual({ name: 1, age: 1 });
   });
 
   it('validateFind cols 排除字段', () => {
     const params = { cols: { phone: 0 } };
     const result = validateFind(params, formSchema, {});
     
-    expect(result.cols).toEqual(['name', 'age']);
+    expect(result.cols).toEqual({ phone: 0 });
   });
 
   it('validateFind 默认 cols', () => {
     const params = {};
     const result = validateFind(params, formSchema, {});
     
-    expect(result.cols).toEqual(['name', 'age', 'phone']);
+    expect(result.cols).toEqual({});
   });
 
   it('validateFind pickyMode 立即抛出错误', () => {
@@ -215,7 +236,7 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     const params = { fields: { name: 1, age: 1 } };
     const result = validateFind(params, formSchema, { colsKey: 'fields' });
     
-    expect(result.cols).toEqual(['name', 'age']);
+    expect(result.cols).toEqual({ name: 1, age: 1 });
   });
 
   it('validateFind 自定义 skipKey 和 limitKey', () => {
@@ -224,5 +245,42 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     
     expect(result.skip).toBe(5);
     expect(result.limit).toBe(10);
+  });
+
+  it('VState - 通过 VState.getValids() 获取校验通过的数据', () => {
+    const state = new VState();
+    const params = {
+      name: '张三',
+      age: { $gte: 18 },
+      // 错误条件
+      unknown_field: 'value',
+      sort: ['unknown_sort']
+    };
+
+    try {
+      validateFind(params, formSchema, {}, state);
+      expect(true).toBe(false);
+    } catch (e) {
+      expect(e).toBeInstanceOf(VError);
+      const valids = state.getValids();
+      // 校验通过的数据应该包含正确的查询条件
+      expect(valids.find).toEqual({ name: '张三', age: { '$gte': 18 } });
+    }
+  });
+
+  it('ignoreErrors - 忽略错误时获取部分校验成功的数据', () => {
+    const params = {
+      name: '张三',
+      age: { $gte: 18 },
+      // 错误条件（未配置字段）
+      unknown_field: 'value'
+    };
+
+    const result = validateFind(params, formSchema, { ignoreErrors: true });
+    
+    // 应该获取到校验成功的数据
+    expect(result.find).toEqual({ name: '张三', age: { '$gte': 18 } });
+    // unknown_field 应该被忽略
+    expect(result.find).not.toHaveProperty('unknown_field');
   });
 });

@@ -23,12 +23,12 @@ export const validateFind = function (params: any, schema: any, config: any, sta
         cols: [],
     };
     
-    const errors: Record<string, VError> = {};
-    
     if (state) {
         state.values = params;
         state.valids = result;
     }
+    
+    const errors: Record<string, VError> = {};
     
     /**
      * 检查字段路径是否在 schema 中可查询
@@ -139,25 +139,55 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     
     /**
      * 过滤排序字段
+     * 
+     * 支持多种排序格式输入，统一输出为 MongoDB 标准对象格式：
+     * 
+     * 1. MongoDB 标准对象格式（推荐）：{ col1: 1, col2: -1 }
+     *    - 1 表示升序
+     *    - -1 表示降序
+     *    - 输出保持对象格式
+     * 
+     * 2. 数组字符串格式（规避 JSON 对象可能无法保障顺序）：
+     *    - '-'前缀逆序：['col1', '-col2']（col2 降序）
+     *    - '!'后缀逆序：['col1', 'col2!']（col2 降序）
+     *    - 统一转换为对象格式输出
+     * 
+     * @param value - 排序参数，可以是对象或字符串数组
+     * @returns 标准 MongoDB 排序对象 { field1: 1, field2: -1 }
      */
     const filterSort = (value: any): any => {
-        if (!Array.isArray(value)) return [];
-        const result: any[] = [];
+        const result: any = {};
         
-        for (const item of value) {
-            if (typeof item === 'string') {
-                if (isSortable(item)) {
-                    result.push(item);
+        if (!value || typeof value !== 'object') return result;
+        
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                if (typeof item !== 'string') continue;
+                
+                let fieldName = item;
+                let order = 1;
+                
+                if (item.startsWith('-')) {
+                    fieldName = item.slice(1);
+                    order = -1;
+                } else if (item.endsWith('!')) {
+                    fieldName = item.slice(0, -1);
+                    order = -1;
+                }
+                
+                if (isSortable(fieldName)) {
+                    result[fieldName] = order;
                 } else {
-                    errors[item] = new VError('sortable');
+                    errors[fieldName] = new VError('sortable');
                     if (config.pickyMode) {
                         throw new VError('invalidFind', undefined, errors);
                     }
                 }
-            } else if (typeof item === 'object' && item !== null) {
-                const [key, order] = Object.entries(item)[0];
+            }
+        } else {
+            for (const [key, order] of Object.entries(value)) {
                 if (isSortable(key) && (order === 1 || order === -1)) {
-                    result.push({ [key]: order });
+                    result[key] = order;
                 } else if (!isSortable(key)) {
                     errors[key] = new VError('sortable');
                     if (config.pickyMode) {
@@ -166,6 +196,7 @@ export const validateFind = function (params: any, schema: any, config: any, sta
                 }
             }
         }
+        
         return result;
     };
     
@@ -188,48 +219,44 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     result.limit = limitData !== undefined && typeof limitData === 'number' && limitData >= 1 ? limitData : 1;
     
     // 处理返回字段 cols
-    // cols 结构: {field_name: 0|1}
-    // 如没有值为 1 的字段，返回所有 properties 的字段名
-    // 如果有值为 0 的字段，从字段列表中排除
+    // cols 结构: MongoDB 标准投影对象 {field_name: 0|1}
+    // 如没有值为 1 的字段，返回所有 properties 的字段名（对象格式）
+    // 如果有值为 0 的字段，从字段列表中排除（对象格式）
+    // 支持的值: 1/true (包含), 0/false (排除)
     if (colsData && typeof colsData === 'object') {
-        const colsArray: string[] = [];
-        const excludeCols: string[] = [];
+        const colsObj: any = {};
         let hasInclude = false;
+        let hasExclude = false;
         
         for (const [key, val] of Object.entries(colsData)) {
-            if (val === 1) {
-                colsArray.push(key);
+            if (val === 1 || val === true) {
+                colsObj[key] = 1;
                 hasInclude = true;
-            } else if (val === 0) {
-                excludeCols.push(key);
+            } else if (val === 0 || val === false) {
+                colsObj[key] = 0;
+                hasExclude = true;
             }
         }
         
         if (hasInclude) {
-            // 有明确的 include 字段，使用 include 列表
-            result.cols = colsArray;
+            // 有明确的 include 字段，只返回 include 列表（MongoDB 标准格式）
+            result.cols = colsObj;
+        } else if (hasExclude) {
+            // 只有 exclude 字段，返回排除列表（MongoDB 标准格式）
+            result.cols = colsObj;
         } else {
-            // 没有 include 字段，返回所有非嵌套对象的 properties，排除 exclude 列表中的字段
-            const allProps = Object.keys(properties).filter(key => {
-                const prop = properties[key];
-                return !prop || prop.type !== 'object';
-            });
-            result.cols = excludeCols.length > 0 
-                ? allProps.filter(p => !excludeCols.includes(p)) 
-                : allProps;
+            // 没有有效字段，返回空对象（表示返回所有字段）
+            result.cols = {};
         }
     } else {
-        // 没有指定 cols，返回所有非嵌套对象的 properties 的字段名
-        result.cols = Object.keys(properties).filter(key => {
-            const prop = properties[key];
-            return !prop || prop.type !== 'object';
-        });
+        // 没有指定 cols，返回空对象（MongoDB 中表示返回所有字段）
+        result.cols = {};
     }
     
     // 如果有错误且不是忽略错误模式，则抛出异常
     if (Object.keys(errors).length > 0 && !config.ignoreErrors) {
         throw new VError('invalidFind', undefined, errors);
     }
-    
+
     return result;
 };

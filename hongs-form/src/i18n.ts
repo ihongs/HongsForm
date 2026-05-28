@@ -31,7 +31,7 @@ export const defaultMessages: Record<string, string> = {
   invalidFind: 'Invalid find',
   invalidSqls: 'Invalid find',
   findable: 'Nonsupport find',
-  sortable: 'Nonsupport find',
+  sortable: 'Nonsupport sort',
   unsupportedSymbol: 'Unsupported symbol: {value}'
 };
 

@@ -43,6 +43,10 @@ export interface FormSchema {
     placeholder?: string; // 占位提示
     findable?: boolean; // 许可查找
     sortable?: boolean; // 许可排序
+    tableName?: string; // 表名
+    nameAs?: string; // 表的别名，仅顶层，下层键即别名
+    joinOn?: string; // 关联条件，仅下层，与上层的关系
+    joinType?: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL'; // 关联类型，默认 INNER
 }
 
 // 校验参数

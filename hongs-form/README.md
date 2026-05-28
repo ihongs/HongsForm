@@ -18,9 +18,9 @@
 
 ### 与标准 JSON Schema 的差异
 
-适配 JSON Schema Draft-07 基础，不支持 `if/then/else/allOf/anyOf/oneOf/not` 及 `$ref/$defs` 等，一切复杂的逻辑都交给 `validate` 自定义校验函数。
+适配 JSON Schema Draft-07 部分规范，不支持 `if/then/else/allOf/anyOf/oneOf/not` 及 `$ref/$defs` 等，一切复杂的逻辑都交给 `validate` 自定义校验函数。
 
-`type=string` 可以接受数字，`type=number` 也可以接受字符串，只要可被转换即可。此库主要用于表单数据的存储、查询，`type` 仅支持一个值，因为一个字段多种类型会对存储、读取造成困扰。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，undefined/缺失视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段，仅用于前端显式，会被后端丢弃。如果字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
+`type=string` 可以接受数字，`type=number` 也可以接受字符串，只要可被转换即可。此库主要用于表单数据的存储、查询，`type` 仅支持一个值，因为一个字段多种类型会对存储、读取造成困扰。所有 `type` 都隐性包含 'null'，当处于 patch mode（部分更新），null 视为将值设为 null，undefined/缺失视为不做变动。故单独的 `type=null` 没有意义，视作非存储字段（保留给前端表单用）。如果字段不接受 null，加上 `required: true` 即可，null 和空串都会被拒绝。
 
 `required: true` 表示所在层级的字段值不能为 `undefined`、`null`、空串，但 patch mode 会忽略 `undefined`。同时支持 JSON Schema 中的 `required: []` 下级属性约束。建议用前者，层级分明；前者的错误消息分层放置，后者的错误消息放在上层。
 
@@ -43,7 +43,7 @@
 | `findable`    | 许可用于查询。 |
 | `sortable`    | 许可用于排序。 |
 
-`title`、`description` 没变，放这儿与 `label`、`placeholder` 对比。`label` 缺失时用 `title` 替代。`label` 的意义是有用户喜欢在表单用长名称，恨不得把介绍也写在标签里。
+`title`、`description` 没变，放这儿与 `label`、`placeholder` 对比。`label` 缺失时用 `title` 替代。`label` 的意义是有用户喜欢在表单里用长名称并加序号，导致数据表格的表头很难看。
 
 ### 校验器配置项：
 
@@ -52,7 +52,9 @@
 | `patchMode: true\|false` | 是否局部更新模式，为 true 忽略不存在的值和 undefined。 |
 | `pickyMode: true\|false` | 是否错误敏感模式，为 true 遇首个错误立即中止全部校验。 |
 | `ignoreErrors: true\|false` | 忽略错误，仅限 validateData、validateFind、validateSqls，用 validate 无效。比如用于查询，希望命中了哪些就用哪些查。 |
-| `verifies:` | 一组 Verify 函数，即 `[(schema) => ((value, schema, config, state) => {})]`，判断什么 schema 用什么校验，可用于替代默认校验规则表。 |
+| `verifies: [(schema) => ((value, schema, config, state) => {})]` | 一组 Verify 函数，用于判断什么 schema 用什么来校验，可用于替代默认校验规则表。 |
+| `quotoType: 'QUOTE\|BTICK\|BRACK'` | 字段引号类型，分别是双引号、反引号、方括号，默认为反引号，也可以写 `quoteType: '""'`。 |
+| `levelSep: '.\|__'` | 字段层级分隔，点或双下划线，默认双下划线。 |
 
 ## 安装
 
@@ -287,6 +289,194 @@ try {
 }
 setTranslator(originalTranslator); // 可选恢复
 ```
+
+## MongoDB 查询转换（validateFind）
+
+`validateFind` 用于将查询参数转换为 MongoDB 查询格式。
+
+```typescript
+import { validateFind } from 'hongs-form';
+
+// 查询参数
+const params = {
+  name: '张三',
+  age: { $gte: 18 },
+  sort: ['age', '-status'],
+  skip: 10,
+  limit: 20
+};
+
+// 字段配置
+const schema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', findable: true },
+    age: { type: 'integer', findable: true, sortable: true }
+  }
+};
+
+const result = validateFind(params, schema, {});
+```
+
+**返回结构**：
+```typescript
+{
+  find: { name: '张三', age: { '$gte': 18 } },  // 查询条件（对象）
+  sort: { age: 1, status: -1 },                 // 排序对象 {field: 1|-1}
+  skip: 10,                                     // 跳过行数
+  limit: 20,                                    // 返回行数
+  cols: { name: 1, age: 1 }                     // 投影对象 {field: 1|-1}
+}
+```
+
+**排序格式支持**：
+- 对象格式：`{ age: 1, status: -1 }`
+- 数组格式（-前缀降序）：`['age', '-status']`
+- 数组格式（!后缀降序）：`['age', 'status!']`
+
+为规避客户端 JSON 对象可能无法保障顺序的问题，支持数组格式的排序参数。所有格式统一转换为 MongoDB 标准对象格式：`{ age: 1, status: -1 }`
+
+## SQL 查询转换（validateSqls）
+
+`validateSqls` 用于将 MongoDB 风格的查询参数转换为 SQL 语句，支持 MariaDB/MySQL 等数据库。该函数从 schema 内部读取表名、别名、关联等。
+
+### 完整示例
+
+```typescript
+import { validateSqls } from 'hongs-form';
+
+const userSchema = {
+  type: 'object',
+  tableName: 'users',
+  nameAs: 'user',
+  properties: {
+    id: { type: 'string', findable: true },
+    name: { type: 'string', findable: true },
+    age: { type: 'integer', findable: true, sortable: true },
+    dept: {
+      type: 'object',
+      tableName: 'departments',
+      nameAs: 'dept',
+      joinOn: 'dept.id = user.dept_id',
+      properties: {
+        id: { type: 'string', findable: true },
+        name: { type: 'string', findable: true },
+        boost: { type: 'integer', findable: true, sortable: true },
+        company: {
+          type: 'object',
+          tableName: 'companys',
+          joinOn: 'company.id = dept.company_id',
+          joinType: 'LEFT',
+          properties: {
+            id: { type: 'string', findable: true },
+            name: { type: 'string', findable: true }
+          }
+        }
+      }
+    }
+  }
+};
+
+const params = {
+  cols: ['id', 'name', 'age', 'dept__name', 'dept__company__name'],
+  sort: ['age', '-dept__boost'],  // 支持数组格式，-前缀表示降序
+  age: { $gte: 18 },
+  dept: {
+    company: { id: '1' }
+  },
+  skip: 20,
+  limit: 10
+};
+
+const result = validateSqls(params, userSchema, {});
+
+// 获取 SQL 片段
+console.log(result.select);  // `user`.`id`, `user`.`name`, `user`.`age`, `dept`.`name` AS `dept__name`, `dept__company`.`name` AS `dept__company__name`
+console.log(result.where);   // `user`.`age` >= ? AND `dept__company`.`id` = ?
+console.log(result.order);   // `user`.`age` ASC, `dept`.`boost` DESC
+console.log(result.skip);    // 20
+console.log(result.limit);   // 10
+console.log(result.whereParams);  // [18, '1']
+
+// 生成完整 SQL
+const sql = result.getSql();
+// SELECT `user`.`id`, `user`.`name`, `user`.`age`, `dept`.`name` AS `dept__name`, `dept__company`.`name` AS `dept__company__name`
+// FROM `users` AS `user`
+// INNER JOIN `departments` AS `dept` ON `dept`.`id` = `user`.`dept_id`
+// LEFT JOIN `companys` AS `dept__company` ON `company`.`id` = `dept`.`company_id`
+// WHERE `user`.`age` >= ? AND `dept__company`.`id` = ?
+// ORDER BY `user`.`age` ASC, `dept`.`boost` DESC
+```
+
+### 功能特性
+
+#### 1. 查询条件
+支持 MongoDB 风格的查询操作符：
+- 比较操作符：`$eq`, `$ne`, `$lt`, `$lte`, `$gt`, `$gte`
+- 逻辑操作符：`$and`, `$or`
+- 数组操作符：`$in`, `$nin`
+- 其他操作符：`$exists`, `$regex`
+
+#### 2. 排序支持
+支持多种排序格式输入：
+- 对象格式：`{ age: 1, group__boost: -1 }`（MongoDB 风格）
+- 数组格式：`['age', '-group__boost']`，`['age', 'group__boost!']`（`-`前缀和`!`后缀都表示降序）
+
+#### 3. 表关联
+通过 schema 内部定义表关联：
+- `tableName` - 表名
+- `nameAs` - 表的别名，仅顶层配置，下级键即别名
+- `joinOn` - 关联条件，仅下层配置，关联上层条件（**注意**：`joinOn` 需根据数据库类型自行处理字段引用格式）
+- `joinType` - 关联类型（INNER/LEFT/RIGHT/FULL，默认 INNER）
+
+#### 4. 分页处理
+`skip` 和 `limit` 参数用于分页，但不会直接写入 SQL：
+
+```typescript
+result.skip;   // 跳过的行数
+result.limit;  // 返回的行数
+```
+
+**注意**：由于不同数据库的分页语法差异较大（MariaDB/MySQL 使用 `LIMIT offset, count`，PostgreSQL 使用 `LIMIT count OFFSET offset`，SQL Server 使用 `ROW_NUMBER()`），分页逻辑需要在应用层根据数据库类型自行处理。
+
+#### 5. 返回字段
+通过 `cols` 参数指定返回字段，支持双下划线格式表示关联表字段：
+
+```typescript
+cols: ['id', 'name', 'group__name']
+// 生成: `user`.`id`, `user`.`name`, `group`.`name` AS `group__name`
+```
+
+#### 6. 字段引用配置
+通过 `config.quoteType` 参数指定字段引用规则，适配不同数据库的语法要求：
+
+```typescript
+// MariaDB/MySQL（默认）- 使用反引号
+validateSqls(params, schema, { quoteType: 'BTICK' });
+// 生成: `user`.`name`
+
+// ANSI_QUOTES 模式 - 使用双引号
+validateSqls(params, schema, { quoteType: 'QUOTE' });
+// 生成: "user"."name"
+
+// SQL Server - 使用方括号
+validateSqls(params, schema, { quoteType: 'BRACK' });
+// 生成: [user].[name]
+```
+
+| 参数值 | 说明 | 示例 |
+|--------|------|------|
+| `BTICK` | MariaDB/MySQL 反引号（默认） | `` `user`.`name` `` |
+| `QUOTE` | ANSI_QUOTES 双引号 | `"user"."name"` |
+| `BRACK` | SQL Server 方括号 | `[user].[name]` |
+
+**注意**：quote 只是简单的给表名、别名、字段名首尾加符号；schema 默认为内部静态配置，切勿让用户外部指定。
+
+#### 7. 安全特性
+- 仅允许 schema 中配置了 `findable: true` 的字段用于查询
+- 仅允许 schema 中配置了 `sortable: true` 的字段用于排序
+- 所有值通过参数化查询传递，防止 SQL 注入
+- 未配置的字段会被自动过滤或拒绝
 
 ## API
 
