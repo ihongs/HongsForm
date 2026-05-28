@@ -517,7 +517,6 @@ validateSqls(params, schema, { quoteType: 'BRACK' });
 错误类，包含 `errors` 属性和方法：
 
 - `getErrors(translator?)` - 获取错误集合
-- `getData(translator?)` - 获取错误数据 `{code, error, errors}`，用于 JSON RPC 错误响应
 
 ## License
 
