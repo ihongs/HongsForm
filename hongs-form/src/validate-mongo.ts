@@ -1,5 +1,27 @@
 import { VState, VError } from './types.js';
 
+/**
+ * 支持的 MongoDB 操作符
+ */
+const supportedOperators = [
+    // 比较操作符
+    '$eq', '$ne', '$lt', '$lte', '$gt', '$gte',
+    // 逻辑操作符
+    '$or', '$and', '$nor', '$not',
+    // 数组操作符
+    '$in', '$nin', '$all', '$elemMatch', '$size',
+    // 存在性操作符
+    '$exists',
+    // 正则操作符
+    '$regex', '$options',
+    // 文本搜索
+    '$text', '$search', '$language', '$caseSensitive', '$diacriticSensitive',
+    // 地理空间
+    '$geoWithin', '$geoIntersects', '$near', '$nearSphere',
+    // 位操作
+    '$bitsAllSet', '$bitsAnySet', '$bitsAllClear', '$bitsAnyClear'
+];
+
 // 校验查询参数
 // config.ignoreErrors: 忽略校验错误，默认 false
 // config.findKey: 自定义查询参数键名，默认不设，从顶层开始
@@ -31,16 +53,70 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     const errors: Record<string, VError> = {};
     
     /**
+     *  {
+     *      type: 'object',
+     *      findable: ['field1', 'field2'], // 等效下方分开写
+     *      properties: {
+     *          field1: { findable: true }
+     *          field2: { findable: true }
+     *          subObj: { // subObj.abc 返回 [subObj, 'abc']
+     *              type: 'object',
+     *              findable: ['abc']
+     *          },
+     *          subArr: { // subArr.xyz 返回 [subArr, 'xyz']
+     *              type: 'array',
+     *              findable: ['xyz'],
+     *              items: {
+     *                  type: 'object'
+     *              }
+     *          }
+     *      }
+     *  }
+     */
+    const findChildSchema = (fieldPath: string): [any, string] => {
+        let childSchema = schema;
+        const parts = fieldPath.split('.');
+        const fieldName = parts[parts.length - 1];
+        for (let i = 0; i < parts.length - 1; i++) {
+            const key = parts[i];
+            if (childSchema.properties && childSchema.properties[key]) {
+                // 子级对象
+                if (childSchema.properties[key].type == 'object') {
+                    childSchema = childSchema.properties[key];
+                    continue;
+                }
+                // 子级数组对象
+                if (childSchema.properties[key].type == 'array' && childSchema.properties[key].items?.type == 'object') {
+                    childSchema = childSchema.properties[key];
+                    continue;
+                }
+            }
+            childSchema = null;
+            break;
+        }
+        return [childSchema, fieldName];
+    }
+
+    /**
      * 检查字段路径是否在 schema 中可查询
+     * 支持两种配置方式：
+     * 1. properties: { field: { findable: true } }
+     * 2. findable: ['field1', 'field2']（字段不必在 properties 中定义）
      */
     const isFindable = (fieldPath: string): boolean => {
-        if (properties[fieldPath]) {
-            return (properties[fieldPath] as any).findable === true;
-        }
-        
-        for (const [key, val] of Object.entries(properties)) {
-            if (fieldPath === key || fieldPath.startsWith(key + '.')) {
-                if ((val as any).findable === true) return true;
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (childSchema) {
+            // 子级对象
+            if (childSchema.properties?.[fieldName]?.findable === true) {
+                return true;
+            }
+            // 子级数组对象
+            if (childSchema.items?.properties?.[fieldName]?.findable === true) {
+                return true;
+            }
+            // 上级 findable 数组
+            if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) {
+                return true;
             }
         }
         return false;
@@ -48,41 +124,28 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     
     /**
      * 检查字段是否可排序
+     * 支持两种配置方式：
+     * 1. properties: { field: { sortable: true } }
+     * 2. sortable: ['field1', 'field2']（字段不必在 properties 中定义）
      */
     const isSortable = (fieldPath: string): boolean => {
-        if (properties[fieldPath]) {
-            return (properties[fieldPath] as any).sortable === true;
-        }
-        
-        for (const [key, val] of Object.entries(properties)) {
-            if (fieldPath === key || fieldPath.startsWith(key + '.')) {
-                if ((val as any).sortable === true) return true;
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (childSchema) {
+            // 子级对象
+            if (childSchema.properties?.[fieldName]?.sortable === true) {
+                return true;
+            }
+            // 子级数组对象
+            if (childSchema.items?.properties?.[fieldName]?.sortable === true) {
+                return true;
+            }
+            // 上级 sortable 数组
+            if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) {
+                return true;
             }
         }
         return false;
     };
-    
-    /**
-     * 支持的 MongoDB 操作符
-     */
-    const supportedOperators = [
-        // 比较操作符
-        '$eq', '$ne', '$lt', '$lte', '$gt', '$gte',
-        // 逻辑操作符
-        '$or', '$and', '$nor', '$not',
-        // 数组操作符
-        '$in', '$nin', '$all', '$elemMatch', '$size',
-        // 存在性操作符
-        '$exists',
-        // 正则操作符
-        '$regex', '$options',
-        // 文本搜索
-        '$text', '$search', '$language', '$caseSensitive', '$diacriticSensitive',
-        // 地理空间
-        '$geoIntersects', '$geoWithin', '$near', '$nearSphere',
-        // 位操作
-        '$bitsAllSet', '$bitsAnySet', '$bitsAllClear', '$bitsAnyClear'
-    ];
     
     /**
      * 递归过滤查询字段
@@ -199,6 +262,43 @@ export const validateFind = function (params: any, schema: any, config: any, sta
         
         return result;
     };
+
+    // 处理返回字段 cols
+    // cols 结构: MongoDB 标准投影对象 {field_name: 0|1}
+    // 如没有值为 1 的字段，返回所有 properties 的字段名（对象格式）
+    // 如果有值为 0 的字段，从字段列表中排除（对象格式）
+    // 支持的值: 1/true (包含), 0/false (排除)
+    const filterCols = (colsData: any) => {
+        if (colsData && typeof colsData === 'object') {
+            const colsObj: any = {};
+            let hasInclude = false;
+            let hasExclude = false;
+            
+            for (const [key, val] of Object.entries(colsData)) {
+                if (val === 1 || val === true) {
+                    colsObj[key] = 1;
+                    hasInclude = true;
+                } else if (val === 0 || val === false) {
+                    colsObj[key] = 0;
+                    hasExclude = true;
+                }
+            }
+            
+            if (hasInclude) {
+                // 有明确的 include 字段，只返回 include 列表（MongoDB 标准格式）
+                return colsObj;
+            } else if (hasExclude) {
+                // 只有 exclude 字段，返回排除列表（MongoDB 标准格式）
+                return colsObj;
+            } else {
+                // 没有有效字段，返回空对象（表示返回所有字段）
+                return {};
+            }
+        } else {
+            // 没有指定 cols，返回空对象（MongoDB 中表示返回所有字段）
+            return {};
+        }
+    }
     
     // 解构参数，分离 find、sort、skip、limit、cols
     let findData: any, sortData: any, skipData: any, limitData: any, colsData: any;
@@ -213,45 +313,13 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     
     // 处理排序
     result.sort = sortData !== undefined ? filterSort(sortData) : [];
+
+    // 处理返回字段
+    result.cols = colsData !== undefined ? filterCols(colsData) : {};
     
     // 处理 skip 和 limit
     result.skip  = skipData  !== undefined && typeof skipData  === 'number' && skipData  >= 0 ? skipData  : 0;
     result.limit = limitData !== undefined && typeof limitData === 'number' && limitData >= 1 ? limitData : 1;
-    
-    // 处理返回字段 cols
-    // cols 结构: MongoDB 标准投影对象 {field_name: 0|1}
-    // 如没有值为 1 的字段，返回所有 properties 的字段名（对象格式）
-    // 如果有值为 0 的字段，从字段列表中排除（对象格式）
-    // 支持的值: 1/true (包含), 0/false (排除)
-    if (colsData && typeof colsData === 'object') {
-        const colsObj: any = {};
-        let hasInclude = false;
-        let hasExclude = false;
-        
-        for (const [key, val] of Object.entries(colsData)) {
-            if (val === 1 || val === true) {
-                colsObj[key] = 1;
-                hasInclude = true;
-            } else if (val === 0 || val === false) {
-                colsObj[key] = 0;
-                hasExclude = true;
-            }
-        }
-        
-        if (hasInclude) {
-            // 有明确的 include 字段，只返回 include 列表（MongoDB 标准格式）
-            result.cols = colsObj;
-        } else if (hasExclude) {
-            // 只有 exclude 字段，返回排除列表（MongoDB 标准格式）
-            result.cols = colsObj;
-        } else {
-            // 没有有效字段，返回空对象（表示返回所有字段）
-            result.cols = {};
-        }
-    } else {
-        // 没有指定 cols，返回空对象（MongoDB 中表示返回所有字段）
-        result.cols = {};
-    }
     
     // 如果有错误且不是忽略错误模式，则抛出异常
     if (Object.keys(errors).length > 0 && !config.ignoreErrors) {

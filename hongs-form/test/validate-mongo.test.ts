@@ -283,4 +283,42 @@ describe('Mongo：validateFind MongoDB 查询校验', () => {
     // unknown_field 应该被忽略
     expect(result.find).not.toHaveProperty('unknown_field');
   });
+
+  it('简化配置 - findable 和 sortable 数组格式', () => {
+    const simpleSchema = {
+      type: 'object',
+      findable: ['id', 'name', 'age', 'status'],  // status 不在 properties 中
+      sortable: ['name', 'age', 'score'],  // score 不在 properties 中
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        age: { type: 'integer' },
+        email: { type: 'string', findable: true },
+        subOne: {
+          type: 'object',
+          findable: ['abc', 'def']
+        },
+        subArr: {
+          type: 'array',
+          findable: ['uvw', 'xyz'],
+          items: {
+            type: 'object'
+          }
+        }
+      }
+    };
+
+    const params = {
+      name: '张三',
+      age: { $gte: 18 },
+      'subOne.abc': { $eq: 456 },
+      status: 'active',  // 使用 findable 数组中的 status 字段
+      sort: ['name', '-age', 'score']  // 对 score 排序
+    };
+
+    const result = validateFind(params, simpleSchema, {});
+
+    expect(result.find).toEqual({ name: '张三', age: { '$gte': 18 }, status: 'active', 'subOne.abc': { '$eq': 456 } });
+    expect(result.sort).toEqual({ name: 1, age: -1, score: 1 });
+  });
 });
