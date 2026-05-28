@@ -4,7 +4,7 @@
 
 为何不用 **AJV** 等？没为什么，只是单纯想做个极简的，能做基本校验转换即可。
 
-校验通过返回转换后的数据；否则抛出异常/错误，而非返回 `true/false`。这样编程身心负担小，有错抛出异常就中止，接口统一包装识别处理错误数据。异常有 `getErrors()`，可返回类似 AJV 的错误列表 `[{ message, keyword, params, instancePath, instanceName}]`。
+校验成功则返回转换后的数据；否则抛出异常/错误，而非返回 `true/false`。这样编程身心负担小，有错抛出异常就中止，接口统一包装识别处理错误数据。异常带方法 `getErrors()`，可返回类似 AJV 的错误列表 `[{ message, keyword, params, instancePath, instanceName}]`。
 
 ## 特性
 
