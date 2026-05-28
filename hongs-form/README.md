@@ -302,6 +302,7 @@ const params = {
   name: '张三',
   age: { $gte: 18 },
   sort: ['age', '-status'],
+  cols: ['name']
   skip: 10,
   limit: 20
 };
@@ -323,9 +324,9 @@ const result = validateFind(params, schema, {});
 {
   find: { name: '张三', age: { '$gte': 18 } },  // 查询条件（对象）
   sort: { age: 1, status: -1 },                 // 排序对象 {field: 1|-1}
+  cols: { name: 1 }                             // 投影对象 {field: 1|0}
   skip: 10,                                     // 跳过行数
   limit: 20,                                    // 返回行数
-  cols: { name: 1, age: 1 }                     // 投影对象 {field: 1|-1}
 }
 ```
 
