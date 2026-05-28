@@ -40,9 +40,9 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     const result: any = {
         find: {},
         sort: [],
+        cols: [],
         skip: 0,
         limit: 1,
-        cols: [],
     };
     
     if (state) {
@@ -51,8 +51,20 @@ export const validateFind = function (params: any, schema: any, config: any, sta
     }
     
     const errors: Record<string, VError> = {};
+
+    const setError = (top: string, key: string, err: string, params?: Record<string, unknown>): void => {
+        if (!top) {
+            errors[key] = new VError(err, params);
+        } else {
+            if (!errors[top]) errors[top] = new VError(top);
+            if (!errors[top].errors) errors[top].errors = {};
+            errors[top].errors[key] = new VError(err, params);
+        }
+        if (config.pickyMode) throw new VError('invalidFind', undefined, errors);
+    }
     
     /**
+     * 多层结构 schema 定位下级: type=object (单个对象), type=array&items.type=object (多个对象)
      *  {
      *      type: 'object',
      *      findable: ['field1', 'field2'], // 等效下方分开写
@@ -105,20 +117,15 @@ export const validateFind = function (params: any, schema: any, config: any, sta
      */
     const isFindable = (fieldPath: string): boolean => {
         const [childSchema, fieldName] = findChildSchema(fieldPath);
-        if (childSchema) {
-            // 子级对象
-            if (childSchema.properties?.[fieldName]?.findable === true) {
-                return true;
-            }
-            // 子级数组对象
-            if (childSchema.items?.properties?.[fieldName]?.findable === true) {
-                return true;
-            }
-            // 上级 findable 数组
-            if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) {
-                return true;
-            }
-        }
+        if (!childSchema) return false;
+        
+        // 检查字段是否有 findable
+        if (childSchema.properties?.[fieldName]?.findable === true) return true;
+        if (childSchema.items?.properties?.[fieldName]?.findable === true) return true;
+
+        // 检查父级的 findable 数组
+        if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) return true;
+
         return false;
     };
     
@@ -130,20 +137,35 @@ export const validateFind = function (params: any, schema: any, config: any, sta
      */
     const isSortable = (fieldPath: string): boolean => {
         const [childSchema, fieldName] = findChildSchema(fieldPath);
-        if (childSchema) {
-            // 子级对象
-            if (childSchema.properties?.[fieldName]?.sortable === true) {
-                return true;
-            }
-            // 子级数组对象
-            if (childSchema.items?.properties?.[fieldName]?.sortable === true) {
-                return true;
-            }
-            // 上级 sortable 数组
-            if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) {
-                return true;
-            }
-        }
+        if (!childSchema) return false;
+        
+        // 检查字段是否有 sortable
+        if (childSchema.properties?.[fieldName]?.sortable === true) return true;
+        if (childSchema.items?.properties?.[fieldName]?.sortable === true) return true;
+
+        // 检查父级的 sortable 数组
+        if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) return true;
+
+        return false;
+    };
+    
+    /**
+     * 检查字段是否存在于 schema 中（用于 cols）
+     * 只要字段在 properties 中定义，或者父级有 listable/findable/sortable 数组包含它，就认为存在
+     */
+    const isListable = (fieldPath: string): boolean => {
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (!childSchema) return false;
+        
+        // 检查是否存在该字段
+        if (childSchema.properties?.[fieldName]) return true;
+        if (childSchema.items?.properties?.[fieldName]) return true;
+        
+        // 检查父级的 listable/findable/sortable 数组
+        if (Array.isArray(childSchema.listable) && childSchema.listable.includes(fieldName)) return true;
+        if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) return true;
+        if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) return true;
+        
         return false;
     };
     
@@ -165,10 +187,7 @@ export const validateFind = function (params: any, schema: any, config: any, sta
             if (key.startsWith('$')) {
                 // 检查操作符是否支持
                 if (!supportedOperators.includes(key)) {
-                    errors[key] = new VError('unsupportedSymbol', {value: key});
-                    if (config.pickyMode) {
-                        throw new VError('invalidFind', undefined, errors);
-                    }
+                    setError(findKey, key, 'unsupportedSymbol', {value: key});
                     continue;
                 }
                 
@@ -190,10 +209,7 @@ export const validateFind = function (params: any, schema: any, config: any, sta
                     if (filtered !== undefined) result[key] = filtered;
                 } else {
                     // 收集错误或立即抛出
-                    errors[currentPath] = new VError('findable');
-                    if (config.pickyMode) {
-                        throw new VError('invalidFind', undefined, errors);
-                    }
+                    setError(findKey, key, 'findable', {value: key});
                 }
             }
         }
@@ -227,24 +243,21 @@ export const validateFind = function (params: any, schema: any, config: any, sta
             for (const item of value) {
                 if (typeof item !== 'string') continue;
                 
-                let fieldName = item;
+                let key = item;
                 let order = 1;
                 
                 if (item.startsWith('-')) {
-                    fieldName = item.slice(1);
+                    key = item.slice(1);
                     order = -1;
                 } else if (item.endsWith('!')) {
-                    fieldName = item.slice(0, -1);
+                    key = item.slice(0, -1);
                     order = -1;
                 }
                 
-                if (isSortable(fieldName)) {
-                    result[fieldName] = order;
+                if (isSortable(key)) {
+                    result[key] = order;
                 } else {
-                    errors[fieldName] = new VError('sortable');
-                    if (config.pickyMode) {
-                        throw new VError('invalidFind', undefined, errors);
-                    }
+                    setError(sortKey, key, 'sortable');
                 }
             }
         } else {
@@ -252,10 +265,7 @@ export const validateFind = function (params: any, schema: any, config: any, sta
                 if (isSortable(key) && (order === 1 || order === -1)) {
                     result[key] = order;
                 } else if (!isSortable(key)) {
-                    errors[key] = new VError('sortable');
-                    if (config.pickyMode) {
-                        throw new VError('invalidFind', undefined, errors);
-                    }
+                    setError(sortKey, key, 'sortable');
                 }
             }
         }
@@ -275,6 +285,11 @@ export const validateFind = function (params: any, schema: any, config: any, sta
             let hasExclude = false;
             
             for (const [key, val] of Object.entries(colsData)) {
+                if (!isListable(key)) {
+                    setError(colsKey, key, 'listable');
+                    continue;
+                }
+
                 if (val === 1 || val === true) {
                     colsObj[key] = 1;
                     hasInclude = true;

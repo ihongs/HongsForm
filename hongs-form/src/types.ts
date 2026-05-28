@@ -41,8 +41,9 @@ export interface FormSchema {
     description?: string; // 字段介绍
     label?: string; // 表单标签
     placeholder?: string; // 占位提示
-    findable?: boolean; // 许可查找
-    sortable?: boolean; // 许可排序
+    findable?: boolean | string[]; // 许可查找
+    sortable?: boolean | string[]; // 许可排序
+    listable?: boolean | string[]; // 许可列举
     tableName?: string; // 表名
     nameAs?: string; // 表的别名，仅顶层，下层键即别名
     joinOn?: string; // 关联条件，仅下层，与上层的关系

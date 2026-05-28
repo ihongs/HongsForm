@@ -319,7 +319,6 @@ describe('Maria：validateSqls 新 schema 结构测试', () => {
         const params = { cols: ['name', 'age'] };
         const result = validateSqls(params, simpleSchema, {});
         
-        expect(result.cols).toEqual(['name', 'age']);
         expect(result.select).toBe('`user`.`name`, `user`.`age`');
     });
 
@@ -691,7 +690,6 @@ describe('Maria：validateSqls 新 schema 结构测试', () => {
         // 使用点号分隔符
         expect(result.where).toBe('`dept`.`name` = ?');
         expect(result.whereParams).toEqual(['技术部']);
-        expect(result.cols).toEqual(['id', 'name', 'dept.name']);
         expect(result.select).toBe('`user`.`id`, `user`.`name`, `dept`.`name` AS `dept.name`');
     });
 
@@ -773,7 +771,6 @@ describe('Maria：validateSqls 新 schema 结构测试', () => {
         const result = validateSqls(params, simpleSchema, { ignoreErrors: true });
         
         expect(result.select).toBe('`user`.`name`');
-        expect(result.cols).toEqual(['name']);
     });
 
     it('注入防御 - ignoreErrors 模式下未配置字段被忽略', () => {

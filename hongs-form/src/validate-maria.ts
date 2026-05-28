@@ -1,6 +1,41 @@
 import { VState, VError } from './types.js';
 
 /**
+ * 表信息接口
+ */
+interface TableInfo {
+    tableName: string;
+    nameAs: string;
+    joinOn?: string;
+    joinType?: string;
+    fullPath: string;
+}
+
+const operatorMap: Record<string, string> = {
+    '$eq': '=',
+    '$ne': '!=',
+    '$lt': '<',
+    '$lte': '<=',
+    '$gt': '>',
+    '$gte': '>=',
+};
+
+const getQuoteFn = (type: '``' | '""' | "[]" | 'BTICK' | 'QUOTE' | 'BRACK') => {
+    switch (type) {
+        case '""':
+        case 'QUOTE':
+            return (name: string) => `"${name}"`;
+        case "[]":
+        case 'BRACK':
+            return (name: string) => `[${name}]`;
+        case '``':
+        case 'BTICK':
+        default:
+            return (name: string) => `\`${name}\``;
+    }
+};
+
+/**
  * 校验并转为 SQL 片段，参数结构同 MongoDB
  * 
  * 新版本特性：
@@ -61,25 +96,6 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     const _quoteType = quoteType || 'BTICK';
     
     /**
-     * 字段引用函数工厂
-     * 根据配置返回对应的字段引用函数
-     */
-    const getQuoteFn = (type: '``' | '""' | "[]" | 'BTICK' | 'QUOTE' | 'BRACK') => {
-        switch (type) {
-            case '""':
-            case 'QUOTE':
-                return (name: string) => `"${name}"`;
-            case "[]":
-            case 'BRACK':
-                return (name: string) => `[${name}]`;
-            case '``':
-            case 'BTICK':
-            default:
-                return (name: string) => `\`${name}\``;
-        }
-    };
-    
-    /**
      * 引用单个名称（字段名、表名、别名）
      */
     const quote = getQuoteFn(_quoteType);
@@ -92,21 +108,30 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     };
     
     const result: any = {
+        select: '',
+        order: '',
         where: '',
         whereParams: [],
-        order: '',
-        orderParams: [],
-        select: '',
-        selectParams: [],
-        joins: [],
-        cols: [],
-        skip: 0,
+        skip : 0,
         limit: 1,
     };
     
     if (state) {
         state.values = params;
         state.valids = result;
+    }
+    
+    const errors: Record<string, VError> = {};
+    
+    const setError = (top: string, key: string, err: string, params?: Record<string, unknown>): void => {
+        if (!top) {
+            errors[key] = new VError(err, params);
+        } else {
+            if (!errors[top]) errors[top] = new VError(top);
+            if (!errors[top].errors) errors[top].errors = {};
+            errors[top].errors[key] = new VError(err, params);
+        }
+        if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
     }
     
     /**
@@ -120,7 +145,7 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     result.getSql = function (): string {
         const sqlParts: string[] = [];
         
-        sqlParts.push(`SELECT ${buildSelect()}`);
+        sqlParts.push(`SELECT ${this.select}`);
         
         const rootTable = getTableInfo(schema);
         if (rootTable) {
@@ -150,42 +175,9 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * @returns 按顺序排列的所有参数
      */
     result.getParams = function (): any[] {
-        return [...this.selectParams, ...this.whereParams, ...this.orderParams];
+        return this.whereParams;
     };
     
-    const errors: Record<string, VError> = {};
-    
-    const operatorMap: Record<string, string> = {
-        '$eq': '=',
-        '$ne': '!=',
-        '$lt': '<',
-        '$lte': '<=',
-        '$gt': '>',
-        '$gte': '>=',
-    };
-
-    /**
-     * 表信息接口
-     */
-    interface TableInfo {
-        tableName: string;
-        nameAs: string;
-        joinOn?: string;
-        joinType?: string;
-        fullPath: string;
-    }
-
-    /**
-     * 字段信息接口
-     */
-    interface FieldInfo {
-        tableAlias: string;
-        fieldName: string;
-        fullPath: string;
-        findable: boolean;
-        sortable: boolean;
-    }
-
     /**
      * 根据字段路径查找子 schema 和字段名
      * 支持配置的分隔符（`.` 或 `__`）
@@ -267,12 +259,91 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     };
 
     /**
+     * 检查字段是否存在于 schema 中（用于 cols）
+     * 只要字段在 properties 中定义，或者父级有 findable/sortable 数组包含它，就认为存在
+     */
+    const isListable = (fieldPath: string): boolean => {
+        // 直接检查所有字段里有没有这个字段
+        return getAllFields(schema).includes(fieldPath);
+        /*
+        const [childSchema, fieldName] = findChildSchema(fieldPath);
+        if (!childSchema) return false;
+        
+        // 检查 properties 中是否定义了该字段（不管是否有 findable/sortable）
+        if (childSchema.properties?.[fieldName]) return true;
+        if (childSchema.items?.properties?.[fieldName]) return true;
+        
+        // 检查父级的 listable/findable/sortable 数组
+        if (Array.isArray(childSchema.listable) && childSchema.listable.includes(fieldName)) return true;
+        if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) return true;
+        if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) return true;
+        
+        return false;
+        */
+    };
+
+    /**
+     * 获取 schema 中所有字段
+     * 直接获取全部，避免重复调用
+     */
+    let allFields: string[] | null = null;
+    const getAllFields = (schemaNode: any, parentPath: string = ''): string[] => {
+        if (allFields) return allFields;
+
+        const fields: string[] = [];
+        if (!schemaNode || !schemaNode.properties) return fields;
+        
+        for (const [key, prop] of Object.entries(schemaNode.properties) as [string, any][]) {
+            const currentPath = parentPath ? `${parentPath}${_levelSep}${key}` : key;
+            
+            if (prop.type === 'object') {
+                fields.push(...getAllFields(prop, currentPath));
+                
+                if (prop.findable === true || prop.sortable === true) {
+                    fields.push(currentPath);
+                }
+                if (Array.isArray(prop.findable) || Array.isArray(prop.sortable)) {
+                    fields.push(currentPath);
+                }
+            } else if (prop.type === 'array' && prop.items?.type === 'object') {
+                fields.push(...getAllFields(prop.items, currentPath));
+            } else {
+                if (prop.findable === true || prop.sortable === true) {
+                    fields.push(currentPath);
+                }
+            }
+            
+            if (Array.isArray(schemaNode.listable) && schemaNode.listable.includes(key)) {
+                fields.push(currentPath);
+            }
+            if (Array.isArray(schemaNode.findable) && schemaNode.findable.includes(key)) {
+                fields.push(currentPath);
+            }
+            if (Array.isArray(schemaNode.sortable) && schemaNode.sortable.includes(key)) {
+                fields.push(currentPath);
+            }
+        }
+
+        allFields = fields;
+        
+        return fields;
+    };
+    getAllFields(schema);
+
+    /**
      * 获取字段的表别名
      * 
      * @param fieldPath - 字段路径
      * @returns 表别名，如果找不到返回 null
      */
     const getFieldTableAlias = (fieldPath: string): string | null => {
+        // 直接从路径拆表名就行了，调这个之前已经调过 isFindable/isSortable 
+        const pos = fieldPath.lastIndexOf(_levelSep);
+        if (pos !== -1) {
+            return fieldPath.substring( 0, pos );
+        }
+        return schema.nameAs || schema.tableName;
+        /*
         const parts = fieldPath.split(_levelSep);
         let currentSchema = schema;
         let tableAlias = schema.nameAs || schema.tableName;
@@ -305,6 +376,7 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
             return null;
         }
         return tableAlias;
+        */
     };
 
     /**
@@ -330,7 +402,7 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         const result: TableInfo[] = [];
         if (!schemaNode || !schemaNode.properties) return result;
         
-        for (const [key, prop] of Object.entries(schemaNode.properties)) {
+        for (const [key, prop] of Object.entries(schemaNode.properties) as [string, any][]) {
             const currentPath = parentPath ? `${parentPath}.${key}` : key;
             
             if (prop.type === 'object' && prop.tableName) {
@@ -406,14 +478,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     case '$in': {
                         const field = parentPath;
                         if (!isFindable(field)) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         const tableAlias = getFieldTableAlias(field);
                         if (!tableAlias) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         usedTables.add(tableAlias);
@@ -426,14 +496,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     case '$nin': {
                         const field = parentPath;
                         if (!isFindable(field)) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         const tableAlias = getFieldTableAlias(field);
                         if (!tableAlias) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         usedTables.add(tableAlias);
@@ -446,14 +514,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     case '$exists': {
                         const field = parentPath;
                         if (!isFindable(field)) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         const tableAlias = getFieldTableAlias(field);
                         if (!tableAlias) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         usedTables.add(tableAlias);
@@ -465,14 +531,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     case '$regex': {
                         const field = parentPath;
                         if (!isFindable(field)) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         const tableAlias = getFieldTableAlias(field);
                         if (!tableAlias) {
-                            errors[field] = new VError('findable');
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, field, 'findable');
                             continue;
                         }
                         usedTables.add(tableAlias);
@@ -485,22 +549,19 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                         if (sqlOp) {
                             const field = parentPath;
                             if (!isFindable(field)) {
-                                errors[field] = new VError('findable');
-                                if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                                setError(findKey, field, 'findable');
                                 continue;
                             }
                             const tableAlias = getFieldTableAlias(field);
                             if (!tableAlias) {
-                                errors[field] = new VError('findable');
-                                if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                                setError(findKey, field, 'findable');
                                 continue;
                             }
                             usedTables.add(tableAlias);
                             params.push(val);
                             sqlParts.push(`${quoteField(tableAlias, field.split(_levelSep).pop()!)} ${sqlOp} ?`);
                         } else {
-                            errors[key] = new VError('unsupportedSymbol', { value: key });
-                            if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                            setError(findKey, parentPath, 'unsupportedSymbol', { value: key });
                         }
                     }
                 }
@@ -514,14 +575,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                     }
                 } else {
                     if (!isFindable(currentPath)) {
-                        errors[currentPath] = new VError('findable');
-                        if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                        setError(findKey, currentPath, 'findable');
                         continue;
                     }
                     const tableAlias = getFieldTableAlias(currentPath);
                     if (!tableAlias) {
-                        errors[currentPath] = new VError('findable');
-                        if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                        setError(findKey, currentPath, 'findable');
                         continue;
                     }
                     usedTables.add(tableAlias);
@@ -575,14 +634,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
                 }
                 
                 if (!isSortable(fieldName)) {
-                    errors[fieldName] = new VError('sortable');
-                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    setError(findKey, fieldName, 'findable');
                     continue;
                 }
                 const tableAlias = getFieldTableAlias(fieldName);
                 if (!tableAlias) {
-                    errors[fieldName] = new VError('sortable');
-                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    setError(findKey, fieldName, 'findable');
                     continue;
                 }
                 usedTables.add(tableAlias);
@@ -591,14 +648,12 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
         } else {
             for (const [key, order] of Object.entries(sort)) {
                 if (!isSortable(key)) {
-                    errors[key] = new VError('sortable');
-                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    setError(findKey, key, 'findable');
                     continue;
                 }
                 const tableAlias = getFieldTableAlias(key);
                 if (!tableAlias) {
-                    errors[key] = new VError('sortable');
-                    if (config.pickyMode) throw new VError('invalidSqls', undefined, errors);
+                    setError(findKey, key, 'findable');
                     continue;
                 }
                 usedTables.add(tableAlias);
@@ -611,84 +666,7 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
     };
     
     /**
-     * 获取 schema 中所有可查询或可排序的字段
-     */
-    const getAllFields = (schemaNode: any, parentPath: string = ''): string[] => {
-        const fields: string[] = [];
-        if (!schemaNode || !schemaNode.properties) return fields;
-        
-        for (const [key, prop] of Object.entries(schemaNode.properties)) {
-            const currentPath = parentPath ? `${parentPath}${_levelSep}${key}` : key;
-            
-            if (prop.type === 'object') {
-                fields.push(...getAllFields(prop, currentPath));
-                
-                if (prop.findable === true || prop.sortable === true) {
-                    fields.push(currentPath);
-                }
-                if (Array.isArray(prop.findable) || Array.isArray(prop.sortable)) {
-                    fields.push(currentPath);
-                }
-            } else if (prop.type === 'array' && prop.items?.type === 'object') {
-                fields.push(...getAllFields(prop.items, currentPath));
-            } else {
-                if (prop.findable === true || prop.sortable === true) {
-                    fields.push(currentPath);
-                }
-            }
-            
-            if (Array.isArray(schemaNode.findable) && schemaNode.findable.includes(key)) {
-                fields.push(currentPath);
-            }
-            if (Array.isArray(schemaNode.sortable) && schemaNode.sortable.includes(key)) {
-                fields.push(currentPath);
-            }
-        }
-        
-        return fields;
-    };
-
-    /**
-     * 检查字段是否存在于 schema 中
-     */
-    const hasField = (fieldPath: string): boolean => {
-        const [childSchema, fieldName] = findChildSchema(fieldPath);
-        if (!childSchema) return false;
-        
-        if (childSchema.properties?.[fieldName]) return true;
-        if (childSchema.items?.properties?.[fieldName]) return true;
-        if (Array.isArray(childSchema.findable) && childSchema.findable.includes(fieldName)) return true;
-        if (Array.isArray(childSchema.sortable) && childSchema.sortable.includes(fieldName)) return true;
-        
-        return false;
-    };
-    
-    /**
-     * 解构参数，分离查询条件、排序、分页和返回字段
-     * 
-     * 如果指定了 findKey，则使用 findKey 对应的值作为查询条件
-     * 否则，除 sort/skip/limit/cols 外的其他字段都作为查询条件
-     */
-    let findData: any, sortData: any, skipData: any, limitData: any, colsData: any;
-    if (findKey !== undefined) {
-        ({ [_sortKey]: sortData, [_skipKey]: skipData, [_limitKey]: limitData, [_colsKey]: colsData, [findKey]: findData } = params);
-    } else {
-        ({ [_sortKey]: sortData, [_skipKey]: skipData, [_limitKey]: limitData, [_colsKey]: colsData, ...findData } = params);
-    }
-    
-    const whereResult = buildWhere(findData);
-    const orderResult = buildOrder(sortData);
-    
-    result.where = whereResult.sql;
-    result.whereParams = whereResult.params;
-    result.order = orderResult.sql;
-    result.usedTables = new Set([...whereResult.usedTables, ...orderResult.usedTables]);
-    
-    result.skip  = skipData  !== undefined ? (typeof skipData  === 'number' ? skipData  : parseInt(skipData , 10)) : 0;
-    result.limit = limitData !== undefined ? (typeof limitData === 'number' ? limitData : parseInt(limitData, 10)) : 1;
-    
-    /**
-     * 处理返回字段 cols
+     * 构建 SELECT 子句
      * 
      * 支持三种格式：
      * 1. 数组格式：['name', 'age', 'group__name']
@@ -701,36 +679,6 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * 未配置的字段会被自动过滤，防止 SQL 注入
      * 
      * 双下划线格式的字段会自动生成 AS 别名
-     */
-    if (Array.isArray(colsData)) {
-        result.cols = colsData.filter(col => hasField(col));
-    } else if (colsData && typeof colsData === 'object') {
-        const colsArray: string[] = [];
-        const excludeCols: string[] = [];
-        let hasInclude = false;
-        
-        for (const [key, val] of Object.entries(colsData)) {
-            if (val === 1 || val === true) {
-                if (hasField(key)) {
-                    colsArray.push(key);
-                    hasInclude = true;
-                }
-            } else if (val === 0 || val === false) {
-                excludeCols.push(key);
-            }
-        }
-        
-        const allFields = getAllFields(schema);
-        result.cols = hasInclude 
-            ? colsArray 
-            : allFields.filter(f => !excludeCols.includes(f) && !f.includes(_levelSep));
-    } else {
-        const allFields = getAllFields(schema);
-        result.cols = allFields.filter(f => !f.includes(_levelSep));
-    }
-    
-    /**
-     * 构建 SELECT 子句
      * 
      * 当字段名与别名相同时不添加 AS 子句，否则添加 AS 别名
      * 例如：`user`.`id`, `group`.`name` AS `group__name`（使用 __ 分隔符）
@@ -740,14 +688,44 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
      * - 普通字段（无层级分隔符）：字段名与别名相同，不添加 AS
      * - 关联表字段（含层级分隔符）：字段名与别名不同，添加 AS 别名
      */
-    const buildSelect = (): string => {
+    const buildSelect = (colsData: any): { sql: string; usedTables: Set<string> } => {
+        let cols: string[];
+        if (Array.isArray(colsData)) {
+            cols = colsData.filter(col => isListable(col));
+        } else if (colsData && typeof colsData === 'object') {
+            const colsArray: string[] = [];
+            const excludeCols: string[] = [];
+            let hasInclude = false;
+            
+            for (const [key, val] of Object.entries(colsData)) {
+                if (val === 1 || val === true) {
+                    if (isListable(key)) {
+                        colsArray.push(key);
+                        hasInclude = true;
+                    }
+                } else if (val === 0 || val === false) {
+                    excludeCols.push(key);
+                }
+            }
+            
+            const allFields = getAllFields(schema);
+            cols = hasInclude 
+                ? colsArray 
+                : allFields.filter(f => !excludeCols.includes(f) && !f.includes(_levelSep));
+        } else {
+            const allFields = getAllFields(schema);
+            cols = allFields.filter(f => !f.includes(_levelSep));
+        }
+
         const selectParts: string[] = [];
+        const usedTables = new Set<string>();
         
-        for (const col of result.cols) {
-            if (!hasField(col)) continue;
+        for (const col of cols) {
+            if (!isListable(col)) continue;
             
             const tableAlias = getFieldTableAlias(col);
             if (!tableAlias) continue;
+            usedTables.add(tableAlias);
             
             const fieldName = col.split(_levelSep).pop()!;
             const selectField = quoteField(tableAlias, fieldName);
@@ -759,10 +737,30 @@ export const validateSqls = function (params: any, schema: any, config: any, sta
             }
         }
         
-        return selectParts.length > 0 ? selectParts.join(', ') : '*';
+        return { sql: selectParts.length > 0 ? selectParts.join(', ') : '*', usedTables };
     };
     
-    result.select = buildSelect();
+    // 解构参数，分离 find、sort、skip、limit、cols
+    let findData: any, sortData: any, skipData: any, limitData: any, colsData: any;
+    if (findKey !== undefined) {
+        ({ [_sortKey]: sortData, [_skipKey]: skipData, [_limitKey]: limitData, [_colsKey]: colsData, [findKey]: findData } = params);
+    } else {
+        ({ [_sortKey]: sortData, [_skipKey]: skipData, [_limitKey]: limitData, [_colsKey]: colsData, ...findData } = params);
+    }
+    
+    const  whereResult = buildWhere (findData);
+    const  orderResult = buildOrder (sortData);
+    const selectResult = buildSelect(colsData);
+
+    result.where  =  whereResult.sql;
+    result.whereParams = whereResult.params;
+    result.order  =  orderResult.sql;
+    result.select = selectResult.sql;
+
+    result.usedTables = new Set([...whereResult.usedTables, ...orderResult.usedTables, ...selectResult.usedTables]);
+    
+    result.skip  = skipData  !== undefined ? (typeof skipData  === 'number' ? skipData  : parseInt(skipData , 10)) : 0;
+    result.limit = limitData !== undefined ? (typeof limitData === 'number' ? limitData : parseInt(limitData, 10)) : 1;
     
     if (Object.keys(errors).length > 0 && !config.ignoreErrors) {
         throw new VError('invalidSqls', undefined, errors);
