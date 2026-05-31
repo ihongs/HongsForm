@@ -6,11 +6,11 @@
 
 ## 集合列表
 
-1. [user](#user-用户集合) - 用户集合
-2. [userAuth](#userAuth-用户认证集合) - 用户认证凭证集合
-3. [form](#form-表单集合) - 表单定义集合
-4. [formData](#formData-表单数据集合) - 表单提交数据集合
-5. [roster](#roster-键值存储集合) - 临时键值存储集合
+1. [users](#user-用户集合) - 用户集合
+2. [userApiKeys](#userApiKeys-用户认证集合) - 用户认证凭证集合
+3. [forms](#form-表单集合) - 表单定义集合
+4. [formRecords](#formRecords-表单数据集合) - 表单提交数据集合
+5. [records](#roster-键值存储集合) - 临时键值存储集合
 
 ---
 
@@ -32,7 +32,6 @@
 | `phone` | String | 否 | null | 手机 | 普通索引 |
 | `role` | String | 是 | `agent` | 角色：`admin`/`agent` | 普通索引 |
 | `status` | Number | 是 | `1` | 状态：`1` 启用，`0` 禁用 | 普通索引 |
-| `settings` | Object | 否 | `{}` | 用户个性化设置 | - |
 | `lastLoginIp` | String | 否 | null | 最后登录 IP | - |
 | `lastLoginAt` | Date | 否 | null | 最后登录时间 | - |
 | `createdAt` | Date | 是 | `new Date()` | 创建时间 | - |
@@ -86,9 +85,9 @@ db.user.createIndex({ deletedAt: 1 });
 
 ---
 
-## userAuth (用户认证集合)
+## userApiKeys (用户应用凭证集合)
 
-存储用户认证凭证，包括 API Key 等。
+存储用户应用凭证，包括 API Key 等。
 
 ### 字段说明
 
@@ -175,16 +174,18 @@ db.userAuth.createIndex({ createdAt: -1 });
   "title": "表单标题",
   "description": "表单描述",
   "required": ["field1", "field2"],
-  "properties": {
-    "fieldName": {
+  "fields": [
+    {
+      "name": "fieldName",
       "type": "string" | "number" | "integer" | "boolean" | "array" | "object",
+      "inputType": "text" | "textarea" | "select" | "radio" | "check" | "date" | "file" | ...,
       "title": "字段标题",
       "description": "字段说明",
+      "label": "表单标签",
       "placeholder": "占位提示",
-      "inputType": "text" | "textarea" | "select" | "radio" | "checkbox" | "date" | "file" | ...,
       "default": "默认值",
       "enum": ["选项1", "选项2"],
-      "options": { "value1": "标签1", "value2": "标签2" },
+      "labels": { "value1": "标签1", "value2": "标签2" },
       // 字符串验证
       "minLength": 2,
       "maxLength": 100,
@@ -204,7 +205,7 @@ db.userAuth.createIndex({ createdAt: -1 });
       "findable": true,
       "sortable": true
     }
-  }
+  ]
 }
 ```
 
@@ -239,32 +240,6 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
   "name": "user_survey",
   "title": "用户满意度调查",
   "description": "收集用户对产品的反馈",
-  "icon": "survey",
-  "color": "#52c41a",
-  "schema": {
-    "type": "object",
-    "required": ["rating", "feedback"],
-    "properties": {
-      "rating": {
-        "type": "integer",
-        "title": "满意度评分",
-        "inputType": "rating",
-        "minimum": 1,
-        "maximum": 5
-      },
-      "feedback": {
-        "type": "string",
-        "title": "反馈意见",
-        "inputType": "textarea",
-        "maxLength": 1000
-      },
-      "recommend": {
-        "type": "boolean",
-        "title": "是否推荐给朋友",
-        "default": false
-      }
-    }
-  },
   "config": {
     "anonymous": true,
     "oncePerUser": false,
@@ -272,6 +247,29 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
     "startAt": null,
     "endAt": null
   },
+  "fields": [
+    {
+      "name": "rating",
+      "type": "integer",
+      "title": "满意度评分",
+      "inputType": "rating",
+      "minimum": 1,
+      "maximum": 5
+    },
+    {
+      "name": "feedback",
+      "type": "string",
+      "title": "反馈意见",
+      "inputType": "textarea",
+      "maxLength": 1000
+    },
+    {
+      "name": "recommend",
+      "type": "boolean",
+      "title": "是否推荐给朋友",
+      "default": false
+    }
+  ],
   "status": 2,
   "publishedAt": ISODate("2024-01-10T08:00:00Z"),
   "createdAt": ISODate("2024-01-05T00:00:00Z"),
@@ -282,9 +280,9 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 
 ---
 
-## formData (表单数据集合)
+## formRecords (表单记录集合)
 
-存储用户提交的表单数据。
+存储用户提交的表单记录数据。
 
 ### 字段说明
 
@@ -295,8 +293,8 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 | `userId` | ObjectId | 否 | null | 提交者用户 ID（匿名提交为 null） | 普通索引 |
 | `data` | Object | 是 | - | 提交的表单数据 | - |
 | `dataHash` | String | 是 | - | 数据内容哈希，用于去重校验 | 唯一索引 |
-| `phone` | String | 否 | null | 提交者手机 | - |
-| `email` | String | 否 | null | 提交者邮箱 | - |
+| `phone` | String | 否 | null | 提交者手机，从 data.phone 提取 | - |
+| `email` | String | 否 | null | 提交者邮箱，从 data.email 提取 | - |
 | `userIp` | String | 否 | null | 提交者 IP 地址 | - |
 | `userAgent` | String | 否 | null | 提交者 UserAgent | - |
 | `userToken` | String | 否 | null | 提交者的 cookie/localStorage 等访客标识 | - |
@@ -391,7 +389,7 @@ db.formData.createIndex({ channel: 1 });
 
 ---
 
-## roster (键值存储集合)
+## records (键值存储集合)
 
 临时键值存储集合，用于存储验证码等临时数据。
 

@@ -55,12 +55,3 @@ export const formCreateSchema = formSchema;
 export const formUpdateSchema = formSchema.partial().extend({
   id: z.string()
 });
-
-export const formRecordSchema = z.object({
-  formId: z.string(),
-  data: z.record(z.string(), z.any()),
-  phone: z.string().optional(),
-  email: z.string().optional()
-});
-
-export const formRecordCreateSchema = formRecordSchema;

@@ -7,11 +7,19 @@
 ```
 HongsForm/
 ├── Docs/                 # 文档目录
+|   ├── Plans             # 计划目录
 │   ├── API.md            # API 文档
 │   ├── API-Verify.md     # 验证接口文档
 |   ├── Form.md           # 表单构建指南
 │   └── Database.md       # 数据库文档
 ├── form-api/             # API 服务端 (JSON-RPC 2.0, MCP)
+|   ├── src
+|   |   ├── api
+|   |   |   ├── rpc       # RPC 接口
+|   |   |   └── mcp       # mcp 接口
+|   |   ├── schemas       # 接口数据校验与转换规则
+|   |   ├── scripts       # 运维脚本
+|   |   └── utils
 |   └── public            # 公共资源目录
 |       ├── static        # 公共静态资源
 |       └── upload        # 本地上传目录，使用云存储则不用
