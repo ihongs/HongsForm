@@ -76,11 +76,6 @@ db.user.createIndex({ deletedAt: 1 });
   "avatar": "/avatar.png",
   "role": "admin",
   "status": 1,
-  "settings": {
-    "theme": "dark",
-    "language": "zh-CN",
-    "timezone": "GMT-8",
-  },
   "lastLoginIp": "192.168.1.1",
   "lastLoginAt": ISODate("2024-01-15T10:30:00Z"),
   "createdAt": ISODate("2024-01-01T00:00:00Z"),
@@ -154,7 +149,6 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `type` | String | 是 | - | 表单类型：`form` 表单，`vote` 投票 | - |
 | `title` | String | 否 | name | 表单标题 | - |
 | `description` | String | 否 | null | 表单描述 | - |
-| `schema` | Object | 是 | - | 表单 Schema（JSON Schema） | - |
 | `config` | Object | 否 | `{}` | 表单配置 | - |
 | `config.oncePerPhone` | Boolean | 否 | `false` | 每个手机限填一次 | - |
 | `config.oncePerEmail` | Boolean | 否 | `false` | 每个邮箱限填一次 | - |
@@ -163,6 +157,8 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `config.maxSubmissions` | Number | 否 | null | 最大提交数限制 | - |
 | `config.startAt` | Date | 否 | null | 提交开始时间 | - |
 | `config.endAt` | Date | 否 | null | 提交结束时间 | - |
+| `fields` | Array | 是 | - | 表单字段配置（JSONSchema[]） | - |
+| `script` | String | 否 | null | 自定义脚本（如联动逻辑） | - |
 | `status` | Number | 是 | `1` | 状态：`1` 草稿，`2` 发布，`0` 禁用 | 普通索引 |
 | `publishedAt` | Date | 否 | null | 发布时间 | - |
 | `createdAt` | Date | 是 | `new Date()` | 创建时间 | - |
