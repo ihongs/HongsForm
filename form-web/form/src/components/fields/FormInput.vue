@@ -28,12 +28,27 @@
     :class="{ 'is-invalid': error }"
     @update:modelValue="$emit('update:modelValue', $event)"
   />
+  <FormImage
+    v-else-if="field.inputType === 'image'"
+    :model-value="modelValue"
+    :field="field"
+    :name="name"
+    :error="error"
+    @update:modelValue="$emit('update:modelValue', $event)"
+  />
+  <FormFile
+    v-else-if="field.inputType === 'file'"
+    :model-value="modelValue"
+    :field="field"
+    :name="name"
+    :error="error"
+    @update:modelValue="$emit('update:modelValue', $event)"
+  />
   <input
     v-else
     :type="getInputType()"
-    :value="field.inputType === 'file' ? undefined : modelValue"
+    :value="modelValue"
     @input="handleInput"
-    @change="handleChange"
     :class="['form-control', { 'is-invalid': error }]"
     :placeholder="field.placeholder || ''"
     :min="field.minimum"
@@ -43,10 +58,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
 import DateTimePicker from './DateTimePicker.vue'
 import DatePicker from './DatePicker.vue'
 import TimePicker from './TimePicker.vue'
+import FormFile from './FormFile.vue'
+import FormImage from './FormImage.vue'
 
 const props = defineProps({
   modelValue: [String, Number, Boolean, Date],
@@ -58,20 +74,12 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 function handleInput(event) {
-  if (props.field.inputType === 'file') return
-
   const value = event.target.value
   if (props.field.type === 'number' || props.field.type === 'integer') {
     emit('update:modelValue', value === '' ? '' : Number(value))
     return
   }
   emit('update:modelValue', value)
-}
-
-function handleChange(event) {
-  if (props.field.inputType !== 'file') return
-  const file = event.target.files?.[0]
-  emit('update:modelValue', file ? file.name : '')
 }
 
 function getInputType() {
@@ -85,8 +93,6 @@ function getInputType() {
       return 'tel'
     case 'range':
       return 'range'
-    case 'file':
-      return 'file'
     default:
       break
   }

@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { readFileSync, statSync } from 'node:fs';
 import { handleAdminRpc, handleAgentRpc, handleFormRpc, handleCommonRpc } from './api/rpc/index.js';
 import { handleAgentMcp, handleAdminMcp } from './api/mcp/index.js';
+import { handleUploadRequest } from './api/upload.js';
 import { connectDb } from './utils/db.js';
 import { loadEnv } from './utils/env.js';
 
@@ -100,6 +101,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return;
   }
 
+  if (pathname === '/api/upload' && req.method === 'POST') {
+    await handleUploadRequest(req, res);
+    return;
+  }
+
   if (pathname === '/api/mcp/agent' && (req.method === 'POST' || req.method === 'GET')) {
     await handleAgentMcp(req, res);
     return;
@@ -117,6 +123,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   }
 
   if (pathname?.startsWith('/static/') && req.method === 'GET') {
+    await serveStatic(req, res, pathname);
+    return;
+  }
+
+  if (pathname?.startsWith('/upload/') && req.method === 'GET') {
     await serveStatic(req, res, pathname);
     return;
   }

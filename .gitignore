@@ -1,6 +1,7 @@
 node_modules
 dist
 /site
+/form-api/public/upload
 coverage
 .DS_Store
 .vscode

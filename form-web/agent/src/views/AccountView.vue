@@ -531,13 +531,81 @@ async function handleUnbindPhone() {
   }
 }
 
-function handleAvatarUpload(event) {
-  const file = event.target.files[0]
-  if (file) {
+async function handleAvatarUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  try {
+    const processedFile = await processAvatar(file)
+    const fileHash = await computeFileHash(processedFile)
+
+    const configResponse = await fetch('/api/rpc/common', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'upload.getConfig',
+        params: {
+          fileHash,
+          fileSize: processedFile.size,
+          fileName: processedFile.name,
+          type: 'image',
+          scene: 'avatar'
+        },
+        id: 1
+      })
+    })
+
+    const configResult = await configResponse.json()
+
+    if (configResult.error) {
+      throw new Error(configResult.error.message)
+    }
+
+    const { token, url, exists, uploadUrl } = configResult.result
+
+    let avatarUrl = url
+
+    if (!exists || !url) {
+      const formData = new FormData()
+      formData.append('file', processedFile)
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'X-Upload-Token': token
+        },
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        const errorResult = await uploadResponse.json()
+        throw new Error(errorResult.error || '上传失败')
+      }
+
+      const uploadResult = await uploadResponse.json()
+      avatarUrl = uploadResult.url
+    }
+
+    await agentApi.updateAvatar(avatarUrl)
+    const user = getUser()
+    if (user) {
+      user.avatar = avatarUrl
+      setSession({ token: localStorage.getItem('hongs_agent_token'), user })
+    }
+    profile.value.avatar = avatarUrl
+    alert('头像更新成功')
+  } catch (err) {
+    alert(err.message || '更新失败')
+  }
+}
+
+async function processAvatar(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       const img = new Image()
-      img.onload = async () => {
+      img.onload = () => {
         const canvas = document.createElement('canvas')
         const size = 300
         canvas.width = size
@@ -545,12 +613,12 @@ function handleAvatarUpload(event) {
         const ctx = canvas.getContext('2d')
         ctx.fillStyle = '#f5f5f5'
         ctx.fillRect(0, 0, size, size)
-        
+
         let width = img.width
         let height = img.height
         let x = 0
         let y = 0
-        
+
         if (width > height) {
           height = size
           width = (img.width / img.height) * size
@@ -560,27 +628,29 @@ function handleAvatarUpload(event) {
           height = (img.height / img.width) * size
           y = (size - height) / 2
         }
-        
+
         ctx.drawImage(img, x, y, width, height)
-        const avatar = canvas.toDataURL('image/jpeg', 0.9)
-        
-        try {
-          await agentApi.updateAvatar(avatar)
-          const user = getUser()
-          if (user) {
-            user.avatar = avatar
-            setSession({ token: localStorage.getItem('hongs_agent_token'), user })
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
+          } else {
+            reject(new Error('图片处理失败'))
           }
-          profile.value.avatar = avatar
-          alert('头像更新成功')
-        } catch (err) {
-          alert(err.message || '更新失败')
-        }
+        }, 'image/jpeg', 0.9)
       }
+      img.onerror = reject
       img.src = e.target.result
     }
+    reader.onerror = reject
     reader.readAsDataURL(file)
-  }
+  })
+}
+
+async function computeFileHash(file) {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 // 滑块验证码相关方法
