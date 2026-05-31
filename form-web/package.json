@@ -5,8 +5,7 @@
     "admin": "cd /d admin && npm run dev",
     "agent": "cd /d agent && npm run dev",
     "form": "cd /d form && npm run dev",
-    "dev": "run-p admin agent form",
-    "install-all": "npm install"
+    "dev": "run-p admin agent form"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5"
