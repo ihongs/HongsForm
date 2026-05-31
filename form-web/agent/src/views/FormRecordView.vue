@@ -123,8 +123,8 @@ function filterKind(field) {
 
 function filterOptions(key, field) {
   const options = new Map()
-  if (field.options) {
-    for (const [value, label] of Object.entries(field.options)) {
+  if (field.labels) {
+    for (const [value, label] of Object.entries(field.labels)) {
       options.set(String(value), String(label))
     }
   }

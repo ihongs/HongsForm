@@ -193,6 +193,7 @@ const fieldTypes = [
   { type: 'date', label: '日期', icon: 'bi-calendar-date' },
   { type: 'time', label: '时间', icon: 'bi-clock' },
   { type: 'file', label: '文件上传', icon: 'bi-paperclip' },
+  { type: 'image', label: '图片上传', icon: 'bi-image' },
   { type: 'legend', label: '分隔标题', icon: 'bi-type-h2' },
   { type: 'figure', label: '内容说明', icon: 'bi-markdown' }
 ]
@@ -264,6 +265,7 @@ function defaultTitle(inputType, name) {
     date: '日期',
     time: '时间',
     file: '文件',
+    image: '图片',
     legend: '分隔标题',
     figure: '内容说明'
   }
@@ -302,7 +304,7 @@ function dropField(index) {
 }
 
 function parseOptions(text) {
-  const options = {}
+  const labels = {}
   const values = []
   for (const line of text.split('\n')) {
     const trimmed = line.trim()
@@ -310,13 +312,13 @@ function parseOptions(text) {
     const equalIndex = trimmed.indexOf('=')
     const value = equalIndex >= 0 ? trimmed.slice(0, equalIndex).trim() : trimmed
     const label = equalIndex >= 0 ? trimmed.slice(equalIndex + 1).trim() : value
-    // 只有 label 不等于 value 时才写入 options
+    // 只有 label 不等于 value 时才写入 labels
     if (label !== value) {
-      options[value] = label
+      labels[value] = label
     }
     values.push(value)
   }
-  return { options, values }
+  return { labels, values }
 }
 
 function fieldToSchema(field) {
@@ -335,21 +337,21 @@ function fieldToSchema(field) {
   } else if (field.inputType === 'phone') {
     schema.type = 'string'
     schema.pattern = '^1[3-9]\\d{9}$'
-  } else if (field.inputType === 'textarea' || field.inputType === 'text' || field.inputType === 'file') {
+  } else if (field.inputType === 'textarea' || field.inputType === 'text' || field.inputType === 'file' || field.inputType === 'image') {
     schema.type = 'string'
   } else if (field.inputType === 'radio' || field.inputType === 'select') {
-    const { options, values } = parseOptions(field.optionText)
+    const { labels, values } = parseOptions(field.optionText)
     schema.type = 'string'
     schema.enum = values
-    if (Object.keys(options).length > 0) {
-      schema.options = options
+    if (Object.keys(labels).length > 0) {
+      schema.labels = labels
     }
   } else if (field.inputType === 'check') {
-    const { options, values } = parseOptions(field.optionText)
+    const { labels, values } = parseOptions(field.optionText)
     schema.type = 'array'
     schema.items = { type: 'string', enum: values }
-    if (Object.keys(options).length > 0) {
-      schema.options = options
+    if (Object.keys(labels).length > 0) {
+      schema.labels = labels
     }
     if (field.required) schema.minItems = 1
   } else if (field.inputType === 'range') {
@@ -503,7 +505,7 @@ function optionsToText(schema) {
   const values = schema.items?.enum || schema.enum || []
   if (values.length === 0) return ''
   return values.map(value => {
-    const label = schema.options?.[value] ?? value
+    const label = schema.labels?.[value] ?? value
     return value === label ? value : `${value}=${label}`
   }).join('\n')
 }

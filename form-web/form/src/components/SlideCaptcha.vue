@@ -237,16 +237,6 @@ defineExpose({
   margin: 0;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  line-height: 1;
-}
-
 .captcha-container {
   position: relative;
   overflow: hidden;

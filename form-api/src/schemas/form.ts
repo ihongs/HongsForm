@@ -3,11 +3,11 @@ import { z } from 'zod';
 export const fieldSchema = z.object({
   name: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/, 'name 须以字母开头，可包含字母、数字、下划线，长度 2-11'),
   inputType: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/, 'inputType 须以字母开头，可包含字母、数字、下划线，长度 2-11'),
+  type: z.enum(['string', 'number', 'integer', 'boolean', 'array', 'date', 'null']).optional(),
   title: z.string(),
   description: z.string().optional(),
   label: z.string().optional(),
   placeholder: z.string().optional(),
-  type: z.enum(['string', 'number', 'integer', 'boolean', 'array', 'date', 'null']).optional(),
   required: z.boolean().optional(),
   default: z.any().optional(),
   format: z.string().optional(),
@@ -26,7 +26,7 @@ export const fieldSchema = z.object({
   maxLengthExclusive: z.boolean().optional(),
   enum: z.array(z.any()).optional(),
   items: z.record(z.string(), z.any()).optional(),
-  options: z.record(z.string(), z.string()).optional()
+  labels: z.record(z.string(), z.string()).optional()
 });
 
 export const configSchema = z.object({

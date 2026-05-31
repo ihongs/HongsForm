@@ -29,12 +29,11 @@
                 :field="field"
                 :name="field.name"
                 :error="errors[field.name]"
-                @update:modelValue="(v) => formScriptRef?.notifyChange(field.name, v)"
+                @update:modelValue="(v) => { formScriptRef?.notifyChange(field.name, v); delete errors[field.name] }"
               />
               <button
                 type="button"
                 class="btn btn-outline-secondary"
-                :disabled="captchaSending || !formData[field.name] || (countdown[field.name] && countdown[field.name] > 0)"
                 @click="handleSendCaptcha(field.name)"
               >
                 <span v-if="captchaSending" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -48,7 +47,7 @@
               :field="field"
               :name="field.name"
               :error="errors[field.name]"
-              @update:modelValue="(v) => formScriptRef?.notifyChange(field.name, v)"
+              @update:modelValue="(v) => { formScriptRef?.notifyChange(field.name, v); delete errors[field.name] }"
             />
 
             <div v-if="(field.name === 'phone' && oncePerPhone) || (field.name === 'email' && oncePerEmail)" class="mt-2">
@@ -226,10 +225,22 @@ function startCountdown(fieldKey: string) {
 }
 
 async function handleSendCaptcha(fieldKey: string) {
-  captchaSending.value = true
+  if (captchaSending.value) {
+    return
+  }
+  if (countdown[fieldKey] && countdown[fieldKey] > 0) {
+    return
+  }
+  const value = formData[fieldKey]
+  if (!value) {
+    const fieldLabel = fieldKey === 'phone' ? '手机号' : '邮箱'
+    errors[fieldKey] = `请填写${fieldLabel}`
+    return
+  }
+
   try {
-    const value = formData[fieldKey]
     const verifyToken = await window.verifySlideCaptcha()
+    captchaSending.value = true
 
     if (fieldKey === 'phone') {
       emit('sendSmsCode', props.formId, value as string, verifyToken)

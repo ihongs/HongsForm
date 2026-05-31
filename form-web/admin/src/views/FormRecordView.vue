@@ -117,7 +117,7 @@ function formatCellValue(value) {
 function filterKind(field) {
   if (['text', 'textarea', 'email', 'phone'].includes(field.inputType)) return 'text'
   if (['number', 'range'].includes(field.inputType) || field.type === 'number' || field.type === 'integer') return 'number'
-  if (['select', 'radio', 'check', 'switch'].includes(field.inputType) || field.enum || field.options || field.type === 'boolean') return 'choice'
+  if (['select', 'radio', 'check', 'switch'].includes(field.inputType) || field.enum || field.labels || field.type === 'boolean') return 'choice'
   return 'none'
 }
 

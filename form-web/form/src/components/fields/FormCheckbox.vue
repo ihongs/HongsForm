@@ -48,7 +48,7 @@ const options = computed(() => {
   if (enumValues.length > 0) {
     return enumValues.map(value => ({
       value,
-      label: field.options?.[value] ?? value
+      label: field.labels?.[value] ?? value
     }))
   }
   return []
