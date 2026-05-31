@@ -169,6 +169,7 @@
                       type="text" 
                       class="form-control" 
                       placeholder="请输入验证码"
+                      autocomplete="one-time-code"
                     />
                   </div>
                   <div class="d-flex justify-content-end gap-2">

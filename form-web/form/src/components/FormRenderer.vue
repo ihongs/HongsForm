@@ -56,7 +56,7 @@
                 :class="['form-control', { 'is-invalid': errors[`${field.name}Code`] }]"
                 :placeholder="`请输入${field.name === 'phone' ? '手机' : '邮箱'}验证码`"
                 v-model="captchaCodes[field.name]"
-                autocomplete="off"
+                autocomplete="one-time-code"
               />
               <div v-if="errors[`${field.name}Code`]" class="invalid-feedback d-block">{{ errors[`${field.name}Code`] }}</div>
             </div>

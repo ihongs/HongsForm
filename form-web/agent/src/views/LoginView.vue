@@ -3,8 +3,8 @@
     <div class="container">
       <form class="card shadow-sm mx-auto" style="max-width: 420px;" @submit.prevent="submit">
         <div class="card-body p-4 p-md-5">
-          <h1 class="h3 mb-2">登录 / 注册</h1>
-          <p class="text-secondary mb-4">登录后管理自己的表单和提交数据</p>
+          <h1 class="h3 mb-2">{{ isRegister ? '注册' : '登录' }}</h1>
+          <p class="text-secondary mb-4">{{ isRegister ? '创建您的账号' : '登录后管理自己的表单和提交数据' }}</p>
 
           <div class="mb-3">
             <ul class="nav nav-pills nav-justified mb-3">
@@ -20,7 +20,7 @@
             </ul>
           </div>
 
-          <div v-if="authType === 'password'">
+          <div v-if="authType === 'password' && !isRegister">
             <div class="mb-3">
               <label class="form-label">用户名</label>
               <input v-model.trim="username" class="form-control" autocomplete="username" />
@@ -39,7 +39,7 @@
             <div class="mb-3">
               <label class="form-label">验证码</label>
               <div class="input-group">
-                <input v-model="code" class="form-control" maxlength="6" />
+                <input v-model="code" class="form-control" maxlength="6" autocomplete="one-time-code" />
                 <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || countdown > 0" @click="showSlideCaptcha('email')">
                   {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : '获取验证码' }}
                 </button>
@@ -55,7 +55,7 @@
             <div class="mb-3">
               <label class="form-label">验证码</label>
               <div class="input-group">
-                <input v-model="code" class="form-control" maxlength="6" />
+                <input v-model="code" class="form-control" maxlength="6" autocomplete="one-time-code" />
                 <button type="button" class="btn btn-outline-secondary" :disabled="sendingCode || countdown > 0" @click="showSlideCaptcha('phone')">
                   {{ countdown > 0 ? `${countdown}秒后重试` : sendingCode ? '发送中...' : '获取验证码' }}
                 </button>
@@ -63,11 +63,38 @@
             </div>
           </div>
 
+          <div v-if="isRegister">
+            <div class="mb-3">
+              <label class="form-label">昵称</label>
+              <input v-model.trim="nickname" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">头像 <span class="text-secondary">(可选)</span></label>
+              <div v-if="avatarPreview" class="mb-2">
+                <img :src="avatarPreview" class="rounded" style="width: 80px; height: 80px; object-fit: cover;" />
+              </div>
+              <input ref="avatarInput" type="file" accept="image/*" class="form-control" @change="handleAvatarChange" />
+            </div>
+          </div>
+
           <div v-if="error" class="alert alert-danger py-2" role="alert">{{ error }}</div>
-          <button class="btn btn-primary w-100" :disabled="loading || (authType === 'password' && computing)">
-            <span v-if="loading" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-            {{ loading ? '处理中...' : (computing && authType === 'password' ? '验证中...' : (authType === 'password' ? '登录' : '登录 / 注册')) }}
-          </button>
+
+          <div class="d-flex gap-2">
+            <button v-if="isRegister" type="button" class="btn btn-outline-secondary flex-grow-1" @click="isRegister = false">
+              返回登录
+            </button>
+            <button class="btn btn-primary flex-grow-1" :disabled="loading || (authType === 'password' && computing)">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+              {{ loading ? '处理中...' : (computing && authType === 'password' ? '验证中...' : (isRegister ? '注册' : '登录')) }}
+            </button>
+          </div>
+
+          <div v-if="!isRegister && (authType === 'email' || authType === 'phone')" class="mt-3 text-center">
+            <a href="#" @click.prevent="isRegister = true">没有账号？立即注册</a>
+          </div>
+          <div v-if="isRegister && (authType === 'email' || authType === 'phone')" class="mt-3 text-center">
+            <a href="#" @click.prevent="isRegister = false">已有账号？立即登录</a>
+          </div>
         </div>
       </form>
     </div>
@@ -88,29 +115,26 @@
             </div>
             <div v-else-if="captchaData" class="d-flex justify-content-center">
               <div class="captcha-container" :style="{ width: captchaData.captchaWidth + 'px', height: captchaData.captchaHeight + 'px' }">
-                <!-- 背景图 -->
-                <img :src="captchaData.backgroundImage" 
-                     :width="captchaData.captchaWidth" 
+                <img :src="captchaData.backgroundImage"
+                     :width="captchaData.captchaWidth"
                      :height="captchaData.captchaHeight"
-                     class="captcha-bg" 
+                     class="captcha-bg"
                      draggable="false" />
-                
-                <!-- 滑块轨道 -->
-                <div class="slider-track" 
+
+                <div class="slider-track"
                      :style="{ width: captchaData.captchaWidth + 'px', height: '50px', bottom: '0' }">
-                  <!-- 滑块 -->
                   <div class="slider"
-                       :style="{ 
-                         width: captchaData.sliderWidth + 'px', 
+                       :style="{
+                         width: captchaData.sliderWidth + 'px',
                          height: captchaData.sliderHeight + 'px',
                          left: sliderPosition + 'px'
                        }"
                        :class="{ dragging: isDragging }"
                        @mousedown="startDrag"
                        @touchstart.prevent="startDrag">
-                    <img :src="captchaData.sliderImage" 
-                         :width="captchaData.sliderWidth" 
-                         :height="captchaData.sliderHeight" 
+                    <img :src="captchaData.sliderImage"
+                         :width="captchaData.sliderWidth"
+                         :height="captchaData.sliderHeight"
                          draggable="false" />
                   </div>
                 </div>
@@ -127,22 +151,26 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { agentApi, verifyApi, setSession } from '../api'
+import { agentApi, verifyApi, setSession, uploadConfig } from '../api'
 
 const router = useRouter()
 const authType = ref('password')
+const isRegister = ref(false)
 const username = ref('')
 const password = ref('')
 const email = ref('')
 const phone = ref('')
 const code = ref('')
+const nickname = ref('')
+const avatar = ref('')
+const avatarPreview = ref('')
+const avatarInput = ref(null)
 const loading = ref(false)
 const sendingCode = ref(false)
 const computing = ref(false)
 const countdown = ref(0)
 const error = ref('')
 
-// 滑块验证码相关
 const showCaptchaModal = ref(false)
 const captchaLoading = ref(false)
 const captchaData = ref(null)
@@ -157,6 +185,12 @@ let startSliderX = 0
 
 watch(authType, () => {
   code.value = ''
+  error.value = ''
+})
+
+watch(isRegister, () => {
+  code.value = ''
+  error.value = ''
 })
 
 function startCountdown() {
@@ -220,14 +254,14 @@ function closeCaptchaModal() {
 
 function startDrag(e) {
   if (!captchaData.value || isDragging.value) return
-  
+
   e.preventDefault()
   e.stopPropagation()
-  
+
   isDragging.value = true
   startX = e.clientX || e.touches[0].clientX
   startSliderX = sliderPosition.value
-  
+
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', stopDrag)
   document.addEventListener('touchmove', onDrag)
@@ -236,27 +270,27 @@ function startDrag(e) {
 
 function onDrag(e) {
   if (!isDragging.value || !captchaData.value) return
-  
+
   e.preventDefault()
   e.stopPropagation()
-  
+
   const currentX = e.clientX || e.touches[0].clientX
   const diffX = currentX - startX
   let newPosition = startSliderX + diffX
   newPosition = Math.max(0, Math.min(newPosition, captchaData.value.captchaWidth - captchaData.value.sliderWidth))
-  
+
   sliderPosition.value = newPosition
 }
 
 async function stopDrag() {
   if (!isDragging.value) return
-  
+
   isDragging.value = false
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
   document.removeEventListener('touchmove', onDrag)
   document.removeEventListener('touchend', stopDrag)
-  
+
   if (captchaData.value) {
     await verifyCaptcha()
   }
@@ -265,10 +299,10 @@ async function stopDrag() {
 async function verifyCaptcha() {
   captchaLoading.value = true
   captchaError.value = ''
-  
+
   try {
     const result = await verifyApi.verifySlideCaptcha(captchaData.value.captchaId, sliderPosition.value)
-    
+
     if (result.success) {
       closeCaptchaModal()
       if (currentCaptchaType.value === 'email') {
@@ -322,19 +356,66 @@ async function sendSmsCode(verifyToken) {
   }
 }
 
+function handleAvatarChange(e) {
+  const file = e.target.files[0]
+  if (!file) return
+
+  avatar.value = file
+  avatarPreview.value = URL.createObjectURL(file)
+}
+
+async function uploadAvatar() {
+  if (!avatar.value) return ''
+
+  const file = avatar.value
+  const fileHash = await computeFileHash(file)
+  const config = await uploadConfig('avatar', file.name, file.size, fileHash)
+
+  if (config.exists) {
+    return config.url
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(config.uploadUrl, {
+    method: 'POST',
+    headers: {
+      'X-Upload-Token': config.token
+    },
+    body: formData
+  })
+
+  if (!response.ok) {
+    throw new Error('上传头像失败')
+  }
+
+  const result = await response.json()
+  return result.url
+}
+
+async function computeFileHash(file) {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 async function submit() {
   error.value = ''
   loading.value = true
 
   try {
     let session
+
     if (authType.value === 'password') {
-      if (!username.value || !password.value) {
-        error.value = '请输入用户名和密码'
-        loading.value = false
-        return
-      }
-      computing.value = true
+      if (!isRegister.value) {
+        if (!username.value || !password.value) {
+          error.value = '请输入用户名和密码'
+          loading.value = false
+          return
+        }
+        computing.value = true
         try {
           const { token, nonce, difficulty } = await verifyApi.generateToken()
           const answer = await computeAnswer(nonce, difficulty)
@@ -342,20 +423,57 @@ async function submit() {
         } finally {
           computing.value = false
         }
+      } else {
+        error.value = '密码登录不支持注册'
+        loading.value = false
+        return
+      }
     } else if (authType.value === 'email') {
       if (!email.value || !code.value) {
         error.value = '请输入邮箱和验证码'
         loading.value = false
         return
       }
-      session = await agentApi.loginOrRegisterByEmail(email.value, code.value)
+
+      if (isRegister.value) {
+        if (!nickname.value) {
+          error.value = '请输入昵称'
+          loading.value = false
+          return
+        }
+
+        let avatarUrl = ''
+        if (avatar.value) {
+          avatarUrl = await uploadAvatar()
+        }
+
+        session = await agentApi.registerByEmail(email.value, code.value, nickname.value, avatarUrl)
+      } else {
+        session = await agentApi.loginByEmail(email.value, code.value)
+      }
     } else {
       if (!phone.value || !code.value) {
         error.value = '请输入手机号和验证码'
         loading.value = false
         return
       }
-      session = await agentApi.loginOrRegisterByPhone(phone.value, code.value)
+
+      if (isRegister.value) {
+        if (!nickname.value) {
+          error.value = '请输入昵称'
+          loading.value = false
+          return
+        }
+
+        let avatarUrl = ''
+        if (avatar.value) {
+          avatarUrl = await uploadAvatar()
+        }
+
+        session = await agentApi.registerByPhone(phone.value, code.value, nickname.value, avatarUrl)
+      } else {
+        session = await agentApi.loginByPhone(phone.value, code.value)
+      }
     }
 
     setSession(session)
@@ -366,10 +484,6 @@ async function submit() {
     loading.value = false
   }
 }
-
-onMounted(() => {
-  // 可以在这里添加一些初始化逻辑
-})
 
 onUnmounted(() => {
   if (countdownTimer) {

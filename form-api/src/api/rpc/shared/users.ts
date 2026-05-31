@@ -52,7 +52,7 @@ function md5(str: string): string {
   return createHash('md5').update(str).digest('hex');
 }
 
-export async function loginOrRegisterByEmail(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any; isNew: boolean }> {
+export async function loginByEmail(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any }> {
   const { email, code } = params as { email: string; code: string };
   if (!email) throw new Error('Email is required');
   if (!code) throw new Error('Code is required');
@@ -62,38 +62,13 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
   const storedCode = await roster.getAndRemove(key);
   if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
 
-  // 检查用户
   const users = await ctx.db.collection('users').find({ email, deletedAt: null }).toArray();
   if (users.length > 1) throw new Error('Multiple users found with this email, please contact admin');
 
-  let user = users[0];
-  let isNew = false;
-
-  if (user) {
-    if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
-    if (user.status !== 1) throw new Error('User is disabled');
-  } else {
-    // 创建新用户
-    const salt = generateSalt();
-    const randomPassword = randomBytes(16).toString('hex');
-    const now = new Date();
-    const result = await ctx.db.collection('users').insertOne({
-      username: email,
-      email,
-      password: hashPassword(randomPassword, salt),
-      passsalt: salt,
-      role: 'agent',
-      status: 1,
-      settings: {},
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null
-    });
-    const newUser = await ctx.db.collection('users').findOne({ _id: result.insertedId });
-    if (!newUser) throw new Error('Failed to create user');
-    user = newUser;
-    isNew = true;
-  }
+  const user = users[0];
+  if (!user) throw new Error('User not found, please register first');
+  if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
+  if (user.status !== 1) throw new Error('User is disabled');
 
   const now = new Date();
   const token = createToken({ sub: user._id.toString(), role: user.role });
@@ -105,12 +80,11 @@ export async function loginOrRegisterByEmail(params: Record<string, unknown>, ct
 
   return {
     token,
-    user: toSafeUser(user),
-    isNew
+    user: toSafeUser(user)
   };
 }
 
-export async function loginOrRegisterByPhone(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any; isNew: boolean }> {
+export async function loginByPhone(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any }> {
   const { phone, code } = params as { phone: string; code: string };
   if (!phone) throw new Error('Phone is required');
   if (!code) throw new Error('Code is required');
@@ -120,38 +94,13 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
   const storedCode = await roster.getAndRemove(key);
   if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
 
-  // 检查用户
   const users = await ctx.db.collection('users').find({ phone, deletedAt: null }).toArray();
   if (users.length > 1) throw new Error('Multiple users found with this phone, please contact admin');
 
-  let user = users[0];
-  let isNew = false;
-
-  if (user) {
-    if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
-    if (user.status !== 1) throw new Error('User is disabled');
-  } else {
-    // 创建新用户
-    const salt = generateSalt();
-    const randomPassword = randomBytes(16).toString('hex');
-    const now = new Date();
-    const result = await ctx.db.collection('users').insertOne({
-      username: phone,
-      phone,
-      password: hashPassword(randomPassword, salt),
-      passsalt: salt,
-      role: 'agent',
-      status: 1,
-      settings: {},
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null
-    });
-    const newUser = await ctx.db.collection('users').findOne({ _id: result.insertedId });
-    if (!newUser) throw new Error('Failed to create user');
-    user = newUser;
-    isNew = true;
-  }
+  const user = users[0];
+  if (!user) throw new Error('User not found, please register first');
+  if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
+  if (user.status !== 1) throw new Error('User is disabled');
 
   const now = new Date();
   const token = createToken({ sub: user._id.toString(), role: user.role });
@@ -163,7 +112,90 @@ export async function loginOrRegisterByPhone(params: Record<string, unknown>, ct
 
   return {
     token,
-    user: toSafeUser(user),
-    isNew
+    user: toSafeUser(user)
+  };
+}
+
+export async function registerByEmail(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any }> {
+  const { email, code, nickname, avatar } = params as { email: string; code: string; nickname?: string; avatar?: string };
+  if (!email) throw new Error('Email is required');
+  if (!code) throw new Error('Code is required');
+
+  const emailMd5 = md5(email);
+  const key = `verify.email.code.${emailMd5}`;
+  const storedCode = await roster.getAndRemove(key);
+  if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
+
+  const existingUsers = await ctx.db.collection('users').find({ email, deletedAt: null }).toArray();
+  if (existingUsers.length > 0) throw new Error('Email already registered, please login');
+
+  const salt = generateSalt();
+  const randomPassword = randomBytes(16).toString('hex');
+  const now = new Date();
+  const result = await ctx.db.collection('users').insertOne({
+    username: email,
+    email,
+    nickname: nickname || '',
+    avatar: avatar || '',
+    password: hashPassword(randomPassword, salt),
+    passsalt: salt,
+    role: 'agent',
+    status: 1,
+    settings: {},
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  });
+
+  const user = await ctx.db.collection('users').findOne({ _id: result.insertedId });
+  if (!user) throw new Error('Failed to create user');
+
+  const token = createToken({ sub: user._id.toString(), role: user.role });
+
+  return {
+    token,
+    user: toSafeUser(user)
+  };
+}
+
+export async function registerByPhone(params: Record<string, unknown>, ctx: RpcContext): Promise<{ token: string; user: any }> {
+  const { phone, code, nickname, avatar } = params as { phone: string; code: string; nickname?: string; avatar?: string };
+  if (!phone) throw new Error('Phone is required');
+  if (!code) throw new Error('Code is required');
+
+  const phoneMd5 = md5(phone);
+  const key = `verify.sms.code.${phoneMd5}`;
+  const storedCode = await roster.getAndRemove(key);
+  if (!storedCode || storedCode !== code) throw new Error('Invalid verification code');
+
+  const existingUsers = await ctx.db.collection('users').find({ phone, deletedAt: null }).toArray();
+  if (existingUsers.length > 0) throw new Error('Phone already registered, please login');
+
+  const salt = generateSalt();
+  const randomPassword = randomBytes(16).toString('hex');
+  const now = new Date();
+  const result = await ctx.db.collection('users').insertOne({
+    username: phone,
+    phone,
+    nickname: nickname || '',
+    avatar: avatar || '',
+    password: hashPassword(randomPassword, salt),
+    passsalt: salt,
+    role: 'agent',
+    status: 1,
+    settings: {},
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  });
+
+  const user = await ctx.db.collection('users').findOne({ _id: result.insertedId });
+  if (!user) throw new Error('Failed to create user');
+
+  const token = createToken({ sub: user._id.toString(), role: user.role });
+
+  return {
+    token,
+    user: toSafeUser(user)
   };
 }

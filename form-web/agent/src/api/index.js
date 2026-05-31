@@ -62,11 +62,17 @@ export const agentApi = {
   login(username, password, verify) {
     return rpc.call('login', { username, password, verify })
   },
-  loginOrRegisterByEmail(email, code) {
-    return rpc.call('loginOrRegisterByEmail', { email, code })
+  loginByEmail(email, code) {
+    return rpc.call('loginByEmail', { email, code })
   },
-  loginOrRegisterByPhone(phone, code) {
-    return rpc.call('loginOrRegisterByPhone', { phone, code })
+  loginByPhone(phone, code) {
+    return rpc.call('loginByPhone', { phone, code })
+  },
+  registerByEmail(email, code, nickname, avatar) {
+    return rpc.call('registerByEmail', { email, code, nickname, avatar })
+  },
+  registerByPhone(phone, code, nickname, avatar) {
+    return rpc.call('registerByPhone', { phone, code, nickname, avatar })
   },
   listForms(params = {}) {
     return rpc.call('form.list', params)
@@ -151,4 +157,8 @@ export const verifyApi = {
   sendEmailCode(verifyToken, email) {
     return commonRpc.call('verify.sendEmailCode', { verifyToken, email })
   }
+}
+
+export async function uploadConfig(scene, fileName, fileSize, fileHash) {
+  return commonRpc.call('upload.getConfig', { scene, fileName, fileSize, fileHash })
 }

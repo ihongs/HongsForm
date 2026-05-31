@@ -11,7 +11,9 @@ export const handleAgentRpc = createRpcHandler(agentRegistry, {
   requireAuth: true,
   publicMethods: new Set([
     'login',
-    'loginOrRegisterByEmail',
-    'loginOrRegisterByPhone'
+    'loginByEmail',
+    'loginByPhone',
+    'registerByEmail',
+    'registerByPhone'
   ])
 });
