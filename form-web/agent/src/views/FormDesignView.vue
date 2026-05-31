@@ -83,10 +83,12 @@ form.onChange('country', (f) => {
               <div class="col-md-6">
                 <label class="form-label">开始时间</label>
                 <VueDatePicker v-model="form.startAt" picker-type="datetime" placeholder="留空表示立即开始" />
+                <div v-if="fieldErrors['startAt']" class="text-danger mt-1">{{ fieldErrors['startAt'] }}</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label">结束时间</label>
                 <VueDatePicker v-model="form.endAt" picker-type="datetime" placeholder="留空表示不作限制" />
+                <div v-if="fieldErrors['endAt']" class="text-danger mt-1">{{ fieldErrors['endAt'] }}</div>
               </div>
 
             </div>
@@ -200,6 +202,7 @@ const isEdit = computed(() => Boolean(route.params.id))
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
+const fieldErrors = reactive({})
 const dragIndex = ref(null)
 const fields = ref([])
 const form = reactive({
@@ -216,6 +219,7 @@ const form = reactive({
 
 function addField(inputType) {
   error.value = ''
+  Object.keys(fieldErrors).forEach(key => delete fieldErrors[key])
   if (fields.value.length >= 100) {
     error.value = '字段总数最多 100 个'
     return
@@ -412,6 +416,7 @@ function validateForm() {
 
 async function save() {
   error.value = validateForm()
+  Object.keys(fieldErrors).forEach(key => delete fieldErrors[key])
   if (error.value) return null
 
   saving.value = true
@@ -426,8 +431,8 @@ async function save() {
         oncePerGuest: form.oncePerGuest,
         oncePerPhone: form.oncePerPhone,
         oncePerEmail: form.oncePerEmail,
-        startAt: form.startAt ? new Date(form.startAt).getTime() : null,
-        endAt: form.endAt ? new Date(form.endAt).getTime() : null
+        startAt: form.startAt ? new Date(form.startAt).toISOString() : null,
+        endAt: form.endAt ? new Date(form.endAt).toISOString() : null
       },
       script: form.script || null
     }
@@ -439,7 +444,22 @@ async function save() {
     router.replace(`/forms/${result.id}/design`)
     return result.id
   } catch (err) {
-    error.value = err.message || '保存失败'
+    Object.keys(fieldErrors).forEach(key => delete fieldErrors[key])
+    if (err.data?.errors && Array.isArray(err.data.errors)) {
+      for (const e of err.data.errors) {
+        if (e.path && e.path.length >= 2) {
+          const fieldName = e.path.slice(1).join('.')
+          fieldErrors[fieldName] = e.message
+        }
+      }
+      if (Object.keys(fieldErrors).length > 0) {
+        error.value = '请修正以下错误'
+      } else {
+        error.value = err.message || '保存失败'
+      }
+    } else {
+      error.value = err.message || '保存失败'
+    }
     return null
   } finally {
     saving.value = false

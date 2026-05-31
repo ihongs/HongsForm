@@ -35,8 +35,8 @@ export const configSchema = z.object({
   oncePerGuest: z.boolean().optional(),
   showAfterSubmit: z.boolean().optional(),
   maxSubmissions: z.number().optional(),
-  startAt: z.string().datetime().optional(),
-  endAt: z.string().datetime().optional()
+  startAt: z.string().datetime().nullable().optional(),
+  endAt: z.string().datetime().nullable().optional()
 });
 
 export const formSchema = z.object({
