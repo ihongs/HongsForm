@@ -37,7 +37,7 @@ async function initIndexes(db: Db) {
   await userCol.createIndex({ username: 1 }, { unique: true });
   await userCol.createIndex({ email: 1 });
   await userCol.createIndex({ phone: 1 });
-  await userCol.createIndex({ role: 1 });
+  await userCol.createIndex({ roles: 1 });
   await userCol.createIndex({ status: -1 });
   await userCol.createIndex({ createdAt: -1 });
   await userCol.createIndex({ deletedAt: 1 });

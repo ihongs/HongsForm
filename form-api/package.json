@@ -11,7 +11,7 @@
     "start": "node dist/server.js",
     "clean": "node dist/scripts/clean.js",
     "dev:clean": "tsx src/scripts/clean.ts",
-    "dev:test-seed": "tsx src/scripts/test-init.ts"
+    "dev:test-init": "tsx src/scripts/test-init.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

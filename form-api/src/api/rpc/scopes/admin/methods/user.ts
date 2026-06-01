@@ -48,7 +48,7 @@ registerAdminMethod('user.get', async (params, ctx) => {
 registerAdminMethod('user.create', async (params, ctx) => {
   // 使用 Zod 校验参数
   const createData = userCreateSchema.parse(params);
-  const { username, password, role, nickname, email, phone } = createData;
+  const { username, password, roles, nickname, email, phone } = createData;
 
   const exists = await ctx.db.collection('users').findOne({ username, deletedAt: null });
   if (exists) throw new Error('Username already exists');
@@ -61,7 +61,7 @@ registerAdminMethod('user.create', async (params, ctx) => {
     username,
     password: passwordHash,
     passsalt,
-    role,
+    roles: roles || ['agent'],
     nickname: nickname || username,
     email: email || null,
     phone: phone || null,

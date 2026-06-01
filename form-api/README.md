@@ -139,7 +139,7 @@ GET http://localhost:3000/health
   "params": {
     "username": "admin",
     "password": "admin123",
-    "role": "admin",
+    "roles": ["admin"],
     "nickname": "管理员"
   },
   "id": 1

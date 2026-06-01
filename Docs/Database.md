@@ -30,7 +30,7 @@
 | `avatar` | String | 否 | null | 头像 URL | - |
 | `email` | String | 否 | null | 邮箱 | 普通索引 |
 | `phone` | String | 否 | null | 手机 | 普通索引 |
-| `role` | String | 是 | `agent` | 角色：`admin`/`agent` | 普通索引 |
+| `roles` | Array&lt;String&gt; | 是 | `['agent']` | 角色数组：`['admin']`/`['agent']`/`['admin','agent']` | 普通索引 |
 | `status` | Number | 是 | `1` | 状态：`1` 启用，`0` 禁用 | 普通索引 |
 | `lastLoginIp` | String | 否 | null | 最后登录 IP | - |
 | `lastLoginAt` | Date | 否 | null | 最后登录时间 | - |
@@ -49,7 +49,7 @@ db.user.createIndex({ email: 1 });
 db.user.createIndex({ phone: 1 });
 
 // 角色索引
-db.user.createIndex({ role: 1 });
+db.user.createIndex({ roles: 1 });
 
 // 状态索引
 db.user.createIndex({ status: -1 });
@@ -73,7 +73,7 @@ db.user.createIndex({ deletedAt: 1 });
   "passsalt": "abc123",
   "nickname": "管理员",
   "avatar": "/avatar.png",
-  "role": "admin",
+  "roles": ["admin"],
   "status": 1,
   "lastLoginIp": "192.168.1.1",
   "lastLoginAt": ISODate("2024-01-15T10:30:00Z"),

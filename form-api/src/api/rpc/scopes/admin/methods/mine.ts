@@ -294,6 +294,6 @@ registerAdminMethod('mine.getProfile', async (params, ctx) => {
     avatar: user.avatar || '',
     phone: user.phone || '',
     email: user.email || '',
-    role: user.role || 'user'
+    roles: user.roles || []
   };
 });

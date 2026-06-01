@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export interface AuthPayload {
   sub: string;
-  role?: string;
+  roles: string[];
   exp: number;
 }
 

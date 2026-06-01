@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const userSchema = z.object({
   username: z.string().min(3).max(50),
   password: z.string().min(6).max(100),
-  role: z.enum(['admin', 'agent']).default('agent'),
+  roles: z.array(z.enum(['admin', 'agent'])).default(['agent']),
   nickname: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
@@ -17,7 +17,7 @@ export const userSchema = z.object({
 export const userCreateSchema = userSchema.pick({
   username: true,
   password: true,
-  role: true,
+  roles: true,
   nickname: true,
   email: true,
   phone: true

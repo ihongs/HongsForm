@@ -27,14 +27,14 @@ export async function login(params: Record<string, unknown>, role: 'agent' | 'ad
 
   const user = await ctx.db.collection('users').findOne({ username, deletedAt: null });
   if (!user) throw new Error('User not found');
-  if (role && user.role !== role) throw new Error('Forbidden');
+  if (role && !user.roles?.includes(role)) throw new Error('Forbidden');
   if (user.status !== 1) throw new Error('User is disabled');
 
   const passwordHash = hashPassword(password, user.passsalt);
   if (passwordHash !== user.password) throw new Error('Invalid password');
 
   const now = new Date();
-  const token = createToken({ sub: user._id.toString(), role: user.role });
+  const token = createToken({ sub: user._id.toString(), roles: user.roles });
 
   await ctx.db.collection('users').updateOne(
     { _id: user._id },
@@ -67,11 +67,11 @@ export async function loginByEmail(params: Record<string, unknown>, ctx: RpcCont
 
   const user = users[0];
   if (!user) throw new Error('User not found, please register first');
-  if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
+  if (!user.roles?.includes('agent')) throw new Error('User is not agent, please contact admin');
   if (user.status !== 1) throw new Error('User is disabled');
 
   const now = new Date();
-  const token = createToken({ sub: user._id.toString(), role: user.role });
+  const token = createToken({ sub: user._id.toString(), roles: user.roles });
 
   await ctx.db.collection('users').updateOne(
     { _id: user._id },
@@ -99,11 +99,11 @@ export async function loginByPhone(params: Record<string, unknown>, ctx: RpcCont
 
   const user = users[0];
   if (!user) throw new Error('User not found, please register first');
-  if (user.role !== 'agent') throw new Error('User is not agent, please contact admin');
+  if (!user.roles?.includes('agent')) throw new Error('User is not agent, please contact admin');
   if (user.status !== 1) throw new Error('User is disabled');
 
   const now = new Date();
-  const token = createToken({ sub: user._id.toString(), role: user.role });
+  const token = createToken({ sub: user._id.toString(), roles: user.roles });
 
   await ctx.db.collection('users').updateOne(
     { _id: user._id },
@@ -139,7 +139,7 @@ export async function registerByEmail(params: Record<string, unknown>, ctx: RpcC
     avatar: avatar || '',
     password: hashPassword(randomPassword, salt),
     passsalt: salt,
-    role: 'agent',
+    roles: ['agent'],
     status: 1,
     settings: {},
     createdAt: now,
@@ -150,7 +150,7 @@ export async function registerByEmail(params: Record<string, unknown>, ctx: RpcC
   const user = await ctx.db.collection('users').findOne({ _id: result.insertedId });
   if (!user) throw new Error('Failed to create user');
 
-  const token = createToken({ sub: user._id.toString(), role: user.role });
+  const token = createToken({ sub: user._id.toString(), roles: user.roles });
 
   return {
     token,
@@ -181,7 +181,7 @@ export async function registerByPhone(params: Record<string, unknown>, ctx: RpcC
     avatar: avatar || '',
     password: hashPassword(randomPassword, salt),
     passsalt: salt,
-    role: 'agent',
+    roles: ['agent'],
     status: 1,
     settings: {},
     createdAt: now,
@@ -192,7 +192,7 @@ export async function registerByPhone(params: Record<string, unknown>, ctx: RpcC
   const user = await ctx.db.collection('users').findOne({ _id: result.insertedId });
   if (!user) throw new Error('Failed to create user');
 
-  const token = createToken({ sub: user._id.toString(), role: user.role });
+  const token = createToken({ sub: user._id.toString(), roles: user.roles });
 
   return {
     token,

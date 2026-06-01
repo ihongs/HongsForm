@@ -46,7 +46,7 @@
             <tr v-for="user in users" :key="user._id">
               <td class="fw-medium">{{ user.username || '-' }}</td>
               <td>{{ user.nickname || '-' }}</td>
-              <td>{{ user.role || '-' }}</td>
+              <td>{{ user.roles?.join(', ') || '-' }}</td>
               <td>{{ user.email || '-' }}</td>
               <td>{{ user.phone || '-' }}</td>
               <td>
@@ -121,10 +121,16 @@
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label">角色</label>
-                <select v-model="userForm.role" class="form-select">
-                  <option value="agent">agent</option>
-                  <option value="admin">admin</option>
-                </select>
+                <div class="d-flex flex-wrap gap-3">
+                  <div class="form-check">
+                    <input id="roleAdmin" v-model="userForm.roles" class="form-check-input" type="checkbox" value="admin" />
+                    <label for="roleAdmin" class="form-check-label">admin</label>
+                  </div>
+                  <div class="form-check">
+                    <input id="roleAgent" v-model="userForm.roles" class="form-check-input" type="checkbox" value="agent" />
+                    <label for="roleAgent" class="form-check-label">agent</label>
+                  </div>
+                </div>
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label">{{ isEditing ? '重置密码' : '密码' }}</label>
@@ -254,7 +260,7 @@ function createUserForm() {
   return {
     username: '',
     password: '',
-    role: 'agent',
+    roles: ['agent'],
     nickname: '',
     email: '',
     phone: '',
@@ -275,7 +281,7 @@ function openEditModal(user) {
   editingUserId.value = user._id
   userForm.value = {
     username: user.username || '',
-    role: user.role || 'agent',
+    roles: user.roles || ['agent'],
     nickname: user.nickname || '',
     email: user.email || '',
     phone: user.phone || '',
@@ -318,7 +324,7 @@ async function saveUser() {
     } else {
       const payload = {
         username: userForm.value.username,
-        role: userForm.value.role,
+        roles: userForm.value.roles,
         nickname: userForm.value.nickname,
         email: userForm.value.email,
         phone: userForm.value.phone

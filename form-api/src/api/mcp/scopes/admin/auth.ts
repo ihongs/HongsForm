@@ -4,14 +4,14 @@ import { getDb } from '../../../../utils/db.js';
 
 export interface McpAdminAuthContext {
   userId: ObjectId | null;
-  role: string | null;
+  roles: string[] | null;
   authenticated: boolean;
 }
 
 export async function verifyAdminSkAuth(req: IncomingMessage): Promise<McpAdminAuthContext> {
   const authorization = req.headers.authorization;
   if (!authorization?.startsWith('Bearer ')) {
-    return { userId: null, role: null, authenticated: false };
+    return { userId: null, roles: null, authenticated: false };
   }
 
   const sk = authorization.slice(7);
@@ -26,21 +26,21 @@ export async function verifyAdminSkAuth(req: IncomingMessage): Promise<McpAdminA
   });
 
   if (!userAuth) {
-    return { userId: null, role: null, authenticated: false };
+    return { userId: null, roles: null, authenticated: false };
   }
 
-  const user = await getDb().collection('user').findOne({
+  const user = await getDb().collection('users').findOne({
     _id: userAuth.userId,
     deletedAt: null
   });
 
-  if (!user || user.role !== 'admin') {
-    return { userId: null, role: null, authenticated: false };
+  if (!user || !user.roles?.includes('admin')) {
+    return { userId: null, roles: null, authenticated: false };
   }
 
   return {
     userId: userAuth.userId,
-    role: user.role,
+    roles: user.roles,
     authenticated: true
   };
 }
@@ -49,7 +49,7 @@ export function requireAdminAuth(auth: McpAdminAuthContext): ObjectId {
   if (!auth.authenticated || !auth.userId) {
     throw new Error('Unauthorized: valid Bearer token required');
   }
-  if (auth.role !== 'admin') {
+  if (!auth.roles?.includes('admin')) {
     throw new Error('Forbidden: admin role required');
   }
   return auth.userId;

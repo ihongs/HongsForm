@@ -313,6 +313,6 @@ registerAgentMethod('mine.getProfile', async (params, ctx) => {
     hasPassword: !!user.password,
     phone: user.phone || '',
     email: user.email || '',
-    role: user.role || 'user'
+    roles: user.roles || []
   };
 });

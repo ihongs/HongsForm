@@ -43,7 +43,7 @@ function sendError(
   });
 }
 
-async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'userId' | 'role'> | null> {
+async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'userId' | 'roles'> | null> {
   const authorization = req.headers.authorization;
   if (!authorization?.startsWith('Bearer ')) return null;
 
@@ -52,7 +52,7 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
   if (payload && ObjectId.isValid(payload.sub)) {
     return {
       userId: new ObjectId(payload.sub),
-      role: payload.role
+      roles: payload.roles || []
     };
   }
 
@@ -68,7 +68,7 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
 
   return {
     userId: userAuth.userId,
-    role: userAuth.role
+    roles: userAuth.roles || []
   };
 }
 
@@ -104,7 +104,7 @@ export function createRpcHandler(registry: RpcMethodRegistry, options: RpcHandle
         sendError(res, -32001, 'Unauthorized', request.id);
         return;
       }
-      if (options.requireAdmin && !isPublicMethod && auth?.role !== 'admin') {
+      if (options.requireAdmin && !isPublicMethod && !auth?.roles?.includes('admin')) {
         sendError(res, -32003, 'Forbidden', request.id);
         return;
       }

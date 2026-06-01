@@ -15,13 +15,13 @@ const users = [
   {
     username: 'admin',
     password: 'admin123',
-    role: 'admin',
+    roles: ['admin'],
     nickname: '管理员'
   },
   {
     username: 'agent',
     password: 'agent123',
-    role: 'agent',
+    roles: ['agent'],
     nickname: '测试用户'
   }
 ];
@@ -31,73 +31,73 @@ const testForms = [
     name: 'user_survey',
     title: '用户满意度调查问卷',
     description: '感谢您抽出宝贵时间参与本次调查，您的反馈对我们非常重要。',
-    icon: 'survey',
-    color: '#1890ff',
-    schema: {
-      type: 'object',
-      properties: {
-        name: {
+    fields: [
+      {
+        name: 'name',
+        type: 'string',
+        title: '您的姓名',
+        placeholder: '请输入您的姓名',
+        minLength: 2,
+        maxLength: 50,
+        required: true
+      },
+      {
+        name: 'email',
+        type: 'string',
+        title: '电子邮箱',
+        placeholder: '请输入您的邮箱',
+        format: 'email'
+      },
+      {
+        name: 'rating',
+        type: 'integer',
+        title: '整体满意度评分',
+        inputType: 'radio',
+        enum: [1, 2, 3, 4, 5],
+        options: {
+          1: '非常不满意',
+          2: '不满意',
+          3: '一般',
+          4: '满意',
+          5: '非常满意'
+        },
+        required: true
+      },
+      {
+        name: 'satisfaction',
+        type: 'array',
+        title: '您对哪些方面满意',
+        inputType: 'check',
+        required: true,
+        minItems: 1,
+        items: {
           type: 'string',
-          title: '您的姓名',
-          placeholder: '请输入您的姓名',
-          minLength: 2,
-          maxLength: 50,
-          required: true
+          enum: ['product', 'service', 'price', 'support']
         },
-        email: {
-          type: 'string',
-          title: '电子邮箱',
-          placeholder: '请输入您的邮箱',
-          format: 'email'
-        },
-        rating: {
-          type: 'integer',
-          title: '整体满意度评分',
-          inputType: 'radio',
-          enum: [1, 2, 3, 4, 5],
-          options: {
-            1: '非常不满意',
-            2: '不满意',
-            3: '一般',
-            4: '满意',
-            5: '非常满意'
-          },
-          required: true
-        },
-        satisfaction: {
-          type: 'array',
-          title: '您对哪些方面满意',
-          inputType: 'check',
-          required: true,
-          minItems: 1,
-          items: {
-            type: 'string',
-            enum: ['product', 'service', 'price', 'support']
-          },
-          options: {
-            product: '产品功能',
-            service: '客户服务',
-            price: '价格合理',
-            support: '技术支持'
-          }
-        },
-        feedback: {
-          type: 'string',
-          title: '改进建议',
-          inputType: 'textarea',
-          placeholder: '请告诉我们您的建议...',
-          maxLength: 500
-        },
-        recommend: {
-          type: 'boolean',
-          title: '是否愿意推荐给朋友',
-          inputType: 'switch',
-          default: false
+        options: {
+          product: '产品功能',
+          service: '客户服务',
+          price: '价格合理',
+          support: '技术支持'
         }
+      },
+      {
+        name: 'feedback',
+        type: 'string',
+        title: '改进建议',
+        inputType: 'textarea',
+        placeholder: '请告诉我们您的建议...',
+        maxLength: 500
+      },
+      {
+        name: 'recommend',
+        type: 'boolean',
+        title: '是否愿意推荐给朋友',
+        inputType: 'switch',
+        default: false
       }
-    },
+    ],
     config: {
-      anonymous: true,
       oncePerUser: false
     },
     status: 2
@@ -106,57 +106,57 @@ const testForms = [
     name: 'contact_form',
     title: '联系我们',
     description: '有任何问题？请填写以下表单，我们会尽快回复您。',
-    icon: 'contact',
-    color: '#52c41a',
-    schema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          title: '姓名',
-          placeholder: '请输入您的姓名',
-          required: true
-        },
-        phone: {
-          type: 'string',
-          title: '手机号',
-          inputType: 'phone',
-          placeholder: '请输入您的手机号',
-          pattern: '^1[3-9]\\d{9}$',
-          required: true
-        },
-        email: {
-          type: 'string',
-          title: '邮箱（选填）',
-          inputType: 'email',
-          placeholder: '请输入您的邮箱',
-          format: 'email'
-        },
-        type: {
-          type: 'string',
-          title: '咨询类型',
-          inputType: 'select',
-          enum: ['general', 'sales', 'support', 'other'],
-          options: {
-            general: '一般咨询',
-            sales: '销售咨询',
-            support: '技术支持',
-            other: '其他问题'
-          }
-        },
-        message: {
-          type: 'string',
-          title: '留言内容',
-          inputType: 'textarea',
-          placeholder: '请详细描述您的问题...',
-          minLength: 10,
-          maxLength: 1000,
-          required: true
+    fields: [
+      {
+        name: 'name',
+        type: 'string',
+        title: '姓名',
+        placeholder: '请输入您的姓名',
+        required: true
+      },
+      {
+        name: 'phone',
+        type: 'string',
+        title: '手机号',
+        inputType: 'phone',
+        placeholder: '请输入您的手机号',
+        pattern: '^1[3-9]\\d{9}$',
+        required: true
+      },
+      {
+        name: 'email',
+        type: 'string',
+        title: '邮箱（选填）',
+        inputType: 'email',
+        placeholder: '请输入您的邮箱',
+        format: 'email'
+      },
+      {
+        name: 'type',
+        type: 'string',
+        title: '咨询类型',
+        inputType: 'select',
+        enum: ['general', 'sales', 'support', 'other'],
+        options: {
+          general: '一般咨询',
+          sales: '销售咨询',
+          support: '技术支持',
+          other: '其他问题'
         }
+      },
+      {
+        name: 'message',
+        type: 'string',
+        title: '留言内容',
+        inputType: 'textarea',
+        placeholder: '请详细描述您的问题...',
+        minLength: 10,
+        maxLength: 1000,
+        required: true
       }
-    },
+    ],
     config: {
-      anonymous: true
+      oncePerUser: false
     },
     status: 2
   },
@@ -166,56 +166,59 @@ const testForms = [
     description: '请填写以下信息完成报名。',
     icon: 'registration',
     color: '#eb2f96',
-    schema: {
-      type: 'object',
-      properties: {
-        realName: {
-          type: 'string',
-          title: '真实姓名',
-          placeholder: '请输入您的真实姓名',
-          required: true
-        },
-        age: {
-          type: 'integer',
-          title: '年龄',
-          placeholder: '请输入年龄',
-          minimum: 18,
-          maximum: 100,
-          required: true
-        },
-        company: {
-          type: 'string',
-          title: '所在公司',
-          placeholder: '请输入公司名称',
-          required: true
-        },
-        position: {
-          type: 'string',
-          title: '职位',
-          placeholder: '请输入您的职位'
-        },
-        dietary: {
-          type: 'string',
-          title: '饮食偏好',
-          inputType: 'select',
-          enum: ['none', 'vegetarian', 'halal', 'vegan'],
-          options: {
-            none: '无特殊要求',
-            vegetarian: '素食',
-            halal: '清真',
-            vegan: '纯素'
-          }
-        },
-        remarks: {
-          type: 'string',
-          title: '备注',
-          inputType: 'textarea',
-          placeholder: '其他需要说明的信息'
+    fields: [
+      {
+        name: 'realName',
+        type: 'string',
+        title: '真实姓名',
+        placeholder: '请输入您的真实姓名',
+        required: true
+      },
+      {
+        name: 'age',
+        type: 'integer',
+        title: '年龄',
+        placeholder: '请输入年龄',
+        minimum: 18,
+        maximum: 100,
+        required: true
+      },
+      {
+        name: 'company',
+        type: 'string',
+        title: '所在公司',
+        placeholder: '请输入公司名称',
+        required: true
+      },
+      {
+        name: 'position',
+        type: 'string',
+        title: '职位',
+        placeholder: '请输入您的职位'
+      },
+      {
+        name: 'dietary',
+        type: 'string',
+        title: '饮食偏好',
+        inputType: 'select',
+        enum: ['none', 'vegetarian', 'halal', 'vegan'],
+        options: {
+          none: '无特殊要求',
+          vegetarian: '素食',
+          halal: '清真',
+          vegan: '纯素'
         }
+      },
+      {
+        name: 'remarks',
+        type: 'string',
+        title: '备注',
+        inputType: 'textarea',
+        placeholder: '其他需要说明的信息'
       }
-    },
+    ],
     config: {
-      anonymous: true
+      oncePerUser: true
     },
     status: 2
   }
@@ -233,7 +236,7 @@ async function ensureUser(db: any, user: typeof users[number]) {
     username: user.username,
     password: hashPassword(user.password, passsalt),
     passsalt,
-    role: user.role,
+    roles: user.roles,
     nickname: user.nickname,
     email: null,
     phone: null,

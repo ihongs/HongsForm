@@ -174,7 +174,7 @@ agent 用户登录。
   "user": {
     "_id": "...",
     "username": "agent",
-    "role": "agent",
+    "roles": ["agent"],
     "status": 1
   }
 }

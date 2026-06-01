@@ -155,7 +155,7 @@
                   </div>
                   <div class="d-flex flex-wrap gap-2 small text-secondary">
                     <span>{{ user.nickname || '-' }}</span>
-                    <span>{{ user.role || '-' }}</span>
+                    <span>{{ user.roles?.join(', ') || '-' }}</span>
                     <span>最后登录 {{ formatTime(user.lastLoginAt) }}</span>
                   </div>
                 </div>

@@ -23,7 +23,7 @@ export interface RpcError {
 export interface RpcContext {
   db: Db;
   userId?: ObjectId;
-  role?: string;
+  roles?: string[];
 }
 
 export type RpcHandler = (
