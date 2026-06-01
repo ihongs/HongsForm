@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ZodError } from 'zod';
 import { getDb } from '../../../../utils/db.js';
 import { verifySkAuth, McpAuthContext } from './auth.js';
 import { createAgentMcpServer } from './server.js';
@@ -30,13 +31,18 @@ export async function handleAgentMcp(req: IncomingMessage, res: ServerResponse):
       
       const errorData: any = { code: -32603, message: 'Internal server error' };
 
-      if (error instanceof Error) {
+      // ZodError
+      if (error instanceof ZodError) {
+        errorData.message = 'ZodError';
+        errorData.code = -32602;
+        errorData.data = {
+          errors: error.issues.map(issue => {
+            const { path, code, message, ...params } = issue;
+            return { path, code, message, params };
+          })
+        };
+      } else if (error instanceof Error) {
         errorData.message = error.message;
-        if (typeof (error as any).getErrors === 'function') {
-          errorData.data = { errors: (error as any).getErrors() };
-        } else if ((error as any).errors) {
-          errorData.data = { errors: (error as any).errors };
-        }
       }
       
       res.end(JSON.stringify({

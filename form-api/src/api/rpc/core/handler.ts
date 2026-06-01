@@ -33,8 +33,8 @@ function sendError(
   res: ServerResponse,
   code: number,
   message: string,
+  data?: unknown,
   id?: string | number | null,
-  data?: unknown
 ): void {
   sendResponse(res, {
     jsonrpc: '2.0',
@@ -70,66 +70,6 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
     userId: userAuth.userId,
     role: userAuth.role
   };
-}
-
-function buildErrorData(err: unknown): unknown {
-  if (err instanceof ZodError) {
-    return {
-      errors: err.issues.map(issue => {
-        const result: Record<string, unknown> = {
-          path: issue.path,
-          message: issue.message,
-          code: issue.code,
-        };
-
-        const params: Record<string, unknown> = {};
-
-        if (issue.code === 'invalid_type') {
-          const i = issue as { expected?: string; received?: string };
-          if (i.expected) params.expected = i.expected;
-          if (i.received) params.received = i.received;
-        } else if (issue.code === 'too_small' || issue.code === 'too_big') {
-          const i = issue as { minimum?: number; maximum?: number; type?: string; inclusive?: boolean };
-          if (i.minimum !== undefined) params.minimum = i.minimum;
-          if (i.maximum !== undefined) params.maximum = i.maximum;
-          if (i.type) params.type = i.type;
-          if (i.inclusive !== undefined) params.inclusive = i.inclusive;
-        } else if (issue.code === 'invalid_format') {
-          const i = issue as { format?: string };
-          if (i.format) params.format = i.format;
-        } else if (issue.code === 'not_multiple_of') {
-          const i = issue as { multipleOf?: number };
-          if (i.multipleOf) params.multipleOf = i.multipleOf;
-        }
-
-        if (Object.keys(params).length > 0) {
-          result.params = params;
-        }
-
-        return result;
-      })
-    };
-  }
-
-  let errorData: any;
-  if (typeof (err as any).getErrors === 'function') {
-    errorData = { errors: (err as any).getErrors() };
-  } else if ((err as any).errors) {
-    errorData = { errors: (err as any).errors };
-  }
-
-  if (isDev && err instanceof Error && err.stack) {
-    if (errorData) {
-      errorData.stack = err.stack;
-    } else {
-      errorData = { stack: err.stack };
-    }
-    console.error(err.stack);
-  } else if (err instanceof Error) {
-    console.error(err.stack);
-  }
-
-  return errorData;
 }
 
 export function createRpcHandler(registry: RpcMethodRegistry, options: RpcHandlerOptions = {}) {
@@ -186,15 +126,22 @@ export function createRpcHandler(registry: RpcMethodRegistry, options: RpcHandle
           res.end();
         }
       } catch (err) {
-        let errorMessage: string;
+        let errorMessage: string = 'Internal server error';
+        let errorCode = -32603;
+        let errorData: unknown;
         if (err instanceof ZodError) {
           errorMessage = 'ZodError';
+          errorCode = -32602;
+          errorData = {
+            errors: err.issues.map(issue => {
+              const { path, code, message, ...params } = issue;
+              return { path, code, message, params };
+            })
+          };
         } else if (err instanceof Error) {
           errorMessage = err.message;
-        } else {
-          errorMessage = 'Internal error';
         }
-        sendError(res, -32000, errorMessage, request.id, buildErrorData(err));
+        sendError(res, errorCode, errorMessage, errorData, request.id);
       }
     } catch {
       sendError(res, -32700, 'Parse error');

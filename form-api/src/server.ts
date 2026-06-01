@@ -157,6 +157,7 @@ async function start() {
     console.log(`MCP agent endpoint: http://${HOST}:${PORT}/api/mcp/agent`);
     console.log(`MCP admin endpoint: http://${HOST}:${PORT}/api/mcp/admin`);
     console.log(`Static files: http://${HOST}:${PORT}/static/`);
+    console.log(`Upload files: http://${HOST}:${PORT}/upload/`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
   });
 }
