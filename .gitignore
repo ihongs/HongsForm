@@ -1,8 +1,9 @@
 node_modules
 dist
-/site
-/form-api/public/upload
 coverage
+/form-api/public/upload
+/site
+/site.zip
 .DS_Store
 .vscode
 .trae
