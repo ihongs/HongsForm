@@ -38,6 +38,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { sha256Sync } from '../../utils/crypto'
 
 const props = defineProps({
   modelValue: String,
@@ -56,9 +57,8 @@ const error = ref('')
 
 async function computeFileHash(file) {
   const buffer = await file.arrayBuffer()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hash = sha256Sync(new Uint8Array(buffer))
+  return 'sha256:' + hash
 }
 
 async function handleFileChange(event) {

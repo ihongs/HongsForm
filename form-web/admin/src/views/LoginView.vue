@@ -30,6 +30,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi, verifyApi, setSession } from '../api'
+import { sha256Sync } from '../utils/crypto'
 
 const router = useRouter()
 const username = ref('')
@@ -38,20 +39,11 @@ const loading = ref(false)
 const computing = ref(false)
 const error = ref('')
 
-async function sha256(str) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(str)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-  return hashHex
-}
-
 async function computeAnswer(nonce, difficulty) {
   const prefix = '0'.repeat(difficulty)
   let answer = 0
   while (true) {
-    const hash = await sha256(nonce + answer)
+    const hash = sha256Sync(nonce + answer)
     if (hash.startsWith(prefix)) {
       return answer
     }

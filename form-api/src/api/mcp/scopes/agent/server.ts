@@ -123,14 +123,15 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
     'form.create',
     {
       title: 'Create Form',
-      description: '创建新表单，参考 form.prompt',
+      description: '创建新表单，请参考 form.prompt',
       inputSchema: {
         name: z.string().describe('表单名称'),
-        title: z.string().optional().describe('表单标题'),
+        title: z.string().describe('表单标题'),
         description: z.string().optional().describe('表单描述'),
-        fields: z.unknown().describe('表单字段定义'),
+        fields: z.unknown().describe('表单字段定义，字段列表，请参考 form.prompt'),
         config: z.record(z.string(), z.any()).optional().describe('表单配置'),
-        script: z.string().optional().describe('表单脚本')
+        script: z.string().nullable().optional().describe('表单脚本'),
+        status: z.number().optional().describe('状态：1=草稿，2=已发布')
       }
     },
     async (params: any) => {
@@ -140,10 +141,10 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
 
       const now = new Date();
       const result = await db.collection('forms').insertOne({
+        status: 1,
         ...validatedData,
         userId,
         type: 'form',
-        status: 1,
         publishedAt: null,
         createdAt: now,
         updatedAt: now,
@@ -161,15 +162,15 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
     'form.update',
     {
       title: 'Update Form',
-      description: '修改表单，参考 form.prompt',
+      description: '修改表单，请参考 form.prompt',
       inputSchema: {
         id: z.string().describe('表单 ID'),
         name: z.string().optional().describe('表单名称'),
         title: z.string().optional().describe('表单标题'),
         description: z.string().optional().describe('表单描述'),
-        fields: z.unknown().optional().describe('表单字段定义'),
+        fields: z.unknown().optional().describe('表单字段定义，字段列表，请参考 form.prompt'),
         config: z.record(z.string(), z.any()).optional().describe('表单配置'),
-        script: z.string().optional().describe('表单脚本'),
+        script: z.string().nullable().optional().describe('表单脚本'),
         status: z.number().optional().describe('状态：1=草稿，2=已发布')
       }
     },
@@ -188,7 +189,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
       );
 
       return {
-        content: [{ type: 'text', text: JSON.stringify({ success: true, url: getFormUrl(id) }) }]
+        content: [{ type: 'text', text: JSON.stringify({ success: true, id: params.id, url: getFormUrl(id) }) }]
       };
     }
   );
@@ -230,7 +231,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
   );
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const FORM_PROMPT = readFileSync(join(__dirname, 'prompts', 'form.md'), 'utf-8');
+  const FORM_PROMPT = readFileSync(join(__dirname, '..', '..', '..', '..', '..', 'server', 'prompts', 'form.md'), 'utf-8');
 
   server.registerTool(
     'form.prompt',

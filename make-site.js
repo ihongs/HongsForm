@@ -56,9 +56,12 @@ async function copyFile(src, dest) {
   
   console.log('   构建新 site');
 
-  // ==============================================
-  // 3. 复制所有前端 + 静态资源
-  // ==============================================
+  // 内部资源
+  await copy(
+    path.join(serv, 'server'),
+    path.join(site, 'server'),
+  );
+  console.log('   复制 server');
 
   // 公共资源
   await copy(
@@ -66,6 +69,10 @@ async function copyFile(src, dest) {
     path.join(site, 'public'),
   );
   console.log('   复制 public');
+
+  // ==============================================
+  // 3. 复制所有前端 + 静态资源
+  // ==============================================
 
   // 清空并重建 upload 目录
   const uploadDir = path.join(site, 'public/upload');

@@ -275,6 +275,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { agentApi, verifyApi, getUser, setSession } from '../api'
+import { sha256Sync } from '../utils/crypto'
 
 const loading = ref(true)
 const error = ref('')
@@ -411,12 +412,7 @@ function solveProof(nonce, difficulty) {
   }
 }
 
-function sha256(str) {
-  const buffer = new TextEncoder().encode(str)
-  return crypto.subtle.digest('SHA-256', buffer).then(hash => {
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
-  })
-}
+const sha256 = sha256Sync
 
 async function handleBindEmail() {
   if (!emailForm.value.email.trim()) {
@@ -650,9 +646,8 @@ async function processAvatar(file) {
 
 async function computeFileHash(file) {
   const buffer = await file.arrayBuffer()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hash = sha256Sync(new Uint8Array(buffer))
+  return 'sha256:' + hash
 }
 
 // 滑块验证码相关方法

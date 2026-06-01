@@ -55,6 +55,7 @@
 ```json
 {
   "success": true,
+  "id": "表单ID",
   "url": "https://example.com/form/表单ID"
 }
 ```
@@ -77,7 +78,7 @@
 
 ### 字段集合
 
-fields 定义一系列表单字段，每个字段都是一个 JSONSchema 节点，扩展了 name、inputType、labels、label、placeholder 等属性。
+fields 定义表单字段列表，每个字段都是一个 JSONSchema 节点，扩展了 name、inputType、labels、label、placeholder 等属性。
 
 #### 字段命名规范
 
@@ -175,9 +176,6 @@ form.onChange('字段名', (field) => {
   "name": "用户调查",
   "title": "产品使用满意度调查",
   "description": "感谢您抽出宝贵时间填写此问卷",
-  "config": {
-    "oncePerGuest": true
-  },
   "fields": [
     {
       "name": "name",
@@ -305,6 +303,9 @@ form.onChange('字段名', (field) => {
       "inputType": "figure"
     }
   ],
+  "config": {
+    "oncePerGuest": true
+  },
   "script": "form.onChange('select', (f) => {\n  if (f.value() === 'cn') {\n    form.field('datetime').show();\n  } else {\n    form.field('datetime').hide().clear();\n  }\n});"
 }
 ```

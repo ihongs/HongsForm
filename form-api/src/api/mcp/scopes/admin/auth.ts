@@ -16,7 +16,7 @@ export async function verifyAdminSkAuth(req: IncomingMessage): Promise<McpAdminA
 
   const sk = authorization.slice(7);
 
-  const userAuth = await getDb().collection('userAuth').findOne({
+  const userAuth = await getDb().collection('userApiKeys').findOne({
     sk,
     deletedAt: null,
     $or: [

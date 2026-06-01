@@ -46,7 +46,7 @@ export const formSchema = z.object({
   description: z.string().optional(),
   fields: z.array(fieldSchema).min(1),
   config: configSchema.optional(),
-  script: z.string().optional(),
+  script: z.string().nullable().optional(),
   status: z.number().int().min(0).max(2).optional()
 });
 

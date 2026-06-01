@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY dist ./dist
 COPY package.json ./
-COPY .env.example ./.env
+COPY server ./server
 
-RUN npm install --production
+RUN npm config set registry https://registry.npmmirror.com/ && npm install --production
 
 RUN mkdir -p public/upload
 
