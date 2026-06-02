@@ -118,11 +118,8 @@ export const adminApi = {
   updateAvatar(avatar) {
     return rpc.call('mine.updateAvatar', { avatar })
   },
-  updatePassword(oldPassword, newPassword) {
-    return rpc.call('mine.updatePassword', { oldPassword, newPassword })
-  },
-  updateAccount(account) {
-    return rpc.call('mine.updateAccount', { account })
+  updatePassword(data) {
+    return rpc.call('mine.updatePassword', data)
   },
   bindEmail(email) {
     return rpc.call('mine.bindEmail', { email })
@@ -130,8 +127,8 @@ export const adminApi = {
   unbindEmail() {
     return rpc.call('mine.unbindEmail')
   },
-  bindPhone(phone, verifyCode) {
-    return rpc.call('mine.bindPhone', { phone, verifyCode })
+  bindPhone(phone) {
+    return rpc.call('mine.bindPhone', { phone })
   },
   unbindPhone() {
     return rpc.call('mine.unbindPhone')

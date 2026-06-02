@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // 字段集合转 Zod schema
-export const fields2Zod = function (fields: any) {
+export function dataFieldsToSchema (fields: any) {
     const shape: any = {};
     for (const field of fields) {
         // 构建 schema
@@ -77,8 +77,4 @@ export const fields2Zod = function (fields: any) {
         shape[field.name] = schema;
     }
     return z.object(shape).strict();
-}
-
-export const fieldsData2Zod = function (fields: any) {
-    return z.object({data: fields2Zod(fields)});
 }

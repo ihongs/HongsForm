@@ -162,16 +162,6 @@
                       placeholder="请输入手机号"
                     />
                   </div>
-                  <div>
-                    <label class="form-label">验证码</label>
-                    <input 
-                      v-model="phoneForm.code" 
-                      type="text" 
-                      class="form-control" 
-                      placeholder="请输入验证码"
-                      autocomplete="one-time-code"
-                    />
-                  </div>
                   <div class="d-flex justify-content-end gap-2">
                     <button 
                       v-if="profile.phone"
@@ -202,7 +192,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { adminApi, getUser, setSession } from '../api'
+import { adminApi, getUser, setSession, verifyApi } from '../api'
 import { sha256Sync } from '../utils/crypto'
 
 const loading = ref(true)
@@ -229,7 +219,6 @@ const emailForm = ref({
 
 const phoneForm = ref({
   phone: '',
-  code: '',
   loading: false
 })
 
@@ -273,17 +262,12 @@ async function handleUpdateNickname() {
 }
 
 async function handleUpdate() {
-  const updates = []
   const hasAccount = accountForm.value.account.trim() && accountForm.value.account.trim() !== profile.value.account
   const hasPassword = accountForm.value.newPassword
 
   if (!hasAccount && !hasPassword) {
     alert('请至少修改用户名或密码')
     return
-  }
-
-  if (hasAccount) {
-    updates.push(adminApi.updateAccount(accountForm.value.account.trim()))
   }
 
   if (hasPassword) {
@@ -295,12 +279,20 @@ async function handleUpdate() {
       alert('两次输入的密码不一致')
       return
     }
-    updates.push(adminApi.updatePassword(accountForm.value.oldPassword, accountForm.value.newPassword))
   }
 
   accountForm.value.loading = true
   try {
-    await Promise.all(updates)
+    const verify = await verifyApi.generateToken()
+    
+    const updateData = {
+      oldPassword: accountForm.value.oldPassword,
+      newPassword: accountForm.value.newPassword,
+      username: accountForm.value.account.trim(),
+      verify
+    }
+
+    await adminApi.updatePassword(updateData)
     
     if (hasAccount) {
       const user = getUser()
@@ -371,20 +363,15 @@ async function handleBindPhone() {
     alert('请输入手机号')
     return
   }
-  if (!phoneForm.value.code.trim()) {
-    alert('请输入验证码')
-    return
-  }
   phoneForm.value.loading = true
   try {
-    await adminApi.bindPhone(phoneForm.value.phone, phoneForm.value.code)
+    await adminApi.bindPhone(phoneForm.value.phone)
     const user = getUser()
     if (user) {
       user.phone = phoneForm.value.phone
       setSession({ token: localStorage.getItem('hongs_admin_token'), user })
     }
     profile.value.phone = phoneForm.value.phone
-    phoneForm.value.code = ''
     alert('手机绑定成功')
   } catch (err) {
     alert(err.message || '绑定失败')
@@ -407,7 +394,6 @@ async function handleUnbindPhone() {
     }
     profile.value.phone = ''
     phoneForm.value.phone = ''
-    phoneForm.value.code = ''
     alert('手机解绑成功')
   } catch (err) {
     alert(err.message || '解绑失败')

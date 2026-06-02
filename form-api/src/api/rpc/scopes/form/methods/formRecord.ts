@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { registerFormMethod } from '../registry.js';
 import { generateDataHash } from '../../../shared/formRecords.js';
 import { md5, verifyCode } from '../../../../../utils/verify.js';
-import { fields2Zod } from '../../../../../schemas/formRecord.js';
+import { wrapError } from '../../../../../utils/finder.js';
+import { dataFieldsToSchema } from '../../../../../schemas/formRecord.js';
 
 // 检查访客是否已提交过此表单
 registerFormMethod('formRecord.checkSubmitted', async (params, ctx) => {
@@ -46,7 +47,16 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
 
   if (!form) throw new Error('Form not found');
 
-  const validatedData = fields2Zod(form.fields).parse(data);
+  // 校验表单数据并给错误附加 deta 层级
+  let validatedData;
+  try {
+    validatedData = dataFieldsToSchema(form.fields).parse(data);
+  } catch (er) {
+    if (er instanceof z.ZodError) {
+      throw wrapError(er, ['data']);
+    }
+    throw er
+  }
 
   if (form.config?.oncePerUser && submitterId) {
     const existing = await ctx.db.collection('formRecords').findOne({

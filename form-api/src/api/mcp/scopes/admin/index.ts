@@ -33,13 +33,11 @@ export async function handleAdminMcp(req: IncomingMessage, res: ServerResponse):
 
       // ZodError
       if (error instanceof ZodError) {
-        errorData.message = 'ZodError';
+        errorData.message = 'Invalid params';
         errorData.code = -32602;
         errorData.data = {
-          errors: error.issues.map(issue => {
-            const { path, code, message, ...params } = issue;
-            return { path,  code, message, params };
-          })
+          code: 'ZodError',
+          issues: error.issues
         };
       } else if (error instanceof Error) {
         errorData.message = error.message;

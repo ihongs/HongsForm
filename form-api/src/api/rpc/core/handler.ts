@@ -130,13 +130,11 @@ export function createRpcHandler(registry: RpcMethodRegistry, options: RpcHandle
         let errorCode = -32603;
         let errorData: unknown;
         if (err instanceof ZodError) {
-          errorMessage = 'ZodError';
+          errorMessage = 'Invalid params';
           errorCode = -32602;
           errorData = {
-            errors: err.issues.map(issue => {
-              const { path, code, message, ...params } = issue;
-              return { path, code, message, params };
-            })
+            code: 'ZodError',
+            issues: err.issues
           };
         } else if (err instanceof Error) {
           errorMessage = err.message;
