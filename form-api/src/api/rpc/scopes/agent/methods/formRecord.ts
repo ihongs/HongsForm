@@ -1,7 +1,9 @@
 import { ObjectId } from 'mongodb';
+import { z } from 'zod';
 import { registerAgentMethod } from '../registry.js';
 import { requireUserId } from '../../../shared/forms.js';
-import { fieldsData2Zod } from '../../../../../schemas/formRecord.js';
+import { wrapError } from '../../../../../utils/finder.js';
+import { dataFieldsToSchema } from '../../../../../schemas/formRecord.js';
 import { generateDataHash, requireOwnedForm, requireOwnedFormData } from '../../../shared/formRecords.js';
 
 registerAgentMethod('formRecord.list', async (params, ctx) => {
@@ -59,8 +61,19 @@ registerAgentMethod('formRecord.update', async (params, ctx) => {
   if (!form) throw new Error('Form not found');
 
   const updateData: any = { updatedAt: new Date() };
-  if (data !== undefined) updateData.data = fieldsData2Zod(form.fields).parse({data});
   if (status !== undefined) updateData.status = status;
+
+  // 校验表单数据并给错误附加 deta 层级
+  if (data !== undefined) {
+    try {
+      updateData.data = dataFieldsToSchema(form.fields).parse(data);
+    } catch (er) {
+      if (er instanceof z.ZodError) {
+        throw wrapError(er, ['data']);
+      }
+      throw er
+    }
+  }
 
   const result = await ctx.db.collection('formRecords').updateOne(
     { _id: new ObjectId(id), deletedAt: null },

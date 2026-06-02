@@ -4,7 +4,6 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   base: '/admin/',
-  logLevel: 'error',
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

@@ -200,8 +200,8 @@ async function handleSubmit(data) {
   } catch (err) {
     console.error('[FormView] 提交失败:', err)
     
-    if (err.data?.errors) {
-      formRef.value?.setErrors(err.data.errors)
+    if (err.data?.issues) {
+      formRef.value?.setErrors(err.data.issues)
     } else {
       submitError.value = err.message || '未知错误'
     }

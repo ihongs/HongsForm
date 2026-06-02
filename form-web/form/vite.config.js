@@ -4,7 +4,6 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   base: '/form/',
-  logLevel: 'error',
   build: {
     rollupOptions: {
       onwarn(warning, warn) {

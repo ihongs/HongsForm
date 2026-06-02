@@ -194,15 +194,20 @@ function setErrors(errorData: unknown) {
     for (const error of errorData) {
       const err = error as { path?: string[]; code?: string; message?: string; params?: Record<string, unknown> }
       if (err.path && err.path.length > 0) {
-        const fieldName = err.path.join('.')
+        // 处理 path 以 'data' 开头的情况（formRecord.create/update 的错误）
+        let pathArr = err.path
+        if (pathArr[0] === 'data') {
+          pathArr = pathArr.slice(1)
+        }
+        const fieldName = pathArr.join('.')
         const errorMessage = err.code ? translateZodError(err.code, err.params) : (err.message || '未知错误')
         errors[fieldName] = errorMessage
       }
     }
   } else if (errorData && typeof errorData === 'object') {
-    const data = errorData as { errors?: unknown[] }
-    if (data.errors && Array.isArray(data.errors)) {
-      setErrors(data.errors)
+    const data = errorData as { issues?: unknown[] }
+    if (data.issues && Array.isArray(data.issues)) {
+      setErrors(data.issues)
       return
     }
     Object.assign(errors, errorData as Record<string, string>)
