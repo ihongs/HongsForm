@@ -153,6 +153,9 @@ form.onChange('country', (f) => {
                       <input v-model.number="field.maximum" class="form-control" type="number" />
                     </div>
                   </div>
+                  <div v-if="fieldErrors[`field_${index}`]" class="alert alert-danger mt-3 mb-0 py-2">
+                    {{ fieldErrors[`field_${index}`] }}
+                  </div>
                 </div>
               </article>
             </div>
@@ -447,15 +450,38 @@ async function save() {
     return result.id
   } catch (err) {
     Object.keys(fieldErrors).forEach(key => delete fieldErrors[key])
-    if (err.data?.errors && Array.isArray(err.data.errors)) {
-      for (const e of err.data.errors) {
-        if (e.path && e.path.length >= 2) {
-          const fieldName = e.path.slice(1).join('.')
-          fieldErrors[fieldName] = e.message
+    if (err.data?.issues && Array.isArray(err.data.issues)) {
+      for (const issue of err.data.issues) {
+        if (issue.path && issue.path.length >= 2) {
+          // 处理 path 格式：["fields", 1, "type"] -> field index + property
+          const path = issue.path
+          let fieldIndex = null
+          let propName = null
+          
+          // 查找 fields 数组索引
+          for (let i = 0; i < path.length; i++) {
+            if (path[i] === 'fields' && i + 1 < path.length && typeof path[i + 1] === 'number') {
+              fieldIndex = path[i + 1]
+              // 找到属性名（数组索引之后的第一项）
+              if (i + 2 < path.length && typeof path[i + 2] === 'string') {
+                propName = path[i + 2]
+              }
+              break
+            }
+          }
+          
+          if (fieldIndex !== null && fieldIndex >= 0 && fieldIndex < fields.value.length) {
+            const field = fields.value[fieldIndex]
+            const fieldKey = `field_${fieldIndex}`
+            // 构建错误信息，包含属性名和原始消息
+            const fieldLabel = field.title || field.name
+            const propLabel = propName || ''
+            fieldErrors[fieldKey] = `${fieldLabel}${propLabel ? ' - ' + propLabel : ''}: ${issue.message || '校验失败'}`
+          }
         }
       }
       if (Object.keys(fieldErrors).length > 0) {
-        error.value = '请修正以下错误'
+        error.value = '请修正以上错误'
       } else {
         error.value = err.message || '保存失败'
       }

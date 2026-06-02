@@ -2,6 +2,7 @@
   "name": "start-all-projects",
   "version": "1.0.0",
   "scripts": {
+    "build": "cd /d admin && npm run build && cd /d ../agent && npm run build && cd /d ../form && npm run build",
     "admin": "cd /d admin && npm run dev",
     "agent": "cd /d agent && npm run dev",
     "form": "cd /d form && npm run dev",
