@@ -200,7 +200,7 @@ function setErrors(errorData: unknown) {
           pathArr = pathArr.slice(1)
         }
         const fieldName = pathArr.join('.')
-        const errorMessage = err.code ? translateZodError(err.code, err.params) : (err.message || '未知错误')
+        const errorMessage = err.code ? translateZodError(err.code, err) : (err.message || '未知错误')
         errors[fieldName] = errorMessage
       }
     }
