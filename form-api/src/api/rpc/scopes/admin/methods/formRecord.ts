@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { registerAdminMethod } from '../registry.js';
+import { fieldsData2Zod } from '../../../../../schemas/formRecord.js';
 
 registerAdminMethod('formRecord.list', async (params, ctx) => {
   const { page = 1, pageSize = 20, formId, userId, channel, startDate, endDate } = params as any;
@@ -45,8 +46,19 @@ registerAdminMethod('formRecord.update', async (params, ctx) => {
   const { id, data, status } = params as any;
   if (!id) throw new Error('Data ID is required');
 
+  const reco = await ctx.db.collection('formRecords').findOne({
+    _id: new ObjectId(id),
+    deletedAt: null
+  });
+  if (!reco) throw new Error('Form record not found');
+  const form = await ctx.db.collection('forms').findOne({
+    _id: reco.formId,
+    deletedAt: null
+  });
+  if (!form) throw new Error('Form not found');
+
   const updateData: any = { updatedAt: new Date() };
-  if (data !== undefined) updateData.data = data;
+  if (data !== undefined) updateData.data = fieldsData2Zod(form.fields).parse({data});
   if (status !== undefined) updateData.status = status;
 
   const result = await ctx.db.collection('formRecords').updateOne(

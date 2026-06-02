@@ -1,3 +1,8 @@
+/**
+ * 键值记录
+ * @author Hongs
+ */
+
 import { getDb } from './db.js';
 
 interface RosterRecord {

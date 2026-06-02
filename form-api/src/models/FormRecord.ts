@@ -1,7 +1,39 @@
+import { Db, ObjectId } from 'mongodb';
 import { z } from 'zod';
+import { BaseModel } from './BaseModel.js';
+import { toFindSchema } from '../utils/finder.js';
+
+export const FormRecordSchema = z.object({
+  formId: z.custom<ObjectId>((val) => val instanceof ObjectId),
+  userId: z.custom<ObjectId>((val) => val instanceof ObjectId).optional().nullable(),
+  data: z.record(z.string(), z.any()),
+  dataHash: z.string(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  userIp: z.string().optional().nullable(),
+  userAgent: z.string().optional().nullable(),
+  userToken: z.string().optional().nullable(),
+  channel: z.string().optional().default('web'),
+  status: z.number().int().min(0).max(1).default(1),
+});
+
+export const FormRecordCreateSchema = FormRecordSchema;
+export const FormRecordUpdateSchema = FormRecordSchema.partial().omit({ formId: true, dataHash: true });
+
+export const FormRecordFindSchema = toFindSchema(FormRecordSchema, ['formId', 'userId', 'phone', 'email', 'userToken', 'channel', 'status', 'createdAt']);
+
+export class FormRecordModel extends BaseModel {
+  constructor(db: Db) {
+    super(db, 'formRecords', {
+      createSchema: FormRecordCreateSchema,
+      updateSchema: FormRecordUpdateSchema,
+      findSchema: FormRecordFindSchema,
+    });
+  }
+}
 
 // 字段集合转 Zod schema
-export const fields2Zod = function (fields: any) {
+export function dataFieldsToSchema(fields: any[]) {
     const shape: any = {};
     for (const field of fields) {
         // 构建 schema
@@ -77,8 +109,4 @@ export const fields2Zod = function (fields: any) {
         shape[field.name] = schema;
     }
     return z.object(shape).strict();
-}
-
-export const fieldsData2Zod = function (fields: any) {
-    return z.object({data: fields2Zod(fields)});
 }

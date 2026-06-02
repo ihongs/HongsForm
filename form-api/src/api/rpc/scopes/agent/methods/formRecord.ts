@@ -1,7 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { registerAgentMethod } from '../registry.js';
 import { requireUserId } from '../../../shared/forms.js';
-import { fields2Zod } from '../../../../../schemas/formRecord.js';
+import { fieldsData2Zod } from '../../../../../schemas/formRecord.js';
 import { generateDataHash, requireOwnedForm, requireOwnedFormData } from '../../../shared/formRecords.js';
 
 registerAgentMethod('formRecord.list', async (params, ctx) => {
@@ -47,7 +47,6 @@ registerAgentMethod('formRecord.update', async (params, ctx) => {
   if (!id) throw new Error('Data ID is required');
   await requireOwnedFormData(ctx, id);
 
-  // 校验数据
   const reco = await ctx.db.collection('formRecords').findOne({
     _id: new ObjectId(id),
     deletedAt: null
@@ -55,13 +54,12 @@ registerAgentMethod('formRecord.update', async (params, ctx) => {
   if (!reco) throw new Error('Form record not found');
   const form = await ctx.db.collection('forms').findOne({
     _id: reco.formId,
-    deletedAt: null,
-    status: 2
+    deletedAt: null
   });
   if (!form) throw new Error('Form not found');
 
   const updateData: any = { updatedAt: new Date() };
-  if (data !== undefined) updateData.data = fields2Zod(form.fields).parse(data);
+  if (data !== undefined) updateData.data = fieldsData2Zod(form.fields).parse({data});
   if (status !== undefined) updateData.status = status;
 
   const result = await ctx.db.collection('formRecords').updateOne(

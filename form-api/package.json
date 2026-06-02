@@ -11,7 +11,9 @@
     "start": "node dist/server.js",
     "clean": "node dist/scripts/clean.js",
     "dev:clean": "tsx src/scripts/clean.ts",
-    "dev:test-init": "tsx src/scripts/test-init.ts"
+    "dev:test-init": "tsx src/scripts/test-init.ts",
+    "test": "tsx --test src/tests/**/*.test.ts",
+    "test:run": "tsx --test src/tests/**/*.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -21,9 +23,10 @@
   },
   "devDependencies": {
     "@types/formidable": "^3.5.1",
-    "@types/node": "^20.10.0",
+    "@types/node": "^20.19.41",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=20.0.0"
