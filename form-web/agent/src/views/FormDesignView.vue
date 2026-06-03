@@ -28,7 +28,7 @@
 
       <section class="col-12 col-lg-9">
         <div class="card shadow-sm">
-          <div class="card-body p-4">
+          <div class="card-body">
             <h2 class="h5 mb-3">表单配置</h2>
             <div class="row g-3 mb-4">
               <div class="col-md-6">

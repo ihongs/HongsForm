@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { registerAgentMethod } from '../registry.js';
-import { findOwnedForm, requireUserId, validateVoteForm } from '../../../shared/forms.js';
+import { findOwnedForm, requireUserId, validateVoteForm, normalizeFields } from '../../../shared/forms.js';
 import { formCreateSchema, formUpdateSchema } from '../../../../../schemas/form.js';
 
 registerAgentMethod('form.list', async (params, ctx) => {
@@ -40,8 +40,14 @@ registerAgentMethod('form.get', async (params, ctx) => {
 registerAgentMethod('form.create', async (params, ctx) => {
   const userId = requireUserId(ctx);
   
+  // 先整理字段配置，再校验
+  const data = { ...params as any };
+  if (data.fields) {
+    data.fields = normalizeFields(data.fields);
+  }
+
   // 使用 Zod 校验参数
-  const createData = formCreateSchema.parse(params);
+  const createData = formCreateSchema.parse(data);
 
   // 如果是投票表单，验证必须有 countable 字段
   if (createData.type === 'vote') {
@@ -68,15 +74,31 @@ registerAgentMethod('form.create', async (params, ctx) => {
 registerAgentMethod('form.update', async (params, ctx) => {
   const { id } = params as any;
   if (!id) throw new Error('Form ID is required');
-  await findOwnedForm(ctx, id);
 
-  // 使用 Zod 校验参数
-  const parsedData = formUpdateSchema.parse(params);
+  // 先整理字段配置
+  const data = { ...params as any };
+  if (data.fields) {
+    data.fields = normalizeFields(data.fields);
+  }
+
+  // 使用 Zod 校验参数（id 在 schema 中必填）
+  const parsedData = formUpdateSchema.parse(data);
   
-  // 创建新对象，避免直接修改 zod 解析后的对象
+  // 从更新数据中移除 id 和不可更新字段
   const updateData: any = { ...parsedData };
   delete updateData.id;
+  delete updateData._id;
+  delete updateData.userId;
+  delete updateData.createdAt;
+  delete updateData.deletedAt;
   updateData.updatedAt = new Date();
+
+  // 验证投票表单：新设置为投票，或原有投票表单更新字段
+  const form = await findOwnedForm(ctx, id);
+  const isVoteType = updateData.type === 'vote' || form.type === 'vote';
+  if (isVoteType && updateData.fields) {
+    validateVoteForm(updateData.fields);
+  }
 
   const result = await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
@@ -149,12 +171,12 @@ registerAgentMethod('form.recount', async (params, ctx) => {
 
   // 重新计算 counts
   const counts: any = { __total__: records.length };
-  const countableFields = form.fields.filter(f => 
+  const countableFields = form.fields.filter((f: any) => 
     f.countable && ['select', 'check', 'radio', 'switch'].includes(f.inputType)
   );
 
   records.forEach(record => {
-    countableFields.forEach(field => {
+    countableFields.forEach((field: any) => {
       const fieldValue = record.data[field.name];
       if (fieldValue === undefined || fieldValue === null) return;
 

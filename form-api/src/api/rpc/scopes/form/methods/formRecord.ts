@@ -184,7 +184,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
         },
         { returnDocument: 'after' }
       );
-      counts = updateResult.value?.counts;
+      counts = updateResult?.value?.counts;
     }
   }
 

@@ -15,6 +15,82 @@ export function validateVoteForm(fields: any[]): void {
   }
 }
 
+/**
+ * 根据 inputType 补全/修正字段的 type 及其他相关配置
+ */
+export function normalizeFields(fields: any[]): any[] {
+  return fields.map(field => {
+    const normalized = { ...field };
+    const inputType = field.inputType;
+
+    // 根据 inputType 设置 type
+    switch (inputType) {
+      case 'name':
+      case 'text':
+      case 'textarea':
+      case 'file':
+      case 'image':
+        normalized.type = 'string';
+        break;
+
+      case 'email':
+        normalized.type = 'string';
+        normalized.format = 'email';
+        break;
+
+      case 'phone':
+        normalized.type = 'string';
+        normalized.pattern = '^1[3-9]\\d{9}$';
+        break;
+
+      case 'select':
+      case 'radio':
+        // 允许 string, number, integer，默认 string
+        if (!['string', 'number', 'integer'].includes(normalized.type)) {
+          normalized.type = 'string';
+        }
+        break;
+
+      case 'check':
+        normalized.type = 'array';
+        // items.type 允许 string, number, integer，默认 string
+        if (!normalized.items) {
+          normalized.items = { type: 'string' };
+        } else if (!['string', 'number', 'integer'].includes(normalized.items.type)) {
+          normalized.items = { ...normalized.items, type: 'string' };
+        }
+        break;
+
+      case 'range':
+        normalized.type = 'number';
+        if (normalized.minimum === undefined) normalized.minimum = 0;
+        if (normalized.maximum === undefined) normalized.maximum = 100;
+        break;
+
+      case 'switch':
+        normalized.type = 'boolean';
+        break;
+
+      case 'datetime':
+      case 'date':
+      case 'time':
+        normalized.type = 'number';
+        break;
+
+      case 'legend':
+      case 'figure':
+        normalized.type = 'null';
+        break;
+
+      default:
+        // 未知的 inputType，保持原样或默认 string
+        if (!normalized.type) normalized.type = 'string';
+    }
+
+    return normalized;
+  });
+}
+
 export async function findOwnedForm(ctx: RpcContext, id: string): Promise<any> {
   const userId = requireUserId(ctx);
   const form = await ctx.db.collection('forms').findOne({
