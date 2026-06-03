@@ -156,10 +156,12 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `config.maxSubmissions` | Number | 否 | null | 最大提交数限制 | - |
 | `config.startAt` | Date | 否 | null | 提交开始时间 | - |
 | `config.endAt` | Date | 否 | null | 提交结束时间 | - |
+| `counts` | Object | 否 | `{}` | 提交统计 | - |
 | `fields` | Array | 是 | - | 表单字段配置（JSONSchema[]） | - |
 | `script` | String | 否 | null | 自定义脚本（如联动逻辑） | - |
 | `status` | Number | 是 | `1` | 状态：`1` 草稿，`2` 发布，`0` 禁用 | 普通索引 |
 | `publishedAt` | Date | 否 | null | 发布时间 | - |
+| `countedAt` | Date | 否 | null | 统计时间 | - |
 | `createdAt` | Date | 是 | `new Date()` | 创建时间 | - |
 | `updatedAt` | Date | 是 | `new Date()` | 更新时间 | - |
 | `deletedAt` | Date | 否 | null | 删除时间（软删除） | - |
@@ -173,7 +175,6 @@ db.userAuth.createIndex({ createdAt: -1 });
   "type": "object",
   "title": "表单标题",
   "description": "表单描述",
-  "required": ["field1", "field2"],
   "fields": [
     {
       "name": "fieldName",
@@ -201,9 +202,8 @@ db.userAuth.createIndex({ createdAt: -1 });
       // 对象验证
       "properties": { /* 子属性 Schema */ },
       "additionalProperties": true,
-      // UI 配置
-      "findable": true,
-      "sortable": true
+      // 需被统计
+      "countable": true
     }
   ]
 }
