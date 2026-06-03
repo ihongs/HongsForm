@@ -42,7 +42,7 @@ export const configSchema = z.object({
 
 export const formSchema = z.object({
   name: z.string(),
-  type: z.enum(['form', 'vote']).optional(),
+  type: z.enum(['form', 'vote', 'sign']).optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   fields: z.array(fieldSchema).min(1),

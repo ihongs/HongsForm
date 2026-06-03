@@ -36,6 +36,7 @@
                 <select v-model="form.type" class="form-select">
                   <option value="form">普通表单</option>
                   <option value="vote">投票表单</option>
+                  <option value="sign">签到表单</option>
                 </select>
               </div>
               <div class="col-md-6">
