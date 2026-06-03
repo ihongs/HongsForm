@@ -179,7 +179,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
       const updateResult = await ctx.db.collection('forms').findOneAndUpdate(
         { _id: new ObjectId(formId) },
         { 
-          $inc: { ...countUpdate, 'counts.__total__': 1 },
+          $inc: countUpdate,
           $set: { countedAt: now }
         },
         { returnDocument: 'after' }
@@ -188,5 +188,181 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     }
   }
 
-  return { id: result.insertedId.toString(), counts };
+  // 如果是签到表单，返回 checksum
+  let checksum = null;
+  if (form.type === 'sign') {
+    const recordId = result.insertedId.toString();
+    checksum = md5(now.toISOString() + recordId);
+  }
+
+  return{ id: result.insertedId.toString(), counts, checksum };
+});
+
+registerFormMethod('formRecord.checksum', async (params, ctx) => {
+  const { id, checksum } = params as any;
+  if (!id) throw new Error('id is required');
+  if (!checksum) throw new Error('checksum is required');
+
+  const record = await ctx.db.collection('formRecords').findOne({
+    _id: new ObjectId(id),
+    deletedAt: null
+  });
+
+  if (!record) {
+    return { success: false, code: 'RECORD_NOT_FOUND', message: '记录不存在' };
+  }
+
+  const form = await ctx.db.collection('forms').findOne({
+    _id: record.formId,
+    deletedAt: null
+  });
+
+  if (!form) {
+    return { success: false, code: 'FORM_NOT_FOUND', message: '表单不存在' };
+  }
+
+  // 校验checksum
+  const expectedChecksum = md5(record.createdAt.toISOString() + id);
+  if (expectedChecksum !== checksum) {
+    return { success: false, code: 'INVALID_CHECKSUM', message: '校验失败' };
+  }
+
+  const currentUserId = ctx.userId;
+  const isAgent = form.createdBy?.toString() === currentUserId?.toString();
+
+  return {
+    success: true,
+    record: {
+      _id: record._id.toString(),
+      data: record.data,
+      status: record.status,
+      createdAt: record.createdAt
+    },
+    form: {
+      _id: form._id.toString(),
+      type: form.type,
+      name: form.name,
+      title: form.title,
+      config: {
+        signWord: form.config?.signWord
+      }
+    },
+    isAgentMode: isAgent
+  };
+});
+
+registerFormMethod('formRecord.signByPhone', async (params, ctx) => {
+  const { formId, phone, verifyCode: code } = params as any;
+  if (!formId) throw new Error('formId is required');
+  if (!phone) throw new Error('phone is required');
+  if (!code) throw new Error('verifyCode is required');
+
+  const form = await ctx.db.collection('forms').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null,
+    status: 2
+  });
+
+  if (!form) {
+    return { success: false, code: 'FORM_NOT_FOUND', message: '表单不存在' };
+  }
+
+  if (!form.config?.oncePerPhone) {
+    return { success: false, code: 'NOT_ALLOWED', message: '未开启手机号签到' };
+  }
+
+  // 验证验证码
+  try {
+    await verifyCode(md5(phone), code, 'sms', formId);
+  } catch (er) {
+    return { success: false, code: 'INVALID_CODE', message: '验证码错误' };
+  }
+
+  // 查找记录
+  const record = await ctx.db.collection('formRecords').findOne({
+    formId: new ObjectId(formId),
+    'data.phone': phone,
+    deletedAt: null
+  });
+
+  if (!record) {
+    return { success: false, code: 'NOT_REGISTERED', message: '请先报名' };
+  }
+
+  // 检查是否已签到
+  const isFirstSign = record.status !== 2;
+  if (isFirstSign) {
+    await ctx.db.collection('formRecords').updateOne(
+      { _id: record._id },
+      { $set: { status: 2, updatedAt: new Date() } }
+    );
+  }
+
+  const recordId = record._id.toString();
+  const checksum = md5(record.createdAt.toISOString() + recordId);
+
+  return {
+    success: true,
+    id: recordId,
+    isFirstSign,
+    checksum
+  };
+});
+
+registerFormMethod('formRecord.signByEmail', async (params, ctx) => {
+  const { formId, email, verifyCode: code } = params as any;
+  if (!formId) throw new Error('formId is required');
+  if (!email) throw new Error('email is required');
+  if (!code) throw new Error('verifyCode is required');
+
+  const form = await ctx.db.collection('forms').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null,
+    status: 2
+  });
+
+  if (!form) {
+    return { success: false, code: 'FORM_NOT_FOUND', message: '表单不存在' };
+  }
+
+  if (!form.config?.oncePerEmail) {
+    return { success: false, code: 'NOT_ALLOWED', message: '未开启邮箱签到' };
+  }
+
+  // 验证验证码
+  try {
+    await verifyCode(md5(email), code, 'email', formId);
+  } catch (er) {
+    return { success: false, code: 'INVALID_CODE', message: '验证码错误' };
+  }
+
+  // 查找记录
+  const record = await ctx.db.collection('formRecords').findOne({
+    formId: new ObjectId(formId),
+    'data.email': email,
+    deletedAt: null
+  });
+
+  if (!record) {
+    return { success: false, code: 'NOT_REGISTERED', message: '请先报名' };
+  }
+
+  // 检查是否已签到
+  const isFirstSign = record.status !== 2;
+  if (isFirstSign) {
+    await ctx.db.collection('formRecords').updateOne(
+      { _id: record._id },
+      { $set: { status: 2, updatedAt: new Date() } }
+    );
+  }
+
+  const recordId = record._id.toString();
+  const checksum = md5(record.createdAt.toISOString() + recordId);
+
+  return {
+    success: true,
+    id: recordId,
+    isFirstSign,
+    checksum
+  };
 });

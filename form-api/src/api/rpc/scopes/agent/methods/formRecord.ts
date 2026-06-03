@@ -150,3 +150,28 @@ registerAgentMethod('formRecord.stats', async (params, ctx) => {
     byChannel: Object.fromEntries(channelStats.map((c: any) => [c._id, c.count]))
   };
 });
+
+registerAgentMethod('formRecord.confirmSign', async (params, ctx) => {
+  const { id, formId } = params as any;
+  if (!id) throw new Error('id is required');
+  if (!formId) throw new Error('formId is required');
+
+  // 确保是自己的表单
+  await requireOwnedForm(ctx, formId);
+
+  const now = new Date();
+  const result = await ctx.db.collection('formRecords').updateOne(
+    { _id: new ObjectId(id), formId: new ObjectId(formId), deletedAt: null },
+    { $set: { status: 2, updatedAt: now } }
+  );
+
+  if (result.matchedCount === 0) {
+    return { success: false, message: '记录不存在' };
+  }
+
+  return {
+    success: true,
+    id,
+    signedAt: now
+  };
+});

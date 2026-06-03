@@ -103,6 +103,26 @@ export const formApi = {
   // 获取投票表单统计数据
   getCounts(formId) {
     return rpc.call('form.getCounts', { id: formId })
+  },
+
+  // 校验表单checksum
+  checkFormChecksum(id, checksum) {
+    return rpc.call('form.checksum', { id, checksum })
+  },
+
+  // 校验记录checksum
+  checkRecordChecksum(id, checksum) {
+    return rpc.call('formRecord.checksum', { id, checksum })
+  },
+
+  // 手机签到
+  signByPhone(formId, phone, verifyCode) {
+    return rpc.call('formRecord.signByPhone', { formId, phone, verifyCode })
+  },
+
+  // 邮箱签到
+  signByEmail(formId, email, verifyCode) {
+    return rpc.call('formRecord.signByEmail', { formId, email, verifyCode })
   }
 }
 

@@ -40,13 +40,17 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  dataCount: {
+    type: Number,
+    default: 0
+  },
   animated: {
     type: Boolean,
     default: true
   }
 })
 
-const totalRecords = computed(() => props.counts.__total__ || 0)
+const totalRecords = computed(() => props.dataCount || 0)
 
 const chartData = computed(() => {
   const countableFields = props.form.fields?.filter(f => f.countable) || []

@@ -18,7 +18,8 @@ registerFormMethod('form.getCounts', async (params, ctx) => {
 
   return {
     counts: form.counts || {},
-    countedAt: form.countedAt
+    countedAt: form.countedAt,
+    dataCount: form.dataCount || 0
   };
 });
 
@@ -135,5 +136,45 @@ registerFormMethod('form.verify.sendEmailCode', async (params, ctx) => {
   return {
     success: true,
     message: '验证码发送成功'
+  };
+});
+
+registerFormMethod('form.checksum', async (params, ctx) => {
+  const { id, checksum } = params as any;
+  if (!id) throw new Error('id is required');
+  if (!checksum) throw new Error('checksum is required');
+
+  const form = await ctx.db.collection('forms').findOne({
+    _id: new ObjectId(id),
+    deletedAt: null
+  });
+
+  if (!form) {
+    return { success: false, code: 'FORM_NOT_FOUND', message: '表单不存在' };
+  }
+
+  if (form.status !== 2) {
+    return { success: false, code: 'FORM_NOT_PUBLISHED', message: '表单未发布' };
+  }
+
+  // 校验checksum
+  const expectedChecksum = md5((form.createdBy?.toString() ?? '') + id);
+  if (expectedChecksum !== checksum) {
+    return { success: false, code: 'INVALID_CHECKSUM', message: '校验失败' };
+  }
+
+  return {
+    success: true,
+    form: {
+      _id: form._id.toString(),
+      type: form.type,
+      name: form.name,
+      title: form.title,
+      config: {
+        oncePerPhone: form.config?.oncePerPhone ?? false,
+        oncePerEmail: form.config?.oncePerEmail ?? false
+      },
+      status: form.status
+    }
   };
 });

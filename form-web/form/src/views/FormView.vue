@@ -204,8 +204,19 @@ async function handleSubmit(data) {
     // 标记为已提交
     markSubmitted(route.params.id)
     
+    // 如果是签到表单，跳转到签到页
+    if (form.value.type === 'sign') {
+      router.push({ 
+        name: 'sign', 
+        params: { 
+          formId: route.params.id, 
+          id: result.id, 
+          checksum: result.checksum 
+        } 
+      })
+    }
     // 如果是投票表单，跳转到统计页面
-    if (form.value.type === 'vote') {
+    else if (form.value.type === 'vote') {
       router.push({ name: 'counts', params: { formId: route.params.id } })
     } else {
       router.push({ name: 'success', params: { id: route.params.id } })

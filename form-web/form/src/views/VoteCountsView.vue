@@ -20,7 +20,7 @@
             <h2 class="h5 mb-0">{{ form.title }}</h2>
           </div>
           <div class="card-body">
-            <VoteResultBar :form="form" :counts="counts" :animated="!autoRefresh" />
+            <VoteResultBar :form="form" :counts="counts" :dataCount="dataCount" :animated="!autoRefresh" />
           </div>
           <div class="card-footer text-center text-secondary text-sm">
             统计时间：{{ countedAtStr }}
@@ -70,6 +70,7 @@ import VoteResultBar from '../components/VoteResultBar.vue'
 const route = useRoute()
 const form = ref({})
 const counts = ref({})
+const dataCount = ref(0)
 const countedAt = ref(null)
 const loading = ref(true)
 const error = ref(null)
@@ -108,6 +109,7 @@ async function loadData(refresh = false) {
     const countsResult = await formApi.getCounts(route.params.formId)
     counts.value = countsResult.counts || {}
     countedAt.value = countsResult.countedAt
+    dataCount.value = countsResult.dataCount || 0
     
     if (!refresh) {
       const formData = await formApi.getSchema(route.params.formId)

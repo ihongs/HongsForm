@@ -160,8 +160,9 @@ db.userAuth.createIndex({ createdAt: -1 });
 | `fields` | Array | 是 | - | 表单字段配置（JSONSchema[]） | - |
 | `script` | String | 否 | null | 自定义脚本（如联动逻辑） | - |
 | `status` | Number | 是 | `1` | 状态：`1` 草稿，`2` 发布，`0` 禁用 | 普通索引 |
-| `publishedAt` | Date | 否 | null | 发布时间 | - |
+| `dataCount` | Number | 否 | `0` | 提交数量 | - |
 | `countedAt` | Date | 否 | null | 统计时间 | - |
+| `publishedAt` | Date | 否 | null | 发布时间 | - |
 | `createdAt` | Date | 是 | `new Date()` | 创建时间 | - |
 | `updatedAt` | Date | 是 | `new Date()` | 更新时间 | - |
 | `deletedAt` | Date | 否 | null | 删除时间（软删除） | - |
@@ -300,6 +301,7 @@ db.form.createIndex({ name: "text", title: "text", description: "text" });
 | `userToken` | String | 否 | null | 提交者的 cookie/localStorage 等访客标识 | - |
 | `channel` | String | 否 | `web` | 提交渠道：`web`/`ai`/`import` | - |
 | `status` | Number | 是 | `1` | 状态：`1` 正常，`0` 作废 | 普通索引 |
+| `signedAt` | Date | 否 | null | 签到时间 | - |
 | `createdAt` | Date | 是 | `new Date()` | 提交时间 | - |
 | `updatedAt` | Date | 是 | `new Date()` | 更新时间 | - |
 | `deletedAt` | Date | 否 | null | 删除时间（软删除） | - |
@@ -352,6 +354,7 @@ db.formData.createIndex({ channel: 1 });
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   "channel": "web",
   "status": 1,
+  "signedAt": null,
   "createdAt": ISODate("2024-01-15T12:30:00Z"),
   "updatedAt": ISODate("2024-01-15T12:30:00Z"),
   "deletedAt": null
