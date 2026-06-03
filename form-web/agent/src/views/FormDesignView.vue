@@ -209,7 +209,7 @@ const fieldTypes = [
   { type: 'select', label: '下拉选择', icon: 'bi-menu-button-wide' },
   { type: 'check', label: '多选', icon: 'bi-check2-square' },
   { type: 'radio', label: '单选', icon: 'bi-record-circle' },
-  { type: 'range', label: '范围滑块', icon: 'bi-sliders' },
+//{ type: 'range', label: '范围滑块', icon: 'bi-sliders' },
   { type: 'switch', label: '开关', icon: 'bi-toggle-on' },
   { type: 'datetime', label: '日期时间', icon: 'bi-calendar2-week' },
   { type: 'date', label: '日期', icon: 'bi-calendar-date' },
@@ -421,7 +421,6 @@ function buildSchema() {
 
 function validateForm() {
   if (!form.name) return '请输入表单名称'
-  if (!form.title) return '请输入表单标题'
   if (fields.value.length === 0) return '请至少添加一个字段'
   if (!fields.value.some((field) => !isDisplayField(field) && field.required)) return '请至少设置一个必填/必选字段'
   
@@ -442,7 +441,6 @@ function validateForm() {
   }
   
   for (const field of fields.value) {
-    if (field.inputType !== 'figure' && !field.title) return `请填写 ${field.name} 的字段标题`
     if (usesOptions(field) && parseOptions(field.optionText).values.length === 0) return `请填写 ${field.name} 的选项`
   }
   return ''

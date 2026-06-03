@@ -44,7 +44,7 @@
 
       <template v-else>
         <header class="mb-4">
-          <h1 class="form-title text-center mb-2">{{ form.title }}</h1>
+          <h1 v-if="form.title" class="form-title text-center mb-2">{{ form.title }}</h1>
           <div v-if="form.description" class="markdown-content" v-html="renderMarkdown(form.description)"></div>
         </header>
 
@@ -75,7 +75,7 @@ import { formApi, getGuestToken } from '../api'
 import FormRenderer from '../components/FormRenderer.vue'
 import MarkdownIt from 'markdown-it'
 
-const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
+const markdown = new MarkdownIt({ html: true, linkify: true, breaks: true })
 
 const renderMarkdown = (content) => {
   return markdown.render(content)

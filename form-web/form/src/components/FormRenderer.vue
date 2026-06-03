@@ -135,7 +135,7 @@ const submitting = ref(false)
 const captchaSending = ref(false)
 const countdown = reactive<Record<string, number>>({ phone: 0, email: 0 })
 const timers = reactive<Record<string, ReturnType<typeof setInterval> | null>>({ phone: null, email: null })
-const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
+const markdown = new MarkdownIt({ html: true, linkify: true, breaks: true })
 const fieldChanges = ref<FieldChanges>({})
 const formScriptRef = ref<InstanceType<typeof FormScript> | null>(null)
 

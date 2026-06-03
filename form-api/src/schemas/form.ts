@@ -4,7 +4,7 @@ export const fieldSchema = z.object({
   type: z.enum(['string', 'number', 'integer', 'boolean', 'array', 'date', 'null']),
   inputType: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/, 'inputType 须以字母开头，可包含字母、数字、下划线，长度 2-11'),
   name: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{1,10}$/, 'name 须以字母开头，可包含字母、数字、下划线，长度 2-11'),
-  title: z.string(),
+  title: z.string().optional(),
   description: z.string().optional(),
   label: z.string().optional(),
   placeholder: z.string().optional(),

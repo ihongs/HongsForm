@@ -44,6 +44,18 @@
     :error="error"
     @update:modelValue="$emit('update:modelValue', $event)"
   />
+  <div v-if="field.inputType === 'range'">
+    <input
+      :type="getInputType()"
+      :value="modelValue"
+      @input="handleInput"
+      :class="['form-range', { 'is-invalid': error }]"
+      :min="field.minimum"
+      :max="field.maximum"
+      step="any"
+    />
+    <output class="form-range-output" style="min-width: 3ch">{{ modelValue ?? field.minimum ?? 0 }}</output>
+  </div>
   <input
     v-else
     :type="getInputType()"
