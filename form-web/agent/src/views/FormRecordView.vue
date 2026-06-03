@@ -12,6 +12,15 @@
           <i class="bi bi-funnel" aria-hidden="true"></i>
           <span>筛选</span>
         </button>
+        <button 
+          v-if="formType === 'vote'" 
+          class="btn btn-warning d-inline-flex align-items-center gap-1" 
+          type="button" 
+          @click="handleRecount"
+        >
+          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+          <span>校准统计</span>
+        </button>
         <router-link class="btn btn-outline-secondary" to="/forms">返回列表</router-link>
         <div v-if="showFilters" class="filter-popover card shadow-sm">
           <div class="card-body p-3">
@@ -80,6 +89,7 @@ const items = ref([])
 const stats = ref({})
 const formTitle = ref('')
 const formFields = ref([])
+const formType = ref('')
 const tableEl = ref(null)
 const showFilters = ref(false)
 const filters = reactive({})
@@ -288,6 +298,7 @@ async function load() {
       agentApi.getFormRecordStats(route.params.id)
     ])
     formTitle.value = form.title || form.name
+    formType.value = form.type || ''
     formFields.value = form.fields || []
     items.value = dataResult.items || []
     stats.value = statsResult
@@ -304,7 +315,21 @@ async function removeById(id) {
   const item = items.value.find((entry) => entry._id === id)
   if (!item || !confirm('确定删除这条数据吗？')) return
   await agentApi.deleteFormRecord(item._id)
+  // 如果是投票表单，提示用户需要校准统计
+  if (formType.value === 'vote') {
+    alert('数据已删除，请点击「校准统计」按钮重新计算投票结果')
+  }
   await load()
+}
+
+async function handleRecount() {
+  if (!confirm('确定要重新计算统计数据吗？这将遍历所有表单记录重新计数。')) return
+  try {
+    await agentApi.recountForm(route.params.id)
+    alert('统计数据已校准完成')
+  } catch (err) {
+    alert('校准失败: ' + err.message)
+  }
 }
 
 onMounted(load)

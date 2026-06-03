@@ -6,6 +6,30 @@ import { md5, verifyCode } from '../../../../../utils/verify.js';
 import { wrapError } from '../../../../../utils/finder.js';
 import { dataFieldsToSchema } from '../../../../../schemas/formRecord.js';
 
+function buildCountUpdate(data: any, fields: any[]): any {
+  const update: any = {};
+  const countableFields = fields.filter(f => 
+    f.countable && ['select', 'check', 'radio', 'switch'].includes(f.inputType)
+  );
+
+  countableFields.forEach(field => {
+    const fieldValue = data[field.name];
+    if (fieldValue === undefined || fieldValue === null) return;
+
+    if (field.inputType === 'check' && Array.isArray(fieldValue)) {
+      fieldValue.forEach((val: any) => {
+        const key = `counts.${field.name}.${String(val)}`;
+        update[key] = 1;
+      });
+    } else {
+      const key = `counts.${field.name}.${String(fieldValue)}`;
+      update[key] = 1;
+    }
+  });
+
+  return update;
+}
+
 // 检查访客是否已提交过此表单
 registerFormMethod('formRecord.checkSubmitted', async (params, ctx) => {
   const { formId, userToken } = params as any;
@@ -147,5 +171,22 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     { $inc: { dataCount: 1 } }
   );
 
-  return { id: result.insertedId.toString() };
+  // 如果是投票表单，更新 counts 统计数据
+  let counts = null;
+  if (form.type === 'vote') {
+    const countUpdate = buildCountUpdate(validatedData, form.fields);
+    if (Object.keys(countUpdate).length > 0) {
+      const updateResult = await ctx.db.collection('forms').findOneAndUpdate(
+        { _id: new ObjectId(formId) },
+        { 
+          $inc: { ...countUpdate, 'counts.__total__': 1 },
+          $set: { countedAt: now }
+        },
+        { returnDocument: 'after' }
+      );
+      counts = updateResult.value?.counts;
+    }
+  }
+
+  return { id: result.insertedId.toString(), counts };
 });

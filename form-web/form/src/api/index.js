@@ -98,6 +98,11 @@ export const formApi = {
       phoneCode,
       emailCode
     })
+  },
+
+  // 获取投票表单统计数据
+  getCounts(formId) {
+    return rpc.call('form.getCounts', { id: formId })
   }
 }
 

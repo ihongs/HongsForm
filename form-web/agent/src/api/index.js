@@ -95,6 +95,9 @@ export const agentApi = {
   deleteForm(id) {
     return rpc.call('form.delete', { id })
   },
+  recountForm(id) {
+    return rpc.call('form.recount', { id })
+  },
   listFormRecords(params = {}) {
     return rpc.call('formRecord.list', params)
   },

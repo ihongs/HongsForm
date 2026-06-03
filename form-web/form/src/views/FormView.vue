@@ -43,9 +43,9 @@
       </div>
 
       <template v-else>
-        <header class="text-center mb-4">
-          <h1 class="h3 mb-2">{{ form.title }}</h1>
-          <p v-if="form.description" class="text-secondary mb-0">{{ form.description }}</p>
+        <header class="mb-4">
+          <h1 class="form-title text-center mb-2">{{ form.title }}</h1>
+          <div v-if="form.description" class="markdown-content" v-html="renderMarkdown(form.description)"></div>
         </header>
 
         <div v-if="submitError" class="alert alert-danger mb-4" role="alert">
@@ -69,10 +69,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formApi, getGuestToken } from '../api'
 import FormRenderer from '../components/FormRenderer.vue'
+import MarkdownIt from 'markdown-it'
+
+const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
+const renderMarkdown = (content) => {
+  return markdown.render(content)
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -193,10 +200,16 @@ async function handleSubmit(data) {
 
   try {
     const { phoneCode, emailCode, ...formData } = data
-    await formApi.submitData(route.params.id, formData, null, phoneCode, emailCode)
+    const result = await formApi.submitData(route.params.id, formData, null, phoneCode, emailCode)
     // 标记为已提交
     markSubmitted(route.params.id)
-    router.push({ name: 'success', params: { id: route.params.id } })
+    
+    // 如果是投票表单，跳转到统计页面
+    if (form.value.type === 'vote') {
+      router.push({ name: 'counts', params: { formId: route.params.id } })
+    } else {
+      router.push({ name: 'success', params: { id: route.params.id } })
+    }
   } catch (err) {
     console.error('[FormView] 提交失败:', err)
     

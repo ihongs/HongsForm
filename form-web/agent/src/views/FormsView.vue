@@ -21,11 +21,14 @@
           <section class="card shadow-sm">
             <div class="card-body d-flex flex-column flex-lg-row justify-content-between gap-3">
               <div>
-                <h2 class="h5 mb-2">{{ form.title || form.name }}</h2>
-                <p class="text-secondary mb-3">{{ form.description || '无描述' }}</p>
+                <h2 class="h5 mb-1">{{ form.name }}</h2>
+                <h3 class="h6 text-secondary mb-2">{{ form.title || '无标题' }}</h3>
                 <div class="d-flex flex-wrap gap-2 align-items-center small text-secondary">
                   <span :class="['badge', form.status === 2 ? 'text-bg-success' : 'text-bg-warning']">
                     {{ form.status === 2 ? '已发布' : '草稿' }}
+                  </span>
+                  <span :class="['badge', form.type === 'vote' ? 'text-bg-primary' : 'text-bg-secondary']">
+                    {{ form.type === 'vote' ? '投票表单' : '普通表单' }}
                   </span>
                   <span>{{ fieldCount(form) }} 个字段</span>
                   <span>{{ form.dataCount || 0 }} 条数据</span>
@@ -33,7 +36,7 @@
                   <span>更新 {{ formatTime(form.updatedAt) }}</span>
                 </div>
               </div>
-              <div class="d-flex flex-wrap gap-2 align-items-start">
+              <div class="d-flex gap-2 flex-nowrap align-items-start">
                 <router-link class="btn btn-outline-primary btn-sm" :to="`/forms/${form._id}/design`">编辑</router-link>
                 <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/record`">数据</router-link>
                 <a v-if="form.status === 2" class="btn btn-outline-secondary btn-sm" :href="`/form/${form._id}/`" target="_blank">打开</a>

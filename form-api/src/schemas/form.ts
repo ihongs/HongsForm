@@ -26,7 +26,8 @@ export const fieldSchema = z.object({
   maxLengthExclusive: z.boolean().optional(),
   enum: z.array(z.any()).optional(),
   items: z.record(z.string(), z.any()).optional(),
-  labels: z.record(z.string(), z.string()).optional()
+  labels: z.record(z.string(), z.string()).optional(),
+  countable: z.boolean().optional()
 });
 
 export const configSchema = z.object({

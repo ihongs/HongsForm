@@ -30,16 +30,18 @@
           <section class="card shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-                <h2 class="h5 mb-0">{{ form.title || form.name }}</h2>
-                <div class="d-flex flex-wrap gap-2">
+                <h2 class="h5 mb-0">{{ form.name }}</h2>
+                <div class="d-flex gap-2 flex-nowrap">
                   <router-link class="btn btn-outline-secondary btn-sm" :to="`/forms/${form._id}/record`">数据</router-link>
                   <a v-if="form.status === 2" class="btn btn-outline-secondary btn-sm" :href="`/form/${form._id}/`" target="_blank">打开</a>
                 </div>
               </div>
-              <p class="text-secondary mb-3">{{ form.description || '无描述' }}</p>
+              <h3 class="h6 text-secondary mb-2">{{ form.title || '无标题' }}</h3>
               <div class="d-flex flex-wrap gap-2 align-items-center small text-secondary">
                 <span :class="['badge', statusClass(form.status)]">{{ statusText(form.status) }}</span>
-                <span>{{ form.name }}</span>
+                <span :class="['badge', form.type === 'vote' ? 'text-bg-primary' : 'text-bg-secondary']">
+                  {{ form.type === 'vote' ? '投票表单' : '普通表单' }}
+                </span>
                 <span>{{ fieldCount(form) }} 个字段</span>
                 <span>{{ form.dataCount || 0 }} 条数据</span>
                 <span>创建者 {{ form.user || formatId(form.userId) }}</span>

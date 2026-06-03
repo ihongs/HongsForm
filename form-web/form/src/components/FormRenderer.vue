@@ -14,7 +14,7 @@
         <div v-if="!isFieldHidden(field.name)" class="mb-4">
           <legend v-if="field.inputType === 'legend'" class="form-section-legend">{{ field.title || field.name }}</legend>
 
-          <div v-else-if="field.inputType === 'figure'" v-html="renderMarkdown(field.description || '')"></div>
+          <div v-else-if="field.inputType === 'figure'" class="markdown-content" v-html="renderMarkdown(field.description || '')"></div>
 
           <template v-else>
             <label class="form-label fw-medium">
@@ -128,7 +128,7 @@ const emit = defineEmits<{
   sendEmailCode: [formId: string, email: string, verifyToken: string]
 }>()
 
-const formData = reactive<Record<string, unknown>>({})
+let formData = reactive<Record<string, unknown>>({})
 const captchaCodes = reactive<Record<string, string>>({})
 const errors = reactive<Record<string, string>>({})
 const submitting = ref(false)

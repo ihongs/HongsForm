@@ -6,6 +6,15 @@ export function requireUserId(ctx: RpcContext): ObjectId {
   return ctx.userId;
 }
 
+export function validateVoteForm(fields: any[]): void {
+  const countableFields = fields.filter(f => 
+    f.countable && ['select', 'check', 'radio', 'switch'].includes(f.inputType)
+  );
+  if (countableFields.length === 0) {
+    throw new Error('投票表单必须至少有一个选项类字段（select/check/radio/switch）且开启投票计数');
+  }
+}
+
 export async function findOwnedForm(ctx: RpcContext, id: string): Promise<any> {
   const userId = requireUserId(ctx);
   const form = await ctx.db.collection('forms').findOne({

@@ -32,16 +32,23 @@
             <h2 class="h5 mb-3">表单配置</h2>
             <div class="row g-3 mb-4">
               <div class="col-md-6">
+                <label class="form-label">表单类型</label>
+                <select v-model="form.type" class="form-select">
+                  <option value="form">普通表单</option>
+                  <option value="vote">投票表单</option>
+                </select>
+              </div>
+              <div class="col-md-6">
                 <label class="form-label">表单名称</label>
                 <input v-model.trim="form.name" class="form-control" placeholder="如 contact_form" />
               </div>
-              <div class="col-md-6">
-                <label class="form-label">表单标题</label>
+              <div class="col-12">
+                <label class="form-label">标题</label>
                 <input v-model.trim="form.title" class="form-control" placeholder="显示给用户看的标题" />
               </div>
               <div class="col-12">
                 <label class="form-label">描述</label>
-                <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="表单说明"></textarea>
+                <textarea v-model.trim="form.description" class="form-control" rows="3" placeholder="表单说明，支持 Markdown 格式"></textarea>
               </div>
               <div class="col-12">
                 <label class="form-label">附加脚本</label>
@@ -152,6 +159,13 @@ form.onChange('country', (f) => {
                       <label class="form-label">最大值</label>
                       <input v-model.number="field.maximum" class="form-control" type="number" />
                     </div>
+                    <div v-if="form.type === 'vote' && isCountableField(field)" class="col-md-6">
+                      <label class="form-label">投票计数</label>
+                      <select v-model="field.countable" class="form-select">
+                        <option :value="false">不参与统计</option>
+                        <option :value="true">参与统计</option>
+                      </select>
+                    </div>
                   </div>
                   <div v-if="fieldErrors[`field_${index}`]" class="alert alert-danger mt-3 mb-0 py-2">
                     {{ fieldErrors[`field_${index}`] }}
@@ -183,9 +197,10 @@ import { VueDatePicker } from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 
 const fieldTypes = [
-  { type: 'text', label: '单行文本', icon: 'bi-input-cursor-text' },
+  { type: 'name', label: '姓名', icon: 'bi-person' },
   { type: 'email', label: '邮箱', icon: 'bi-envelope' },
   { type: 'phone', label: '手机号', icon: 'bi-phone' },
+  { type: 'text', label: '单行文本', icon: 'bi-input-cursor-text' },
   { type: 'textarea', label: '多行文本', icon: 'bi-textarea-t' },
   { type: 'select', label: '下拉选择', icon: 'bi-menu-button-wide' },
   { type: 'check', label: '多选', icon: 'bi-check2-square' },
@@ -211,6 +226,7 @@ const dragIndex = ref(null)
 const fields = ref([])
 const form = reactive({
   name: '',
+  type: 'form',
   title: '',
   description: '',
   script: '',
@@ -238,6 +254,7 @@ function addField(inputType) {
     description: '',
     placeholder: '',
     required: false,
+    countable: ['select', 'check', 'radio', 'switch'].includes(inputType) ? true : undefined,
     optionText: usesOptions({ inputType }) ? 'option1=选项1\noption2=选项2' : '',
     minimum: inputType === 'range' ? 0 : undefined,
     maximum: inputType === 'range' ? 100 : undefined
@@ -255,9 +272,10 @@ function nextName(inputType) {
 
 function defaultTitle(inputType, name) {
   const titles = {
-    text: '单行文本',
+    name: '姓名',
     email: '邮箱',
     phone: '手机号',
+    text: '单行文本',
     textarea: '多行文本',
     select: '下拉选择',
     check: '多选',
@@ -279,8 +297,12 @@ function usesOptions(field) {
   return ['select', 'check', 'radio'].includes(field.inputType)
 }
 
+function isCountableField(field) {
+  return ['select', 'check', 'radio', 'switch'].includes(field.inputType)
+}
+
 function supportsPlaceholder(field) {
-  return ['text', 'email', 'phone', 'textarea'].includes(field.inputType)
+  return ['name', 'email', 'phone', 'text', 'textarea'].includes(field.inputType)
 }
 
 function isDisplayField(field) {
@@ -333,8 +355,11 @@ function fieldToSchema(field) {
   if (field.description) schema.description = field.description
   if (supportsPlaceholder(field) && field.placeholder) schema.placeholder = field.placeholder
   if (!isDisplayField(field) && field.required) schema.required = true
+  if (field.countable) schema.countable = true
 
-  if (field.inputType === 'email') {
+  if (field.inputType === 'name') {
+    schema.type = 'string'
+  } else if (field.inputType === 'email') {
     schema.type = 'string'
     schema.format = 'email'
   } else if (field.inputType === 'phone') {
@@ -428,6 +453,7 @@ async function save() {
   try {
     const payload = {
       name: form.name,
+      type: form.type,
       title: form.title,
       description: form.description,
       fields: buildSchema().fields,
@@ -511,6 +537,7 @@ function loadFieldsFromSchema(formDef = {}) {
     description: field.description || '',
     placeholder: supportsPlaceholder({ inputType: field.inputType || inferInputType(field) }) ? field.placeholder || '' : '',
     required: field.required === true,
+    countable: field.countable === true,
     optionText: optionsToText(field),
     minimum: field.minimum,
     maximum: field.maximum
@@ -542,6 +569,7 @@ async function loadForm() {
   try {
     const data = await agentApi.getForm(route.params.id)
     form.name = data.name || ''
+    form.type = data.type || 'form'
     form.title = data.title || ''
     form.description = data.description || ''
     form.script = data.script || ''
@@ -560,3 +588,4 @@ async function loadForm() {
 
 onMounted(loadForm)
 </script>
+

@@ -2,7 +2,7 @@ import { registerAdminMethod } from '../registry.js';
 import { randomBytes } from 'node:crypto';
 import { ObjectId } from 'mongodb';
 import { getDb } from '../../../../../utils/db.js';
-import { apiKeyCreateSchema, apiKeyDeleteSchema } from '../../../../../schemas/apiKey.js';
+import { apiKeyCreateSchema, apiKeyDeleteSchema } from '../../../../../schemas/userApiKey.js';
 
 function generateSk(): string {
   return randomBytes(16).toString('hex');
