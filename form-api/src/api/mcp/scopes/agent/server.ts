@@ -153,7 +153,7 @@ export function createAgentMcpServer(db: Db, auth: McpAuthContext): McpServer {
 
       const formId = result.insertedId.toString();
       return {
-        content: [{ type: 'text', text: JSON.stringify({ id: formId, url: getFormUrl(formId) }) }]
+        content: [{ type: 'text', text: JSON.stringify({ success: true, id: formId, url: getFormUrl(formId) }) }]
       };
     }
   );
