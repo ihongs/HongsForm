@@ -132,9 +132,13 @@ form.onChange('country', (f) => {
                       <label class="form-label">表单标签</label>
                       <input v-model.trim="field.label" class="form-control" placeholder="默认同字段标题，显示在表单内" />
                     </div>
-                    <div v-if="field.inputType !== 'legend'" class="col-12">
+                    <div v-if="field.inputType === 'figure'" class="col-12">
                       <label class="form-label">字段说明</label>
-                      <textarea v-model.trim="field.description" class="form-control" rows="2" :placeholder="field.inputType === 'figure' ? '支持 Markdown，显示为一段说明内容' : '显示在字段下方的帮助信息'"></textarea>
+                      <textarea v-model.trim="field.description" class="form-control" rows="4" placeholder="支持 Markdown，显示为一段说明内容"></textarea>
+                    </div>
+                    <div v-if="field.inputType !== 'legend' && field.inputType !== 'figure'" class="col-md-6">
+                      <label class="form-label">字段说明</label>
+                      <input v-model.trim="field.description" type="text" class="form-control" placeholder="显示在字段下方的帮助信息">
                     </div>
                     <div v-if="supportsPlaceholder(field)" class="col-md-6">
                       <label class="form-label">占位提示</label>
