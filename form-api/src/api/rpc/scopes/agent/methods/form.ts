@@ -199,8 +199,8 @@ registerAgentMethod('form.recount', async (params, ctx) => {
   // 更新表单的 counts
   await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(id), userId: ctx.userId, deletedAt: null },
-    { $set: { counts, countedAt: new Date(), updatedAt: new Date() } }
+    { $set: { counts, dataCount: records.length, countedAt: new Date(), updatedAt: new Date() } }
   );
 
-  return { success: true, counts, totalRecords: records.length };
+  return { success: true, counts, dataCount: records.length };
 });
