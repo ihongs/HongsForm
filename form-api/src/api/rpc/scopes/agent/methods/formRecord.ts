@@ -162,7 +162,7 @@ registerAgentMethod('formRecord.confirmSign', async (params, ctx) => {
   const now = new Date();
   const result = await ctx.db.collection('formRecords').updateOne(
     { _id: new ObjectId(id), formId: new ObjectId(formId), deletedAt: null },
-    { $set: { status: 2, updatedAt: now } }
+    { $set: { status: 2, signedAt: now } }
   );
 
   if (result.matchedCount === 0) {

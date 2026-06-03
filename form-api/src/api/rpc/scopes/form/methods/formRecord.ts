@@ -294,7 +294,7 @@ registerFormMethod('formRecord.signByPhone', async (params, ctx) => {
   if (isFirstSign) {
     await ctx.db.collection('formRecords').updateOne(
       { _id: record._id },
-      { $set: { status: 2, updatedAt: new Date() } }
+      { $set: { status: 2, signedAt: new Date() } }
     );
   }
 
@@ -352,7 +352,7 @@ registerFormMethod('formRecord.signByEmail', async (params, ctx) => {
   if (isFirstSign) {
     await ctx.db.collection('formRecords').updateOne(
       { _id: record._id },
-      { $set: { status: 2, updatedAt: new Date() } }
+      { $set: { status: 2, signedAt: new Date() } }
     );
   }
 
