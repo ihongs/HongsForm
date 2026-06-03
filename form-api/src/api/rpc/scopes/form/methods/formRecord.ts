@@ -118,7 +118,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     // 检查该手机号是否已提交过
     const existingPhone = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
-      data: { phone },
+      'data.phone': phone,
       deletedAt: null
     });
     if (existingPhone) throw { message: '该手机号已填写过此表单', errors: {phone: '该手机号已填写过此表单'} };
@@ -142,7 +142,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     // 检查该邮箱是否已提交过
     const existingEmail = await ctx.db.collection('formRecords').findOne({
       formId: new ObjectId(formId),
-      data: { email },
+      'data.email': email,
       deletedAt: null
     });
     if (existingEmail) throw { message: '该邮箱已填写过此表单', errors: {email: '该邮箱已填写过此表单'} };
@@ -166,6 +166,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     deletedAt: null
   });
 
+  // 提交数量递增
   await ctx.db.collection('forms').updateOne(
     { _id: new ObjectId(formId) },
     { $inc: { dataCount: 1 } }
@@ -195,7 +196,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
     checksum = md5(now.toISOString() + recordId);
   }
 
-  return{ id: result.insertedId.toString(), counts, checksum };
+  return { id: result.insertedId.toString(), counts, checksum };
 });
 
 registerFormMethod('formRecord.checksum', async (params, ctx) => {
@@ -234,9 +235,12 @@ registerFormMethod('formRecord.checksum', async (params, ctx) => {
     success: true,
     record: {
       _id: record._id.toString(),
-      data: record.data,
       status: record.status,
-      createdAt: record.createdAt
+      data: { 
+        name: record.data.name,
+        phone: record.data.phone,
+        email: record.data.email
+      }
     },
     form: {
       _id: form._id.toString(),
