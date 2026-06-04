@@ -134,6 +134,7 @@ async function loadRecord() {
     record.value = result.record;
     form.value = result.form;
     isAgentMode.value = result.isAgentMode;
+    document.title = `签到 ${result.form.title || result.form.name}`;
   } catch (err) {
     error.value = err.message || '加载失败';
   } finally {

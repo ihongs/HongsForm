@@ -131,6 +131,7 @@ async function loadForm() {
   try {
     const data = await formApi.getSchema(route.params.id)
     form.value = data
+    document.title = data.title || data.name || 'Hongs Form'
     
     // 检查时间限制
     const now = Date.now()
