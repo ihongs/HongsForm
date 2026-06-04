@@ -82,11 +82,13 @@
               </div>
             </div>
 
+            <p v-if="record.status === 2">签到时间：{{ record.signedAt ? new Date(record.signedAt).toLocaleString() : '-' }}</p>
+
           </div>
           <div class="card-footer text-center text-secondary text-sm">
             <span v-if="isAgentMode && record.status === 2">贵客到，请进</span>
             <span v-if="isAgentMode && record.status !== 2">贵客到，请点"到"签到</span>
-            <span v-if="!isAgentMode && record.status === 2">签到时间：{{ record.signedAt ? new Date(record.signedAt).toLocaleString() : '-' }}</span>
+            <span v-if="!isAgentMode && record.status === 2">请收藏或截图此页面，签到时出示此二维码</span>
             <span v-if="!isAgentMode && record.status !== 2">请收藏或截图此页面，签到时出示此二维码</span>
           </div>
         </div>
