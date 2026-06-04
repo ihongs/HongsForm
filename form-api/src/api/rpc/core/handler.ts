@@ -56,20 +56,25 @@ async function getAuthContext(req: IncomingMessage): Promise<Pick<RpcContext, 'u
     };
   }
 
-  const userAuth = await getDb().collection('userAuth').findOne({
-    sk,
-    deletedAt: null,
-    $or: [
-      { expiresAt: null },
-      { expiresAt: { $gt: new Date() } }
-    ]
-  });
-  if (!userAuth) return null;
+  // Bearer sk-xxxx
+  if (sk.startsWith('sk-')) {
+    const userAuth = await getDb().collection('userApiKeys').findOne({
+      sk: sk.slice(3),
+      deletedAt: null,
+      $or: [
+        { expiresAt: null },
+        { expiresAt: { $gt: new Date() } }
+      ]
+    });
+    if (userAuth) {
+      return {
+        userId: userAuth.userId,
+        roles: userAuth.roles || []
+      };
+    }
+  }
 
-  return {
-    userId: userAuth.userId,
-    roles: userAuth.roles || []
-  };
+  return null;
 }
 
 export function createRpcHandler(registry: RpcMethodRegistry, options: RpcHandlerOptions = {}) {

@@ -76,8 +76,8 @@ Authorization: Bearer <credential>
 
 `Bearer` 是 HTTP 传递方式，`<credential>` 当前支持两类：
 
-1. Web 登录 token：由 `login` 返回，服务端通过签名和过期时间校验，不存放在 `userAuth`。
-2. `userAuth.sk`：存放在 `userAuth` 集合中，供 AI skill、后续外部终端等调用。
+1. Web 登录 token：由 `login` 返回，服务端通过签名和过期时间校验，不存放在 `userApiKeys`。
+2. `userApiKeys.sk`：存放在 `userApiKeys` 集合中，供 AI skill、后续外部终端等调用。
 
 agent endpoint 允许角色为 `agent` 的登录用户访问；admin endpoint 要求角色为 `admin`。
 

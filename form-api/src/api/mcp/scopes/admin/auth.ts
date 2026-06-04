@@ -10,11 +10,11 @@ export interface McpAdminAuthContext {
 
 export async function verifyAdminSkAuth(req: IncomingMessage): Promise<McpAdminAuthContext> {
   const authorization = req.headers.authorization;
-  if (!authorization?.startsWith('Bearer ')) {
+  if (!authorization?.startsWith('Bearer sk-')) {
     return { userId: null, roles: null, authenticated: false };
   }
 
-  const sk = authorization.slice(7);
+  const sk = authorization.slice(10);
 
   const userAuth = await getDb().collection('userApiKeys').findOne({
     sk,

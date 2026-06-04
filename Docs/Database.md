@@ -107,13 +107,15 @@ db.user.createIndex({ deletedAt: 1 });
 
 ```javascript
 // 用户 ID + 类型索引（查询用户凭证）
-db.userAuth.createIndex({ userId: 1, type: 1 });
+db.userApiKeys.createIndex({ userId: 1, type: 1 });
+
+db.userApiKeys.createIndex({ sk: 1 });
 
 // 删除时间索引 (软删除)
-db.userAuth.createIndex({ deletedAt: 1 });
+db.userApiKeys.createIndex({ deletedAt: 1 });
 
 // 创建时间索引（排序用）
-db.userAuth.createIndex({ createdAt: -1 });
+db.userApiKeys.createIndex({ createdAt: -1 });
 ```
 
 ### 示例数据
