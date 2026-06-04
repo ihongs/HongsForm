@@ -241,7 +241,6 @@ registerFormMethod('formRecord.checksum', async (params, ctx) => {
 
   // 通过 agentToken 获取用户 ID
   const currentUserId = getUserIdByAgentToken(agentToken) || ctx.userId
-  console.log('[formRecord.checksum] agentToken:', agentToken, 'currentUserId:', currentUserId?.toString(), 'form.userId:', form.userId?.toString())
   const isAgent = !!(currentUserId && form.userId && form.userId.toString() === currentUserId.toString());
 
   return {
@@ -266,6 +265,48 @@ registerFormMethod('formRecord.checksum', async (params, ctx) => {
       }
     },
     isAgentMode: isAgent
+  };
+});
+
+// 确认签到（通过 agentToken 验证权限）
+registerFormMethod('formRecord.checkin', async (params, ctx) => {
+  const { id, formId, agentToken } = params as any;
+  if (!id) throw new Error('id is required');
+  if (!formId) throw new Error('formId is required');
+  if (!agentToken) throw new Error('agentToken is required');
+
+  // 通过 agentToken 获取用户 ID
+  const currentUserId = getUserIdByAgentToken(agentToken)
+  if (!currentUserId) {
+    return { success: false, code: 'UNAUTHORIZED', message: '无效的 agent token' }
+  }
+
+  // 确保是自己的表单
+  const form = await ctx.db.collection('forms').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null
+  })
+  if (!form) {
+    return { success: false, message: '表单不存在' }
+  }
+  if (form.userId.toString() !== currentUserId.toString()) {
+    return { success: false, code: 'UNAUTHORIZED', message: '无权操作此表单' }
+  }
+
+  const now = new Date();
+  const result = await ctx.db.collection('formRecords').updateOne(
+    { _id: new ObjectId(id), formId: new ObjectId(formId), deletedAt: null },
+    { $set: { status: 2, signedAt: now } }
+  );
+
+  if (result.matchedCount === 0) {
+    return { success: false, message: '记录不存在' };
+  }
+
+  return {
+    success: true,
+    id,
+    signedAt: now
   };
 });
 
@@ -382,47 +423,5 @@ registerFormMethod('formRecord.signByEmail', async (params, ctx) => {
     id: recordId,
     isFirstSign,
     checksum
-  };
-});
-
-// 确认签到（通过 agentToken 验证权限）
-registerFormMethod('formRecord.checkin', async (params, ctx) => {
-  const { id, formId, agentToken } = params as any;
-  if (!id) throw new Error('id is required');
-  if (!formId) throw new Error('formId is required');
-  if (!agentToken) throw new Error('agentToken is required');
-
-  // 通过 agentToken 获取用户 ID
-  const currentUserId = getUserIdByAgentToken(agentToken)
-  if (!currentUserId) {
-    return { success: false, code: 'UNAUTHORIZED', message: '无效的 agent token' }
-  }
-
-  // 确保是自己的表单
-  const form = await ctx.db.collection('forms').findOne({
-    _id: new ObjectId(formId),
-    deletedAt: null
-  })
-  if (!form) {
-    return { success: false, message: '表单不存在' }
-  }
-  if (form.userId.toString() !== currentUserId.toString()) {
-    return { success: false, code: 'UNAUTHORIZED', message: '无权操作此表单' }
-  }
-
-  const now = new Date();
-  const result = await ctx.db.collection('formRecords').updateOne(
-    { _id: new ObjectId(id), formId: new ObjectId(formId), deletedAt: null },
-    { $set: { status: 2, signedAt: now } }
-  );
-
-  if (result.matchedCount === 0) {
-    return { success: false, message: '记录不存在' };
-  }
-
-  return {
-    success: true,
-    id,
-    signedAt: now
   };
 });
