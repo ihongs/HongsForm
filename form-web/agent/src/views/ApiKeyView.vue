@@ -16,7 +16,7 @@
     <div v-if="newKey" class="alert alert-success alert-dismissible fade show" role="alert">
       <strong>新 Key 已创建，请立即复制保存！</strong>关闭后将不再显示完整密钥。
       <div class="input-group mt-2">
-        <input type="text" class="form-control font-monospace small" :value="newKey" readonly />
+        <input type="text" class="form-control font-monospace small" :value="`sk-${newKey}`" readonly />
         <button class="btn btn-outline-success" type="button" @click="copyKey">复制</button>
       </div>
       <button type="button" class="btn-close position-absolute top-0 end-0" aria-label="关闭" @click="newKey = null"></button>
@@ -42,7 +42,7 @@
           <tbody>
             <tr v-for="key in keys" :key="key._id">
               <td>{{ key.name }}</td>
-              <td><code class="font-monospace small">{{ key.sk }}</code></td>
+              <td><code class="font-monospace small">sk-{{ key.sk }}</code></td>
               <td class="text-secondary small">{{ formatDate(key.createdAt) }}</td>
               <td class="text-end">
                 <button class="btn btn-outline-danger btn-sm" @click="deleteKey(key._id)">删除</button>
@@ -104,7 +104,7 @@ async function deleteKey(id) {
 }
 
 function copyKey() {
-  navigator.clipboard.writeText(newKey.value)
+  navigator.clipboard.writeText(`sk-${newKey.value}`)
 }
 
 function formatDate(value) {
