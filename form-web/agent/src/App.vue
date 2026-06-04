@@ -1,58 +1,59 @@
 <template>
   <div>
-    <nav v-if="showShell" class="navbar navbar-expand fixed-top bg-body border-bottom shadow-sm">
-      <div class="container-fluid px-4">
+    <nav v-if="showShell" class="navbar navbar-expand-lg fixed-top bg-body border-bottom shadow-sm">
+      <div class="container">
         <router-link class="navbar-brand fw-semibold d-flex align-items-center gap-2" to="/dashboard">
           <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
           <span>HongsForm</span>
         </router-link>
-        <div class="navbar-nav flex-row align-items-center gap-3 w-full justify-content-between">
-          <div class="d-flex flex-row align-items-center gap-3">
-            <router-link class="nav-link" to="/dashboard">首页</router-link>
-            <router-link class="nav-link" to="/forms">表单</router-link>
-          </div>
-          
-          <!-- 用户头像与下拉菜单 -->
-          <div 
-            class="dropdown"
-            :class="{ 'show': showDropdown }"
-          >
-            <button 
-              class="btn p-0 dropdown-toggle d-flex align-items-center gap-2" 
-              type="button" 
-              @click="toggleDropdown"
-              aria-expanded="showDropdown"
-              data-bs-toggle="dropdown"
-            >
-              <img 
-                :src="userAvatar" 
-                alt="用户头像"
-                class="rounded-square avatar-img"
-              />
-              <span class="user-name-truncate">{{ userName }}</span>
-            </button>
-            <Transition name="dropdown">
-              <div 
-                v-show="showDropdown" 
-                class="dropdown-menu dropdown-menu-end"
-                :class="{ 'show': showDropdown }"
-              >
-                <button class="dropdown-item" type="button" @click.stop="openThemeModal(); showDropdown = false;">
-                  <i class="bi bi-circle-half me-2"></i>主题颜色
-                </button>
-                <router-link class="dropdown-item" to="/account" @click.native="showDropdown = false">
-                  <i class="bi bi-person me-2"></i>我的账号
-                </router-link>
-                <router-link class="dropdown-item" to="/api-keys" @click.native="showDropdown = false">
-                  <i class="bi bi-key me-2"></i>API Key
-                </router-link>
-                <hr class="dropdown-divider">
-                <button class="dropdown-item text-danger" @click="logout">
-                  <i class="bi bi-box-arrow-right me-2"></i>退出登录
-                </button>
-              </div>
-            </Transition>
-          </div>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+            <li class="nav-item">
+              <router-link class="nav-link" to="/dashboard">首页</router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/forms">表单</router-link>
+            </li>
+            <li class="nav-item d-none d-lg-block">
+              <div class="vr opacity-30 mx-2" style="height: 36px; vertical-align: middle;"></div>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <img 
+                  :src="userAvatar" 
+                  alt="用户头像"
+                  class="rounded-square avatar-img"
+                />
+                <span class="user-name-truncate">{{ userName }}</span>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <button class="dropdown-item" type="button" @click="openThemeModal()">
+                    <i class="bi bi-circle-half me-2"></i>主题颜色
+                  </button>
+                </li>
+                <li>
+                  <router-link class="dropdown-item" to="/account">
+                    <i class="bi bi-person me-2"></i>我的账号
+                  </router-link>
+                </li>
+                <li>
+                  <router-link class="dropdown-item" to="/api-keys">
+                    <i class="bi bi-key me-2"></i>API Key
+                  </router-link>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <button class="dropdown-item text-danger" @click="logout">
+                    <i class="bi bi-box-arrow-right me-2"></i>退出登录
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>
@@ -121,7 +122,6 @@ const route = useRoute()
 const router = useRouter()
 const showShell = computed(() => route.path !== '/login')
 const showThemeModal = ref(false)
-const showDropdown = ref(false)
 const themeValue = localStorage.getItem(THEME_KEY) || '0'
 const themeMode = ref(themeValue.startsWith('3:') ? '3' : themeValue)
 const scheduleStart = ref(formatTimeInput(themeValue.startsWith('3:') ? themeValue.slice(2, 6) : DEFAULT_DARK_TIME.slice(0, 4)))
@@ -196,17 +196,6 @@ function closeThemeModal() {
   showThemeModal.value = false
 }
 
-function toggleDropdown() {
-  showDropdown.value = !showDropdown.value
-}
-
-function handleClickOutside(event) {
-  const dropdown = document.querySelector('.dropdown')
-  if (dropdown && !dropdown.contains(event.target)) {
-    showDropdown.value = false
-  }
-}
-
 function handleSystemThemeChange() {
   if (!['1', '2', '3'].includes(themeMode.value)) applyTheme()
 }
@@ -215,13 +204,11 @@ onMounted(() => {
   applyTheme()
   themeTimer = window.setInterval(applyTheme, 60000)
   mediaQuery.addEventListener('change', handleSystemThemeChange)
-  document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
   if (themeTimer) window.clearInterval(themeTimer)
   mediaQuery.removeEventListener('change', handleSystemThemeChange)
-  document.removeEventListener('click', handleClickOutside)
 })
 
 function logout() {
@@ -245,28 +232,27 @@ function logout() {
   border-radius: 8px;
 }
 
-.dropdown {
-  width: 160px;
-}
-
-.dropdown-menu {
-  min-width: 160px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .user-name-truncate {
-  max-width: 120px;
+  max-width: 6em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.navbar-nav .nav-link {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-nav .nav-divider .nav-link {
+  padding-top: 1.2rem;
+  padding-bottom: 1.2rem;
+}
+
+.dropdown-menu {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dropdown-enter-active,

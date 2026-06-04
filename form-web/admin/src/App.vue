@@ -23,28 +23,34 @@
           </nav>
         </div>
         <div class="topbar-right">
-          <div class="dropdown" :class="{ 'show': showDropdown }">
-            <button class="btn dropdown-toggle d-flex align-items-center gap-2" type="button" @click="toggleDropdown" aria-expanded="showDropdown">
+          <div class="dropdown">
+            <button class="btn dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <img :src="userAvatar" alt="用户头像" class="rounded-square avatar-img" />
               <span class="user-name-truncate">{{ userName }}</span>
             </button>
-            <Transition name="dropdown">
-              <div v-show="showDropdown" class="dropdown-menu dropdown-menu-end" :class="{ 'show': showDropdown }">
-                <button class="dropdown-item" type="button" @click.stop="openThemeModal(); showDropdown = false;">
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button class="dropdown-item" type="button" @click="openThemeModal()">
                   <i class="bi bi-circle-half me-2"></i>主题颜色
                 </button>
-                <router-link class="dropdown-item" to="/account" @click.native="showDropdown = false">
+              </li>
+              <li>
+                <router-link class="dropdown-item" to="/account">
                   <i class="bi bi-person me-2"></i>我的账号
                 </router-link>
-                <router-link class="dropdown-item" to="/api-keys" @click.native="showDropdown = false">
+              </li>
+              <li>
+                <router-link class="dropdown-item" to="/api-keys">
                   <i class="bi bi-key me-2"></i>API Key
                 </router-link>
-                <hr class="dropdown-divider">
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
                 <button class="dropdown-item text-danger" @click="logout">
                   <i class="bi bi-box-arrow-right me-2"></i>退出登录
                 </button>
-              </div>
-            </Transition>
+              </li>
+            </ul>
           </div>
         </div>
       </nav>
@@ -137,7 +143,6 @@ const route = useRoute()
 const router = useRouter()
 const showShell = computed(() => route.path !== '/login')
 const showThemeModal = ref(false)
-const showDropdown = ref(false)
 const sidebarCollapsed = ref(false)
 const themeValue = localStorage.getItem(THEME_KEY) || '0'
 const themeMode = ref(themeValue.startsWith('3:') ? '3' : themeValue)
@@ -237,17 +242,6 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
-function toggleDropdown() {
-  showDropdown.value = !showDropdown.value
-}
-
-function handleClickOutside(event) {
-  const dropdown = document.querySelector('.admin-topbar .dropdown')
-  if (dropdown && !dropdown.contains(event.target)) {
-    showDropdown.value = false
-  }
-}
-
 function handleSystemThemeChange() {
   if (!['1', '2', '3'].includes(themeMode.value)) applyTheme()
 }
@@ -256,13 +250,11 @@ onMounted(() => {
   applyTheme()
   themeTimer = window.setInterval(applyTheme, 60000)
   mediaQuery.addEventListener('change', handleSystemThemeChange)
-  document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
   if (themeTimer) window.clearInterval(themeTimer)
   mediaQuery.removeEventListener('change', handleSystemThemeChange)
-  document.removeEventListener('click', handleClickOutside)
 })
 
 function logout() {
@@ -432,12 +424,7 @@ function logout() {
   border-radius: 8px;
 }
 
-.admin-topbar .dropdown {
-  width: 160px;
-}
-
 .admin-topbar .dropdown-menu {
-  min-width: 160px;
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -450,20 +437,9 @@ function logout() {
 }
 
 .user-name-truncate {
-  max-width: 120px;
+  max-width: 6em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
 }
 </style>
