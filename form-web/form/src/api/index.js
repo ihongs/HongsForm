@@ -1,5 +1,11 @@
 // 访客标识
-const GUEST_TOKEN_KEY = 'hongs_form_guest_token'
+const GUEST_TOKEN_KEY = 'hongs_guest_token'
+const AGENT_TOKEN_KEY = 'hongs_agent_token'
+
+// 获取 agent token
+export function getAgentToken() {
+  return localStorage.getItem(AGENT_TOKEN_KEY)
+}
 
 // 生成随机访客标识
 function generateGuestToken() {
@@ -111,8 +117,13 @@ export const formApi = {
   },
 
   // 校验记录checksum
-  checkRecordChecksum(id, checksum) {
-    return rpc.call('formRecord.checksum', { id, checksum })
+  checkRecordChecksum(id, checksum, agentToken) {
+    return rpc.call('formRecord.checksum', { id, checksum, agentToken })
+  },
+
+  // 确认签到
+  checkin(id, formId, agentToken) {
+    return rpc.call('formRecord.checkin', { id, formId, agentToken })
   },
 
   // 手机签到

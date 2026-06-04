@@ -5,6 +5,17 @@ import { generateDataHash } from '../../../shared/formRecords.js';
 import { md5, verifyCode } from '../../../../../utils/verify.js';
 import { wrapError } from '../../../../../utils/finder.js';
 import { dataFieldsToSchema } from '../../../../../schemas/formRecord.js';
+import { verifyToken } from '../../../../../utils/auth.js';
+
+// 通过 agentToken 获取用户 ID（解析 JWT）
+function getUserIdByAgentToken(agentToken: string | null): ObjectId | null {
+  if (!agentToken) return null
+  
+  const payload = verifyToken(agentToken)
+  if (!payload || !payload.sub || !ObjectId.isValid(payload.sub)) return null
+  
+  return new ObjectId(payload.sub)
+}
 
 function buildCountUpdate(data: any, fields: any[]): any {
   const update: any = {};
@@ -200,7 +211,7 @@ registerFormMethod('formRecord.create', async (params, ctx) => {
 });
 
 registerFormMethod('formRecord.checksum', async (params, ctx) => {
-  const { id, checksum } = params as any;
+  const { id, checksum, agentToken } = params as any;
   if (!id) throw new Error('id is required');
   if (!checksum) throw new Error('checksum is required');
 
@@ -228,14 +239,17 @@ registerFormMethod('formRecord.checksum', async (params, ctx) => {
     return { success: false, code: 'INVALID_CHECKSUM', message: '校验失败' };
   }
 
-  const currentUserId = ctx.userId;
-  const isAgent = form.createdBy?.toString() === currentUserId?.toString();
+  // 通过 agentToken 获取用户 ID
+  const currentUserId = getUserIdByAgentToken(agentToken) || ctx.userId
+  console.log('[formRecord.checksum] agentToken:', agentToken, 'currentUserId:', currentUserId?.toString(), 'form.userId:', form.userId?.toString())
+  const isAgent = !!(currentUserId && form.userId && form.userId.toString() === currentUserId.toString());
 
   return {
     success: true,
     record: {
       _id: record._id.toString(),
       status: record.status,
+      signedAt: record.signedAt,
       data: { 
         name: record.data.name,
         phone: record.data.phone,
@@ -368,5 +382,47 @@ registerFormMethod('formRecord.signByEmail', async (params, ctx) => {
     id: recordId,
     isFirstSign,
     checksum
+  };
+});
+
+// 确认签到（通过 agentToken 验证权限）
+registerFormMethod('formRecord.checkin', async (params, ctx) => {
+  const { id, formId, agentToken } = params as any;
+  if (!id) throw new Error('id is required');
+  if (!formId) throw new Error('formId is required');
+  if (!agentToken) throw new Error('agentToken is required');
+
+  // 通过 agentToken 获取用户 ID
+  const currentUserId = getUserIdByAgentToken(agentToken)
+  if (!currentUserId) {
+    return { success: false, code: 'UNAUTHORIZED', message: '无效的 agent token' }
+  }
+
+  // 确保是自己的表单
+  const form = await ctx.db.collection('forms').findOne({
+    _id: new ObjectId(formId),
+    deletedAt: null
+  })
+  if (!form) {
+    return { success: false, message: '表单不存在' }
+  }
+  if (form.userId.toString() !== currentUserId.toString()) {
+    return { success: false, code: 'UNAUTHORIZED', message: '无权操作此表单' }
+  }
+
+  const now = new Date();
+  const result = await ctx.db.collection('formRecords').updateOne(
+    { _id: new ObjectId(id), formId: new ObjectId(formId), deletedAt: null },
+    { $set: { status: 2, signedAt: now } }
+  );
+
+  if (result.matchedCount === 0) {
+    return { success: false, message: '记录不存在' };
+  }
+
+  return {
+    success: true,
+    id,
+    signedAt: now
   };
 });

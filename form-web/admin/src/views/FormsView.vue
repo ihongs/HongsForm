@@ -39,8 +39,8 @@
               <h3 class="h6 text-secondary mb-2">{{ form.title || '无标题' }}</h3>
               <div class="d-flex flex-wrap gap-2 align-items-center small text-secondary">
                 <span :class="['badge', statusClass(form.status)]">{{ statusText(form.status) }}</span>
-                <span :class="['badge', form.type === 'vote' ? 'text-bg-primary' : 'text-bg-secondary']">
-                  {{ form.type === 'vote' ? '投票表单' : '普通表单' }}
+                <span :class="['badge', typeClass(form.type)]">
+                  {{ typeText(form.type) }}
                 </span>
                 <span>{{ fieldCount(form) }} 个字段</span>
                 <span>{{ form.dataCount || 0 }} 条数据</span>
@@ -133,6 +133,18 @@ function statusClass(value) {
   if (value === 1) return 'text-bg-warning'
   if (value === 0) return 'text-bg-secondary'
   return 'text-bg-light'
+}
+
+function typeText(value) {
+  if (value === 'vote') return '投票表单'
+  if (value === 'sign') return '签到表单'
+  return '普通表单'
+}
+
+function typeClass(value) {
+  if (value === 'vote') return 'text-bg-primary'
+  if (value === 'sign') return 'text-bg-success'
+  return 'text-bg-secondary'
 }
 
 async function searchForms() {

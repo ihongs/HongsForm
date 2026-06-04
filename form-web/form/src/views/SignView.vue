@@ -1,82 +1,93 @@
 <template>
   <main class="container py-5">
     <div class="mx-auto" style="max-width: 540px;">
-      <div class="card shadow-sm border-0">
-        <div class="card-body text-center p-5">
-          <div v-if="loading" class="py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">加载中...</span>
-            </div>
-            <p class="text-secondary mt-3">加载中...</p>
+      <!-- 加载状态 -->
+      <div v-if="loading" class="text-center text-secondary py-5">
+        <div class="spinner-border mb-3" role="status" aria-hidden="true"></div>
+        <div>加载中...</div>
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="alert alert-danger" role="alert">
+        <h2 class="h5 alert-heading">出错了</h2>
+        <p class="mb-0">{{ error }}</p>
+      </div>
+
+      <!-- 统一显示模式 -->
+      <div v-else>
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-primary text-white text-center">
+            <h2 class="h5 mb-0">{{ form.title || form.name }}</h2>
           </div>
-
-          <div v-else-if="error" class="py-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#ef4444" class="mb-3" viewBox="0 0 24 24" stroke-width="0" stroke="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-            </svg>
-            <h2 class="h4 mb-3 text-danger">错误</h2>
-            <p class="text-secondary">{{ error }}</p>
-          </div>
-
-          <!-- 代理模式 -->
-          <div v-else-if="isAgentMode">
-            <div v-if="record.status === 2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#10b981" class="mb-3" viewBox="0 0 24 24" stroke-width="0" stroke="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              <h2 class="h4 mb-3 text-success">已签到</h2>
+          <div class="card-body text-center">
+            <!-- 姓名 -->
+            <div class="card border-0 bg-light mb-4">
+              <div class="card-body">
+                <p class="mb-0 h4">{{ record.data.name }}</p>
+              </div>
             </div>
 
-            <div v-else>
-              <div class="mb-4 text-start">
-                <h2 class="h4 mb-2">{{ form.title || form.name }}</h2>
-                <div class="card border-0 bg-light">
-                  <div class="card-body">
-                    <p class="mb-1"><strong>姓名：</strong>{{ record.data.name }}</p>
-                    <p v-for="(value, key) in record.data" :key="key" v-if="key !== 'name'">
-                      <strong>{{ key }}：</strong>{{ value }}
-                    </p>
-                    <p class="mb-0 text-muted small">
-                      提交时间：{{ record.createdAt.toLocaleString() }}
-                    </p>
-                  </div>
+            <!-- 签到暗语 -->
+            <div v-if="form.config?.signWord" class="alert alert-info mb-4">
+              <strong>签到暗语：</strong>{{ form.config.signWord }}
+            </div>
+
+            <!-- 二维码区域 -->
+            <div class="position-relative d-inline-block mb-3" style="width: 200px; height: 200px;">
+              <!-- 正常二维码 -->
+              <QRCode :value="currentUrl" :size="200" />
+              
+              <!-- agentMode，已签到：绿色到和圈，可点 -->
+              <div 
+                v-if="isAgentMode && record.status === 2" 
+                class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                style="cursor: pointer;"
+                @click="handleCheckin"
+              >
+                <div class="bg-white bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center" style="width: 100px; height: 100px; border: 4px solid #198754;">
+                  <span class="text-success fw-bold" style="font-size: 2rem;">到</span>
                 </div>
               </div>
 
-              <button 
-                class="btn btn-success btn-lg w-100" 
-                :disabled="signing" 
-                @click="handleConfirmSign"
+              <!-- agentMode，未签到：蓝色到和圈，可点 -->
+              <div 
+                v-if="isAgentMode && record.status !== 2" 
+                class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                style="cursor: pointer;"
+                @click="handleCheckin"
               >
-                <span v-if="signing" class="spinner-border spinner-border-sm me-2" role="status"></span>
-                {{ signing ? '处理中...' : '确认签到' }}
-              </button>
+                <div class="bg-white bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center" style="width: 100px; height: 100px; border: 4px solid #0d6efd;">
+                  <span class="text-primary fw-bold" style="font-size: 2rem;">到</span>
+                </div>
+              </div>
+
+              <!-- 非 agentMode，已签到：绿色到和圈，不可点 -->
+              <div 
+                v-if="!isAgentMode && record.status === 2" 
+                class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              >
+                <div class="bg-white bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center" style="width: 100px; height: 100px; border: 4px solid #198754;">
+                  <span class="text-success fw-bold" style="font-size: 2rem;">到</span>
+                </div>
+              </div>
+
+              <!-- 加载状态 -->
+              <div 
+                v-if="signing" 
+                class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75"
+              >
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">处理中...</span>
+                </div>
+              </div>
             </div>
+
           </div>
-
-          <!-- 客户模式 -->
-          <div v-else>
-            <div v-if="record.status === 2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#10b981" class="mb-3" viewBox="0 0 24 24" stroke-width="0" stroke="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              <h2 class="h4 mb-3 text-success">签到成功</h2>
-            </div>
-
-            <div v-else>
-              <h2 class="h4 mb-3">请保存您的签到码</h2>
-              <p class="text-secondary mb-4">{{ form.title || form.name }}</p>
-              
-              <div class="mb-4">
-                <QRCode :value="currentUrl" :size="200" />
-              </div>
-
-              <div v-if="form.config?.signWord" class="alert alert-info">
-                <strong>签到暗语：</strong>{{ form.config.signWord }}
-              </div>
-
-              <p class="text-muted small">请保存或截图此页面，签到时出示此二维码</p>
-            </div>
+          <div class="card-footer text-center text-secondary text-sm">
+            <span v-if="isAgentMode && record.status === 2">贵客到，请进</span>
+            <span v-if="isAgentMode && record.status !== 2">贵客到，请点"到"签到</span>
+            <span v-if="!isAgentMode && record.status === 2">签到时间：{{ record.signedAt ? new Date(record.signedAt).toLocaleString() : '-' }}</span>
+            <span v-if="!isAgentMode && record.status !== 2">请收藏或截图此页面，签到时出示此二维码</span>
           </div>
         </div>
       </div>
@@ -87,7 +98,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { formApi } from '../api'
+import { formApi, getAgentToken } from '../api'
 import QRCode from '../components/QRCode.vue'
 
 const route = useRoute()
@@ -106,48 +117,35 @@ const currentUrl = computed(() => {
 
 async function loadRecord() {
   try {
+    const agentToken = getAgentToken()
     const result = await formApi.checkRecordChecksum(
       route.params.id,
-      route.params.checksum
-    )
+      route.params.checksum,
+      agentToken
+    );
 
     if (!result.success) {
-      error.value = result.message
-      return
+      error.value = result.message;
+      return;
     }
 
-    record.value = result.record
-    form.value = result.form
-    isAgentMode.value = result.isAgentMode
+    record.value = result.record;
+    form.value = result.form;
+    isAgentMode.value = result.isAgentMode;
   } catch (err) {
-    error.value = err.message || '加载失败'
+    error.value = err.message || '加载失败';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-async function handleConfirmSign() {
+async function handleCheckin() {
   if (signing.value) return
   signing.value = true
 
   try {
-    await fetch('/api/rpc/agent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'formRecord.confirmSign',
-        params: {
-          id: route.params.id,
-          formId: route.params.formId
-        },
-        id: Date.now()
-      }),
-      credentials: 'include'
-    })
-
+    const agentToken = getAgentToken()
+    await formApi.checkin(route.params.id, form.value._id, agentToken)
     record.value.status = 2
   } catch (err) {
     alert('签到失败：' + (err.message || '未知错误'))

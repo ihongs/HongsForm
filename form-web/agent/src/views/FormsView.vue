@@ -27,8 +27,8 @@
                   <span :class="['badge', form.status === 2 ? 'text-bg-success' : 'text-bg-warning']">
                     {{ form.status === 2 ? '已发布' : '草稿' }}
                   </span>
-                  <span :class="['badge', form.type === 'vote' ? 'text-bg-primary' : 'text-bg-secondary']">
-                    {{ form.type === 'vote' ? '投票表单' : '普通表单' }}
+                  <span :class="['badge', typeClass(form.type)]">
+                    {{ typeText(form.type) }}
                   </span>
                   <span>{{ fieldCount(form) }} 个字段</span>
                   <span>{{ form.dataCount || 0 }} 条数据</span>
@@ -109,6 +109,18 @@ function fieldCount(form) {
 
 function formatTime(value) {
   return value ? new Date(value).toLocaleString() : '-'
+}
+
+function typeText(value) {
+  if (value === 'vote') return '投票表单'
+  if (value === 'sign') return '签到表单'
+  return '普通表单'
+}
+
+function typeClass(value) {
+  if (value === 'vote') return 'text-bg-primary'
+  if (value === 'sign') return 'text-bg-success'
+  return 'text-bg-secondary'
 }
 
 async function changePageSize() {
