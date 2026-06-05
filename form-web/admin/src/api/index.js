@@ -98,6 +98,9 @@ export const adminApi = {
   getFormRecordStats(formId) {
     return rpc.call('formRecord.stats', { formId })
   },
+  recountForm(id) {
+    return rpc.call('form.recount', { id })
+  },
   // API Key 管理
   listApiKeys() {
     return rpc.call('mineApiKey.list')

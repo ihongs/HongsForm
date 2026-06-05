@@ -8,7 +8,11 @@
         </h1>
       </div>
       <div class="d-flex gap-2 align-self-start position-relative">
-        <button v-if="items.length > 0" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" type="button" @click="showFilters = !showFilters">
+        <button v-if="formType === 'vote'" class="btn btn-outline-warning d-inline-flex align-items-center gap-1" type="button" @click="handleRecount" title="校准投票结果">
+          <i class="bi bi-calendar-check" aria-hidden="true"></i>
+          <span>校准</span>
+        </button>
+        <button v-if="items.length > 0" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" type="button" @click="showFilters = !showFilters" title="筛选列表数据">
           <i class="bi bi-funnel" aria-hidden="true"></i>
           <span>筛选</span>
         </button>
@@ -83,6 +87,8 @@ const formFields = ref([])
 const tableEl = ref(null)
 const showFilters = ref(false)
 const filters = reactive({})
+const tableHeight = ref('600px')
+const formType = ref('')
 let table = null
 
 const filterFields = computed(() => [
@@ -163,6 +169,7 @@ function buildRows() {
     id: item._id,
     createdAt: formatTime(item.createdAt),
     channel: item.channel || '-',
+    spacer: '',
     ...Object.fromEntries(fieldNames.map((key) => [key, item.data?.[key]]))
   }))
 }
@@ -173,7 +180,7 @@ function buildColumns() {
     .map((field) => ({
       title: field.title || field.name,
       field: field.name,
-      minWidth: 140,
+      minWidth: 100,
       formatter: (cell) => {
         const span = document.createElement('span')
         span.textContent = formatCellValue(cell.getValue())
@@ -182,36 +189,45 @@ function buildColumns() {
     }))
 
   return [
-    { title: '提交时间', field: 'createdAt', width: 180, frozen: true, sorter: 'string' },
-    { title: '渠道', field: 'channel', width: 100 },
-    ...fieldColumns,
     {
-      title: '操作',
+      title: '',
       field: 'id',
-      width: 72,
-      minWidth: 72,
-      maxWidth: 72,
+      width: 40,
+      minWidth: 40,
+      maxWidth: 40,
       frozen: true,
       hozAlign: 'center',
       headerSort: false,
-      formatter: () => '<button class="btn btn-outline-danger btn-sm" type="button">删除</button>',
+      formatter: () => '<a href="javascript:void(0)" class="text-danger" style="font-size:1rem"><i class="bi bi-trash" aria-hidden="true"></i></a>',
       cellClick: (_event, cell) => removeById(cell.getValue())
-    }
+    },
+    { title: '提交时间', field: 'createdAt', width: 160, frozen: true, sorter: 'string' },
+    { title: '渠道', field: 'channel', width: 80 },
+    ...fieldColumns,
+    { title: '', field: 'spacer', headerSort: false }
   ]
+}
+
+function calcTableHeight() {
+  const vh = window.innerHeight
+  const reserved = 270
+  const height = Math.max(330, vh - reserved)
+  tableHeight.value = `${height}px`
 }
 
 async function renderTable() {
   await nextTick()
   if (!tableEl.value) return
   table?.destroy()
+  calcTableHeight()
   table = new Tabulator(tableEl.value, {
     data: buildRows(),
     columns: buildColumns(),
     layout: 'fitDataStretch',
-    height: '600px',
+    maxHeight: tableHeight.value,
     pagination: true,
-    paginationSize: 20,
-    paginationSizeSelector: [10, 20, 50, 100],
+    paginationSize: 100,
+    paginationSizeSelector: [20, 50, 100, 200],
     langs: {
       'zh-cn': {
         pagination: {
@@ -229,7 +245,10 @@ async function renderTable() {
     },
     locale: 'zh-cn',
     movableColumns: true,
-    placeholder: '暂无数据'
+    placeholder: '暂无数据',
+    paginationCounter: (pageSize, currentRow, currentPage, totalRows, totalPages) => {
+      return `共 ${totalRows} 条，第 ${currentPage}/${totalPages} 页`
+    }
   })
   initFilters()
 }
@@ -288,6 +307,7 @@ async function load() {
       adminApi.getFormRecordStats(route.params.id)
     ])
     formTitle.value = form.title || form.name
+    formType.value = form.type || ''
     formFields.value = form.fields || []
     items.value = dataResult.items || []
     stats.value = statsResult
@@ -305,6 +325,19 @@ async function removeById(id) {
   if (!item || !confirm('确定删除这条数据吗？')) return
   await adminApi.deleteFormRecord(item._id)
   await load()
+  if (formType.value === 'vote') {
+    alert('数据已删除，请点击「校准统计」按钮重新计算投票结果')
+  }
+}
+
+async function handleRecount() {
+  try {
+    await adminApi.recountForm(route.params.id)
+    alert('统计数据已校准完成')
+    await load()
+  } catch (err) {
+    alert('校准失败: ' + err.message)
+  }
 }
 
 onMounted(load)

@@ -59,9 +59,9 @@
         <nav class="sidebar-nav">
           <router-link class="nav-item" to="/dashboard">
             <i class="bi bi-speedometer2"></i>
-            <span>仪表盘</span>
+            <span>首页</span>
           </router-link>
-          <router-link class="nav-item" to="/forms">
+          <router-link class="nav-item" to="/forms" :class="{ active: currentRoute.startsWith('/forms') }">
             <i class="bi bi-file-earmark-text"></i>
             <span>表单管理</span>
           </router-link>
@@ -142,6 +142,7 @@ const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 const route = useRoute()
 const router = useRouter()
 const showShell = computed(() => route.path !== '/login')
+const currentRoute = computed(() => route.path)
 const showThemeModal = ref(false)
 const sidebarCollapsed = ref(false)
 const themeValue = localStorage.getItem(THEME_KEY) || '0'
@@ -371,7 +372,8 @@ function logout() {
   background-color: var(--bs-tertiary-bg);
 }
 
-.sidebar-nav .nav-item.router-link-active {
+.sidebar-nav .nav-item.router-link-active,
+.sidebar-nav .nav-item.active {
   background-color: var(--bs-primary);
   color: #fff;
 }
@@ -395,15 +397,13 @@ function logout() {
 }
 
 .content-inner {
-  padding: 1.5rem;
+  padding: 0 1.5rem;
   min-height: calc(100vh - 56px);
 }
 
 .admin-footer {
   padding: 1.5rem 0;
   text-align: center;
-  border-top: 1px solid var(--bs-border-color);
-  margin-top: 2rem;
 }
 
 .login-shell {

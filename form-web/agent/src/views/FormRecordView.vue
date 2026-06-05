@@ -1,5 +1,5 @@
 <template>
-  <main class="container-fluid py-4">
+  <main class="container py-4 small">
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
       <div>
         <h1 class="h3 mb-0">
@@ -8,18 +8,13 @@
         </h1>
       </div>
       <div class="d-flex gap-2 align-self-start position-relative">
-        <button v-if="items.length > 0" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" type="button" @click="showFilters = !showFilters">
+        <button v-if="formType === 'vote'" class="btn btn-outline-warning d-inline-flex align-items-center gap-1" type="button" @click="handleRecount" title="校准投票结果">
+          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+          <span>校准</span>
+        </button>
+        <button v-if="items.length > 0" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" type="button" @click="showFilters = !showFilters" title="筛选列表数据">
           <i class="bi bi-funnel" aria-hidden="true"></i>
           <span>筛选</span>
-        </button>
-        <button 
-          v-if="formType === 'vote'" 
-          class="btn btn-warning d-inline-flex align-items-center gap-1" 
-          type="button" 
-          @click="handleRecount"
-        >
-          <i class="bi bi-bar-chart" aria-hidden="true"></i>
-          <span>校准统计</span>
         </button>
         <router-link class="btn btn-outline-secondary" to="/forms">返回列表</router-link>
         <div v-if="showFilters" class="filter-popover card shadow-sm">
@@ -93,6 +88,7 @@ const formType = ref('')
 const tableEl = ref(null)
 const showFilters = ref(false)
 const filters = reactive({})
+const tableHeight = ref('60vh')
 let table = null
 
 const filterFields = computed(() => [
@@ -173,6 +169,7 @@ function buildRows() {
     id: item._id,
     createdAt: formatTime(item.createdAt),
     channel: item.channel || '-',
+    spacer: '',
     ...Object.fromEntries(fieldNames.map((key) => [key, item.data?.[key]]))
   }))
 }
@@ -183,7 +180,7 @@ function buildColumns() {
     .map((field) => ({
       title: field.title || field.name,
       field: field.name,
-      minWidth: 140,
+      minWidth: 100,
       formatter: (cell) => {
         const span = document.createElement('span')
         span.textContent = formatCellValue(cell.getValue())
@@ -192,36 +189,45 @@ function buildColumns() {
     }))
 
   return [
-    { title: '提交时间', field: 'createdAt', width: 180, frozen: true, sorter: 'string' },
-    { title: '渠道', field: 'channel', width: 100 },
-    ...fieldColumns,
     {
-      title: '操作',
+      title: '',
       field: 'id',
-      width: 72,
-      minWidth: 72,
-      maxWidth: 72,
+      width: 40,
+      minWidth: 40,
+      maxWidth: 40,
       frozen: true,
       hozAlign: 'center',
       headerSort: false,
-      formatter: () => '<button class="btn btn-outline-danger btn-sm" type="button">删除</button>',
+      formatter: () => '<a href="javascript:void(0)" class="text-danger" style="font-size:1rem"><i class="bi bi-trash" aria-hidden="true"></i></a>',
       cellClick: (_event, cell) => removeById(cell.getValue())
-    }
+    },
+    { title: '提交时间', field: 'createdAt', width: 160, frozen: true, sorter: 'string' },
+    { title: '渠道', field: 'channel', width: 100 },
+    ...fieldColumns,
+    { title: '', field: 'spacer', headerSort: false }
   ]
+}
+
+function calcTableHeight() {
+  const vh = window.innerHeight
+  const reserved = 270
+  const height = Math.max(330, vh - reserved)
+  tableHeight.value = `${height}px`
 }
 
 async function renderTable() {
   await nextTick()
   if (!tableEl.value) return
   table?.destroy()
+  calcTableHeight()
   table = new Tabulator(tableEl.value, {
     data: buildRows(),
     columns: buildColumns(),
     layout: 'fitDataStretch',
-    height: '600px',
+    maxHeight: tableHeight.value,
     pagination: true,
-    paginationSize: 20,
-    paginationSizeSelector: [10, 20, 50, 100],
+    paginationSize: 100,
+    paginationSizeSelector: [20, 50, 100, 200],
     langs: {
       'zh-cn': {
         pagination: {
@@ -239,7 +245,10 @@ async function renderTable() {
     },
     locale: 'zh-cn',
     movableColumns: true,
-    placeholder: '暂无数据'
+    placeholder: '暂无数据',
+    paginationCounter: (pageSize, currentRow, currentPage, totalRows, totalPages) => {
+      return `共 ${totalRows} 条，第 ${currentPage}/${totalPages} 页`
+    }
   })
   initFilters()
 }

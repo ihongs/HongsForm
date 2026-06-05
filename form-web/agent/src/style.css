@@ -7,7 +7,6 @@ body {
   padding-top: 57px;
 }
 
-
 @media (min-width: 992px) {
   .designer-sidebar {
     position: sticky;
@@ -20,10 +19,7 @@ pre {
   word-break: break-word;
 }
 
-.submission-table {
-  overflow-x: auto;
-}
-
+/* Filter Styles */
 .filter-popover {
   position: absolute;
   top: calc(100% - 0.25rem);
@@ -37,33 +33,62 @@ pre {
   overflow: auto;
 }
 
-[data-bs-theme="dark"] .tabulator .tabulator-footer {
+/* Tabulator Table Styles */
+.tabulator {
+  width: 100% !important;
+}
+
+.tabulator-table {
+  font-size: 0.8125rem !important;
+}
+
+.tabulator-header {
+  border-top: none !important;
+}
+
+.tabulator-footer {
+  background: transparent !important;
+  padding: 0.5rem 0 !important;
+}
+
+.tabulator-paginator button ,
+.tabulator-paginator select {
+  padding: 4px 8px !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.3125rem !important;
+  border-radius: 0.25rem !important;
+}
+
+/* Dark Mode Styles */
+[data-bs-theme="dark"] .tabulator .tabulator-footer,
+[data-bs-theme="dark"] .tabulator.table-dark .tabulator-footer {
+  background-color: var(--bs-dark-bg-subtle);
+  border-color: var(--bs-border-color);
+  color: var(--bs-body-color) !important;
+}
+
+[data-bs-theme="dark"] .tabulator .tabulator-footer .tabulator-page {
   background-color: var(--bs-dark-bg-subtle);
   border-color: var(--bs-border-color);
   color: var(--bs-body-color);
 }
 
-[data-bs-theme="dark"] .tabulator .tabulator-footer .tabulator-page {
-  color: #6ea8fe;
-  background-color: var(--bs-dark-bg-subtle);
-  border-color: var(--bs-border-color);
-}
-
 [data-bs-theme="dark"] .tabulator .tabulator-footer .tabulator-page:hover:not(.disabled) {
-  color: #9ec5fe;
   background-color: var(--bs-secondary-bg);
+  border-color: #0d6efd;
+  color: #9ec5fe;
 }
 
 [data-bs-theme="dark"] .tabulator .tabulator-footer .tabulator-page.active {
-  color: #fff;
   background-color: #0d6efd;
   border-color: #0d6efd;
+  color: #fff;
 }
 
 [data-bs-theme="dark"] .tabulator .tabulator-footer .tabulator-page.disabled {
-  color: var(--bs-secondary-color);
   background-color: var(--bs-dark-bg-subtle);
   border-color: var(--bs-border-color);
+  color: var(--bs-secondary-color);
   opacity: 0.65;
 }
 
